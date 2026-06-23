@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { Analytics } from "@vercel/analytics/react";
 import Layout from "./components/Layout.jsx";
 import { Button, EmptyState } from "./components/UI.jsx";
 import {
@@ -393,6 +394,7 @@ function NotFound({ navigate }) {
     <div className="center-panel">
       <EmptyState title="화면을 찾을 수 없습니다" description="요청한 경로를 다시 확인해주세요." />
       <Button onClick={navigate}>기본 화면으로 이동</Button>
+      <Analytics />
     </div>
   );
 }
