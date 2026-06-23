@@ -4342,3 +4342,81 @@ button.upload-box {
 .checker-assignment-actions {
   margin-top: 12px;
 }
+
+/* ===== Checker target card mobile alignment fix ===== */
+@media (max-width: 640px) {
+  .app-shell-checker .target-card {
+    display: block;
+    text-align: left;
+    padding: 18px 22px;
+  }
+
+  .app-shell-checker .target-card > * {
+    text-align: left;
+  }
+
+  .app-shell-checker .target-card .target-card-person {
+    display: grid;
+    grid-template-columns: 64px 1fr auto;
+    align-items: start;
+    gap: 14px;
+    width: 100%;
+  }
+
+  .app-shell-checker .target-card .target-card-person-copy {
+    min-width: 0;
+  }
+
+  .app-shell-checker .target-card .target-card-person-copy strong {
+    display: block;
+    font-size: 18px;
+    line-height: 1.35;
+    text-align: left;
+  }
+
+  .app-shell-checker .target-card .target-card-person-copy p {
+    margin-top: 4px;
+    font-size: 14px;
+    line-height: 1.45;
+    text-align: left;
+  }
+
+  .app-shell-checker .target-card .status-badge,
+  .app-shell-checker .target-card .badge {
+    white-space: nowrap;
+  }
+
+  .app-shell-checker .target-card .target-card-badges,
+  .app-shell-checker .target-card .compact-badges,
+  .app-shell-checker .target-card .badge-row {
+    display: flex;
+    justify-content: flex-start;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 14px;
+  }
+
+  .app-shell-checker .target-card .target-card-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    margin-top: 16px;
+    font-size: 13px;
+    color: var(--body);
+  }
+
+  .app-shell-checker .target-card .target-card-meta > *:last-child {
+    margin-left: auto;
+    text-align: right;
+  }
+
+  .app-shell-checker .target-card .btn,
+  .app-shell-checker .target-card button {
+    width: 100%;
+    min-height: 52px;
+    margin-top: 18px;
+  }
+}
