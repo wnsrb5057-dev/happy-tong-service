@@ -4758,3 +4758,77 @@ button.upload-box {
     white-space: nowrap;
   }
 }
+
+/* ===== Checker history card mobile layout final override ===== */
+@media (max-width: 640px) {
+  .app-shell-checker .history-record-card {
+    position: relative;
+    display: grid !important;
+    grid-template-columns: 1fr;
+    gap: 14px;
+    padding: 18px 22px;
+    text-align: left !important;
+  }
+
+  .app-shell-checker .history-record-top {
+    display: grid !important;
+    grid-template-columns: 1fr auto;
+    align-items: start;
+    gap: 12px;
+    width: 100%;
+  }
+
+  .app-shell-checker .history-record-top > strong {
+    justify-self: start;
+    text-align: left !important;
+  }
+
+  .app-shell-checker .history-record-top > .badge,
+  .app-shell-checker .history-record-top > .status-badge,
+  .app-shell-checker .history-record-top > span:last-child {
+    justify-self: end;
+    align-self: start;
+    margin: 0 !important;
+    white-space: nowrap;
+  }
+
+  .app-shell-checker .history-record-subtitle,
+  .app-shell-checker .history-record-memo {
+    text-align: left !important;
+    justify-self: stretch;
+    width: 100%;
+  }
+
+  .app-shell-checker .history-record-footer {
+    display: grid !important;
+    grid-template-columns: auto auto;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    width: 100%;
+    margin-top: 2px;
+    text-align: left !important;
+  }
+
+  .app-shell-checker .history-record-footer > .badge,
+  .app-shell-checker .history-record-footer > span:first-child {
+    justify-self: start !important;
+    margin: 0 !important;
+    white-space: nowrap;
+  }
+
+  .app-shell-checker .history-record-footer > .history-detail-button,
+  .app-shell-checker .history-record-footer > button {
+    justify-self: end !important;
+    width: auto !important;
+    min-width: 96px;
+    min-height: 44px;
+    margin: 0 !important;
+    padding: 0 16px;
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    text-align: center !important;
+    white-space: nowrap;
+  }
+}
