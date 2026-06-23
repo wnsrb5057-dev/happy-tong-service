@@ -4343,80 +4343,174 @@ button.upload-box {
   margin-top: 12px;
 }
 
-/* ===== Checker target card mobile alignment fix ===== */
+/* ===== Checker mobile card alignment fix ===== */
 @media (max-width: 640px) {
+  /* 대상자 카드 공통 */
   .app-shell-checker .target-card {
-    display: block;
-    text-align: left;
-    padding: 18px 22px;
-  }
-
-  .app-shell-checker .target-card > * {
-    text-align: left;
-  }
-
-  .app-shell-checker .target-card .target-card-person {
     display: grid;
-    grid-template-columns: 64px 1fr auto;
-    align-items: start;
     gap: 14px;
+    padding: 18px 22px;
+    text-align: left;
+  }
+
+  .app-shell-checker .target-card-head {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: start;
+    gap: 12px;
     width: 100%;
   }
 
-  .app-shell-checker .target-card .target-card-person-copy {
+  .app-shell-checker .target-card-person {
+    display: grid;
+    grid-template-columns: 56px 1fr;
+    align-items: start;
+    gap: 12px;
     min-width: 0;
   }
 
-  .app-shell-checker .target-card .target-card-person-copy strong {
+  .app-shell-checker .target-card-person-copy {
+    min-width: 0;
+  }
+
+  .app-shell-checker .target-card-person-copy strong {
     display: block;
     font-size: 18px;
     line-height: 1.35;
     text-align: left;
   }
 
-  .app-shell-checker .target-card .target-card-person-copy p {
+  .app-shell-checker .target-card-person-copy p,
+  .app-shell-checker .target-address-clamp {
     margin-top: 4px;
     font-size: 14px;
     line-height: 1.45;
     text-align: left;
+    color: var(--body);
   }
 
-  .app-shell-checker .target-card .status-badge,
-  .app-shell-checker .target-card .badge {
+  /* 위험/주의 배지 오른쪽 상단 고정 */
+  .app-shell-checker .target-card-head > .badge,
+  .app-shell-checker .target-card-head > .status-badge,
+  .app-shell-checker .target-card-head > span:last-child {
+    justify-self: end;
+    align-self: start;
     white-space: nowrap;
   }
 
-  .app-shell-checker .target-card .target-card-badges,
-  .app-shell-checker .target-card .compact-badges,
-  .app-shell-checker .target-card .badge-row {
+  /* 외부확인 / 오늘 확인 예정 */
+  .app-shell-checker .target-card-badges {
     display: flex;
     justify-content: flex-start;
     align-items: center;
     flex-wrap: wrap;
     gap: 8px;
-    margin-top: 14px;
+    padding-left: 68px;
+    margin-top: 2px;
   }
 
-  .app-shell-checker .target-card .target-card-meta {
-    display: flex;
-    justify-content: space-between;
+  /* 최근 확인 / 요일 */
+  .app-shell-checker .target-card-meta {
+    display: grid;
+    grid-template-columns: 1fr auto;
     align-items: center;
     gap: 12px;
     width: 100%;
-    margin-top: 16px;
+    padding-left: 68px;
     font-size: 13px;
     color: var(--body);
   }
 
-  .app-shell-checker .target-card .target-card-meta > *:last-child {
-    margin-left: auto;
-    text-align: right;
+  .app-shell-checker .target-card-meta small {
+    margin: 0;
+    text-align: left;
   }
 
+  .app-shell-checker .target-card-meta small:last-child {
+    text-align: right;
+    white-space: nowrap;
+  }
+
+  /* 상세보기 버튼 글자 가운데 정렬 */
+  .app-shell-checker .target-detail-button,
+  .app-shell-checker .record-detail-button,
   .app-shell-checker .target-card .btn,
   .app-shell-checker .target-card button {
     width: 100%;
     min-height: 52px;
-    margin-top: 18px;
+    margin-top: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+  }
+
+  /* 이력 화면 상세보기 버튼도 가운데 정렬 */
+  .app-shell-checker .activity-card .btn,
+  .app-shell-checker .history-card .btn,
+  .app-shell-checker .record-card .btn,
+  .app-shell-checker .activity-card button,
+  .app-shell-checker .history-card button,
+  .app-shell-checker .record-card button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+  }
+}
+
+/* ===== Checker mobile header alignment fix ===== */
+@media (max-width: 640px) {
+  .app-shell-checker .top-bar,
+  .app-shell-checker .app-header,
+  .app-shell-checker .layout-header {
+    background: #ffffff;
+    z-index: 100;
+  }
+
+  .app-shell-checker .top-bar-inner,
+  .app-shell-checker .header-inner,
+  .app-shell-checker .layout-header-inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    min-width: 0;
+  }
+
+  .app-shell-checker .top-bar-actions,
+  .app-shell-checker .header-actions,
+  .app-shell-checker .user-actions {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-left: auto;
+    min-width: 0;
+  }
+
+  .app-shell-checker .user-name,
+  .app-shell-checker .current-user,
+  .app-shell-checker .account-name {
+    max-width: 86px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    text-align: right;
+    font-size: 13px;
+  }
+
+  .app-shell-checker .top-bar-actions .btn,
+  .app-shell-checker .header-actions .btn,
+  .app-shell-checker .user-actions .btn,
+  .app-shell-checker .top-bar-actions button,
+  .app-shell-checker .header-actions button,
+  .app-shell-checker .user-actions button {
+    width: auto;
+    min-width: 72px;
+    height: 42px;
+    padding: 0 12px;
+    white-space: nowrap;
   }
 }
