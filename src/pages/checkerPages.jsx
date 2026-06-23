@@ -279,7 +279,6 @@ export function CheckerTargetDetail({ targetId, user, data, navigate }) {
         eyebrow="대상자 상세"
         title={target.name}
         description={`${getTargetArea(target)} · ${checkTypeLabels[getTargetCheckType(target)]}`}
-        action={<StatusBadge type="risk" value={target.riskLevel} />}
       />
 
       <Card className="target-detail-card">

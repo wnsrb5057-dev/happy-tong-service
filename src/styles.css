@@ -4514,3 +4514,161 @@ button.upload-box {
     white-space: nowrap;
   }
 }
+
+/* ===== Checker target detail mobile alignment ===== */
+@media (max-width: 640px) {
+  .app-shell-checker .target-detail-card {
+    padding: 18px 22px;
+  }
+
+  .app-shell-checker .target-detail-top {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: start;
+    gap: 12px;
+  }
+
+  .app-shell-checker .target-detail-top .target-card-person {
+    display: grid;
+    grid-template-columns: 56px 1fr;
+    align-items: start;
+    gap: 12px;
+    min-width: 0;
+  }
+
+  .app-shell-checker .target-detail-top > .badge,
+  .app-shell-checker .target-detail-top > .status-badge,
+  .app-shell-checker .target-detail-top > span:last-child {
+    justify-self: end;
+    align-self: start;
+    white-space: nowrap;
+  }
+
+  .app-shell-checker .target-detail-meta {
+    margin-top: 18px;
+  }
+}
+
+/* ===== Checker activity summary mobile alignment ===== */
+@media (max-width: 640px) {
+  .app-shell-checker .activity-summary-card {
+    padding: 18px 22px;
+  }
+
+  .app-shell-checker .activity-summary-top {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: start;
+    gap: 12px;
+  }
+
+  .app-shell-checker .activity-summary-top .target-card-person {
+    display: grid;
+    grid-template-columns: 56px 1fr;
+    align-items: start;
+    gap: 12px;
+    min-width: 0;
+  }
+
+  .app-shell-checker .activity-summary-actions {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 8px;
+    min-width: 96px;
+  }
+
+  .app-shell-checker .activity-change-target {
+    width: auto;
+    min-width: 92px;
+    min-height: 42px;
+    padding: 0 12px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    white-space: nowrap;
+  }
+
+  .app-shell-checker .activity-summary-address {
+    margin-top: 12px;
+    text-align: left;
+    font-size: 15px;
+    line-height: 1.45;
+  }
+
+  .app-shell-checker .activity-summary-card .compact-badges {
+    justify-content: flex-start;
+    margin-top: 12px;
+  }
+}
+
+/* ===== Checker history record mobile alignment ===== */
+@media (max-width: 640px) {
+  .app-shell-checker .history-record-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .app-shell-checker .history-detail-button {
+    width: auto;
+    min-width: 96px;
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    white-space: nowrap;
+  }
+}
+
+/* ===== Mobile top bar user chip alignment ===== */
+@media (max-width: 640px) {
+  .top-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    background: #ffffff;
+    z-index: 100;
+  }
+
+  .top-bar .brand {
+    flex: 0 1 auto;
+    min-width: 0;
+  }
+
+  .top-bar .user-chip {
+    flex: 0 0 auto;
+    display: inline-flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-left: auto;
+    white-space: nowrap;
+  }
+
+  .top-bar .user-chip span {
+    max-width: 74px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 13px;
+    text-align: right;
+  }
+
+  .top-bar .user-chip button {
+    width: auto !important;
+    min-width: 68px;
+    height: 38px;
+    padding: 0 10px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    white-space: nowrap;
+    font-size: 13px;
+  }
+}
