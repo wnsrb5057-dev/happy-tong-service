@@ -4672,3 +4672,89 @@ button.upload-box {
     font-size: 13px;
   }
 }
+
+/* ===== Checker history card mobile layout fix ===== */
+@media (max-width: 640px) {
+  .app-shell-checker .history-record-card {
+    display: grid;
+    gap: 14px;
+    padding: 18px 22px;
+    text-align: left;
+  }
+
+  .app-shell-checker .history-record-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    width: 100%;
+  }
+
+  .app-shell-checker .history-record-top strong {
+    font-size: 18px;
+    line-height: 1.35;
+    text-align: left;
+  }
+
+  .app-shell-checker .history-record-top .badge,
+  .app-shell-checker .history-record-top .status-badge,
+  .app-shell-checker .history-record-top span:last-child {
+    margin-left: auto;
+    white-space: nowrap;
+  }
+
+  .app-shell-checker .history-record-subtitle {
+    display: flex;
+    align-items: baseline;
+    justify-content: flex-start;
+    gap: 6px;
+    text-align: left;
+  }
+
+  .app-shell-checker .history-record-subtitle strong {
+    font-size: 15px;
+    line-height: 1.4;
+  }
+
+  .app-shell-checker .history-record-subtitle span {
+    font-size: 14px;
+    color: var(--body);
+  }
+
+  .app-shell-checker .history-record-memo {
+    margin: 0;
+    text-align: left;
+    font-size: 14px;
+    line-height: 1.55;
+    color: var(--body);
+  }
+
+  .app-shell-checker .history-record-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    width: 100%;
+    margin-top: 2px;
+  }
+
+  .app-shell-checker .history-record-footer .badge {
+    flex: 0 0 auto;
+    margin: 0;
+    white-space: nowrap;
+  }
+
+  .app-shell-checker .history-detail-button {
+    flex: 0 0 auto;
+    width: auto;
+    min-width: 92px;
+    min-height: 42px;
+    margin-left: auto;
+    padding: 0 16px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    white-space: nowrap;
+  }
+}
