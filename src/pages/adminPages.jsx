@@ -175,6 +175,38 @@ export function AdminDashboard({ data, navigate }) {
     .slice(0, 5);
   const recentActivities = [...data.activityRecords].sort(byLatestDate).slice(0, 4);
 
+  const riskPriority = {
+  danger: 0,
+  warning: 1,
+  normal: 2,
+};
+
+const urgencyPriority = {
+  high: 0,
+  medium: 1,
+  low: 2,
+};
+
+const statusPriority = {
+  pending: 0,
+  received: 1,
+  processing: 2,
+  completed: 3,
+};
+
+const sortedSelectedPlanTargets = [...selectedPlan.targets].sort((a, b) => {
+  return (riskPriority[a.riskLevel] ?? 99) - (riskPriority[b.riskLevel] ?? 99);
+});
+
+const sortedRecentEmergencyReports = [...recentEmergencyReports].sort((a, b) => {
+  const urgencyDiff = (urgencyPriority[a.urgency] ?? 99) - (urgencyPriority[b.urgency] ?? 99);
+  if (urgencyDiff !== 0) return urgencyDiff;
+
+  const statusDiff = (statusPriority[a.status] ?? 99) - (statusPriority[b.status] ?? 99);
+  if (statusDiff !== 0) return statusDiff;
+
+  return new Date(b.date) - new Date(a.date);
+});
   return (
     <>
       <PageHeader
@@ -217,19 +249,21 @@ export function AdminDashboard({ data, navigate }) {
               ))}
             </div>
             <div className="stack compact-stack">
-              {selectedPlan.targets.length ? (
-                selectedPlan.targets.map((target) => (
-                  <Card key={target.id} className={`risk-card-${target.riskLevel}`}>
-                    <div className="card-row">
-                      <div>
-                        <strong>{target.name}</strong>
-                        <p className="muted">{checkerName(data.users, target.assignedCheckerId)} · {checkTypeLabels[getTargetCheckType(target)]}</p>
-                      </div>
-                      <StatusBadge type="risk" value={target.riskLevel} />
-                    </div>
-                  </Card>
-                ))
-              ) : (
+              {sortedSelectedPlanTargets.length ? (
+  sortedSelectedPlanTargets.map((target) => (
+    <Card key={target.id} className={`admin-dashboard-target-card risk-card-${target.riskLevel}`}>
+      <div className="admin-dashboard-card-head">
+        <div className="admin-dashboard-card-copy">
+          <strong>{target.name}</strong>
+          <p className="muted">
+            {checkerName(data.users, target.assignedCheckerId)} · {checkTypeLabels[getTargetCheckType(target)]}
+          </p>
+        </div>
+        <StatusBadge type="risk" value={target.riskLevel} />
+      </div>
+    </Card>
+  ))
+) : (
                 <EmptyState title={`${selectedPlan.day}요일 확인 계획 없음`} description="해당 요일에 등록된 확인 대상자가 없습니다." />
               )}
             </div>
@@ -241,8 +275,8 @@ export function AdminDashboard({ data, navigate }) {
     action={<Button variant="ghost" onClick={() => navigate('/admin/emergencies')}>전체 보기</Button>}
   />
   <div className="stack">
-    {recentEmergencyReports.length ? (
-      recentEmergencyReports.map((report) => (
+    {sortedRecentEmergencyReports.length ? (
+  sortedRecentEmergencyReports.map((report) => (
         <Card key={report.id} className={report.urgency === 'high' ? 'danger-card' : 'alert-card'}>
           <div className="card-row">
             <div>

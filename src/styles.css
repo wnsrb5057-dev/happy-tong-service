@@ -4832,3 +4832,85 @@ button.upload-box {
     white-space: nowrap;
   }
 }
+
+/* ===== Admin dashboard mobile priority card layout ===== */
+.admin-dashboard-target-card,
+.admin-dashboard-emergency-card {
+  width: 100%;
+}
+
+.admin-dashboard-card-head {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: start;
+  gap: 12px;
+  width: 100%;
+}
+
+.admin-dashboard-card-copy {
+  min-width: 0;
+}
+
+.admin-dashboard-card-copy strong {
+  display: block;
+  font-size: 15px;
+  line-height: 1.4;
+}
+
+.admin-dashboard-card-copy p {
+  margin-top: 4px;
+  line-height: 1.45;
+}
+
+.admin-dashboard-card-badges {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+  white-space: nowrap;
+}
+
+.admin-dashboard-card-description {
+  margin: 10px 0 0;
+  color: var(--body);
+  line-height: 1.55;
+}
+
+.admin-dashboard-emergency-card .dashboard-card-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 14px;
+}
+
+.admin-dashboard-emergency-card .dashboard-small-button {
+  width: auto;
+  min-width: 92px;
+  min-height: 42px;
+  padding: 0 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+@media (max-width: 640px) {
+  .app-shell-admin .admin-dashboard-target-card,
+  .app-shell-admin .admin-dashboard-emergency-card {
+    padding: 18px 22px;
+  }
+
+  .app-shell-admin .admin-dashboard-card-head {
+    grid-template-columns: 1fr auto;
+  }
+
+  .app-shell-admin .admin-dashboard-card-badges {
+    justify-self: end;
+    align-self: start;
+    max-width: 150px;
+  }
+
+  .app-shell-admin .admin-dashboard-emergency-card .dashboard-card-actions {
+    justify-content: flex-end;
+  }
+}
