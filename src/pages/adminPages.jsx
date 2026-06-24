@@ -697,11 +697,23 @@ export function AdminTargets({ data, navigate }) {
               <StatusBadge type="risk" value={target.riskLevel} />
             </div>
             <div className="admin-target-meta">
-              <div><span>담당 체커</span><strong>{checkerName(data.users, target.assignedCheckerId)}</strong></div>
-              <div><span>기본 확인 유형</span><strong>{checkTypeLabels[getTargetCheckType(target)]}</strong></div>
-              <div><span>확인 요일</span><strong>{target.checkDays?.join(", ") || "요일 미정"}</strong></div>
-              <div><span>최근 확인일</span><strong>{target.lastVisitDate}</strong></div>
-            </div>
+  <div className="admin-target-meta-item">
+    <span>담당 체커</span>
+    <strong>{checkerName(data.users, target.assignedCheckerId)}</strong>
+  </div>
+  <div className="admin-target-meta-item">
+    <span>기본 확인 유형</span>
+    <strong>{checkTypeLabels[getTargetCheckType(target)]}</strong>
+  </div>
+  <div className="admin-target-meta-item">
+    <span>확인 요일</span>
+    <strong>{target.checkDays?.join(", ") || "요일 미정"}</strong>
+  </div>
+  <div className="admin-target-meta-item">
+    <span>최근 확인일</span>
+    <strong>{target.lastVisitDate}</strong>
+  </div>
+</div>
             <span className="admin-target-detail-action">상세보기</span>
           </button>
         ))}
@@ -726,7 +738,6 @@ export function AdminTargetDetail({ targetId, data }) {
         eyebrow="대상자 상세"
         title={target.name}
         description={`${target.age}세 · ${target.gender} · ${target.address}`}
-        action={<StatusBadge type="risk" value={target.riskLevel} />}
       />
 
       <Card>
@@ -780,7 +791,7 @@ export function AdminTargetDetail({ targetId, data }) {
         <div className="stack compact-stack">
           {visits.length ? (
             visits.slice(0, 5).map((record) => (
-              <Card key={record.id}>
+              <Card key={record.id} className="admin-target-recent-record-card">
                 <div className="card-row">
                   <div>
                     <strong>{record.date}</strong>
@@ -805,7 +816,10 @@ export function AdminTargetDetail({ targetId, data }) {
         <div className="stack compact-stack">
           {reports.length ? (
             reports.slice(0, 5).map((report) => (
-              <Card key={report.id} className={getIssueLevel(report) === 'urgent' ? 'danger-card' : 'alert-card'}>
+              <Card
+  key={report.id}
+  className={`admin-target-emergency-report-card ${getIssueLevel(report) === 'urgent' ? 'danger-card' : 'alert-card'}`}
+>
                 <div className="card-row">
                   <div>
                     <strong>{report.issueType}</strong>
@@ -853,23 +867,23 @@ export function AdminActivities({ data }) {
         <span>이상징후 포함 {data.activityRecords.filter((record) => record.hasIssue || record.issueLevel === "need_check" || record.issueLevel === "urgent").length}건 · 미완료 {data.activityRecords.filter((record) => record.status !== "completed").length}건</span>
       </Card>
 
-      <div className="admin-activity-filter-pills" aria-label="기록 필터">
-        {[
-          { value: "all", label: "전체" },
-          { value: "today", label: "오늘" },
-          { value: "issue", label: "이상징후" },
-          { value: "pending", label: "미완료" },
-        ].map((item) => (
-          <button
-            className={filter === item.value ? "filter-tab-active" : ""}
-            key={item.value}
-            type="button"
-            onClick={() => setFilter(item.value)}
-          >
-            {item.label}
-          </button>
-        ))}
-      </div>
+      <div className="filter-tabs activity-filter-tabs" aria-label="확인 기록 필터">
+  {[
+    { value: "all", label: "전체" },
+    { value: "today", label: "오늘" },
+    { value: "issue", label: "이상징후" },
+    { value: "pending", label: "미완료" },
+  ].map((item) => (
+    <button
+      className={filter === item.value ? "filter-tab-active" : ""}
+      key={item.value}
+      type="button"
+      onClick={() => setFilter(item.value)}
+    >
+      {item.label}
+    </button>
+  ))}
+</div>
 
       <div className="stack admin-activity-list">
         {filteredRecords.map((record) => (
@@ -966,22 +980,34 @@ export function AdminEmergencies({ data, navigate }) {
 
       <div className="stack">
         {filteredReports.map((report) => (
-          <Card key={report.id} className={report.urgency === 'high' ? 'danger-card' : 'alert-card'}>
-            <div className="card-row">
-              <div>
-                <strong>{targetName(data.targets, report.targetId)}</strong>
-                <p className="muted">{report.date} · {report.issueType}</p>
-              </div>
-              <div className="badge-row compact-badges">
-                <StatusBadge type="issueLevel" value={getIssueLevel(report)} />
-                <StatusBadge type="emergency" value={report.status} />
-              </div>
-            </div>
-            <p className="muted">{truncateText(report.description)}</p>
-            <Button variant="ghost" className="full-width" onClick={() => navigate(`/admin/emergencies/${report.id}`)}>
-              상세보기
-            </Button>
-          </Card>
+          <Card
+  key={report.id}
+  className={`admin-emergency-list-card ${report.urgency === 'high' ? 'danger-card' : 'alert-card'}`}
+>
+  <div className="admin-emergency-list-head">
+    <div className="admin-emergency-list-copy">
+      <strong>{targetName(data.targets, report.targetId)}</strong>
+      <p className="muted">{report.date} · {report.issueType}</p>
+    </div>
+
+    <div className="admin-emergency-list-badges">
+      <StatusBadge type="issueLevel" value={getIssueLevel(report)} />
+      <StatusBadge type="emergency" value={report.status} />
+    </div>
+  </div>
+
+  <p className="admin-emergency-list-description">
+    {truncateText(report.description)}
+  </p>
+
+  <Button
+    variant="ghost"
+    className="admin-emergency-detail-button"
+    onClick={() => navigate(`/admin/emergencies/${report.id}`)}
+  >
+    상세보기
+  </Button>
+</Card>
         ))}
       </div>
     </>
@@ -1021,17 +1047,29 @@ export function AdminEmergencyDetail({ emergencyId, data, actions, navigate }) {
         action={<StatusBadge type="issueLevel" value={getIssueLevel(report)} />}
       />
 
-      <Card>
-        <div className="admin-emergency-meta">
-          <div><span>대상자</span><strong>{targetName(data.targets, report.targetId)}</strong></div>
-          <div><span>체커</span><strong>{checkerName(data.users, report.checkerId)}</strong></div>
-          <div><span>연락처</span><strong>{checkerPhone(data.users, report.checkerId)}</strong></div>
-        </div>
-        <div className="badge-row admin-emergency-status-row">
-          <StatusBadge type="issueLevel" value={getIssueLevel(report)} />
-          <StatusBadge type="emergency" value={report.status} />
-        </div>
-      </Card>
+      <Card className="admin-emergency-detail-info-card">
+  <div className="admin-emergency-meta">
+    <div className="admin-emergency-meta-item">
+      <span>대상자</span>
+      <strong>{targetName(data.targets, report.targetId)}</strong>
+    </div>
+
+    <div className="admin-emergency-meta-item">
+      <span>체커</span>
+      <strong>{checkerName(data.users, report.checkerId)}</strong>
+    </div>
+
+    <div className="admin-emergency-meta-item">
+      <span>연락처</span>
+      <strong>{checkerPhone(data.users, report.checkerId)}</strong>
+    </div>
+  </div>
+
+  <div className="admin-emergency-status-row">
+    <StatusBadge type="issueLevel" value={getIssueLevel(report)} />
+    <StatusBadge type="emergency" value={report.status} />
+  </div>
+</Card>
 
       <Card>
         <h2>상세 내용</h2>
@@ -1245,14 +1283,17 @@ export function AdminReportNew({ data, actions, navigate, currentUser }) {
   }
 
   function handlePrint() {
-    const report = getValidatedReportPayload();
-    if (!report) return;
+  const report = getValidatedReportPayload();
+  if (!report) return;
 
-    saveReportDraft(report);
-    setPreview(report);
-    setNotice('인쇄 화면에서 PDF로 저장할 수 있습니다.');
-    setTimeout(() => window.print(), 50);
-  }
+  saveReportDraft(report);
+  setPreview(report);
+  setNotice('인쇄 화면에서 PDF로 저장할 수 있습니다.');
+
+  window.setTimeout(() => {
+    window.print();
+  }, 500);
+}
 
   return (
     <>
@@ -1263,16 +1304,47 @@ export function AdminReportNew({ data, actions, navigate, currentUser }) {
         action={<Button variant="ghost" onClick={() => navigate('/admin/reports/preview')}>미리보기 화면</Button>}
       />
 
-      <form className="form-stack">
-        <Card>
-          <TextInput id="report-title" label="보고서 제목" value={form.title} onChange={(event) => updateForm('title', event.target.value)} />
-          <div className="filter-grid">
-            <TextInput id="report-start" label="보고 기간 시작일" type="date" value={form.periodStart} onChange={(event) => updateForm('periodStart', event.target.value)} />
-            <TextInput id="report-end" label="보고 기간 종료일" type="date" value={form.periodEnd} onChange={(event) => updateForm('periodEnd', event.target.value)} />
-          </div>
-        </Card>
+      <form className="form-stack admin-report-form">
+  <Card className="admin-report-form-card">
+    <TextInput
+      id="report-title"
+      label="보고서 제목"
+      value={form.title}
+      onChange={(event) => updateForm('title', event.target.value)}
+    />
 
-        <Card>
+    <div className="admin-report-period-grid">
+  <label className="report-date-field" htmlFor="report-start">
+    <span>보고 기간 시작일</span>
+    <div className="report-date-input-wrap">
+      <input
+        id="report-start"
+        className="report-date-input"
+        type="date"
+        value={form.periodStart}
+        onChange={(event) => updateForm('periodStart', event.target.value)}
+      />
+      <span className="report-date-icon" aria-hidden="true">📅</span>
+    </div>
+  </label>
+
+  <label className="report-date-field" htmlFor="report-end">
+    <span>보고 기간 종료일</span>
+    <div className="report-date-input-wrap">
+      <input
+        id="report-end"
+        className="report-date-input"
+        type="date"
+        value={form.periodEnd}
+        onChange={(event) => updateForm('periodEnd', event.target.value)}
+      />
+      <span className="report-date-icon" aria-hidden="true">📅</span>
+    </div>
+  </label>
+</div>
+  </Card>
+
+        <Card className="admin-report-form-card">
           <TextArea id="report-key-issues" label="주요 특이사항" rows="4" value={form.keyIssues} onChange={(event) => updateForm('keyIssues', event.target.value)} />
           <TextArea id="report-action" label="조치 내용" rows="4" value={form.actionTaken} onChange={(event) => updateForm('actionTaken', event.target.value)} />
           <TextInput
@@ -1316,17 +1388,32 @@ export function AdminReportPreview({ data, currentUser }) {
   const report = readReportDraft(generateReportDraft(data, "2026-06-10", getTodayFromStats()));
 
   function handlePrint() {
-    window.print();
+  if (!preview) {
+    const nextReport = buildReportFromForm();
+    setPreview(nextReport);
+
+    window.setTimeout(() => {
+      window.print();
+    }, 100);
+
+    return;
   }
+
+  window.print();
+}
 
   return (
     <>
       <PageHeader
-        eyebrow="보고서 미리보기"
-        title="행정 보고서 출력"
-        description="저장된 보고서 초안을 문서 형태로 확인하고 PDF로 저장합니다."
-        action={<Button onClick={handlePrint}>PDF 내보내기</Button>}
-      />
+  eyebrow="보고서 미리보기"
+  title="행정 보고서 출력"
+  description="저장된 보고서 초안을 문서 형태로 확인하고 PDF로 저장합니다."
+  action={
+    <Button onClick={() => window.print()}>
+      PDF 내보내기
+    </Button>
+  }
+/>
       <section className="print-area">
         <ReportDocument report={report} currentUser={currentUser} />
       </section>
