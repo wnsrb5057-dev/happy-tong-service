@@ -179,11 +179,17 @@ export default function App() {
           )
         );
       },
-      updateTarget(targetId, updates) {
+      updateTarget(targetOrId, updates = {}) {
+  const targetId =
+    typeof targetOrId === "object" && targetOrId !== null ? targetOrId.id : targetOrId;
+
+  const targetUpdates =
+    typeof targetOrId === "object" && targetOrId !== null ? targetOrId : updates;
+
   setTargets((current) =>
     current.map((target) =>
       target.id === targetId
-        ? { ...target, ...updates, updatedAt: new Date().toISOString() }
+        ? { ...target, ...targetUpdates, updatedAt: new Date().toISOString() }
         : target
     )
   );
@@ -327,12 +333,12 @@ function renderPage({ location, user, data, actions, navigate }) {
     }
 
     if (location.pathname === "/admin/targets") {
-      return <AdminTargets data={data} navigate={navigate} />;
-    }
+  return <AdminTargets data={data} actions={actions} navigate={navigate} />;
+}
 
-    if (adminTargetMatch) {
-      return <AdminTargetDetail targetId={adminTargetMatch[1]} data={data} />;
-    }
+if (adminTargetMatch) {
+  return <AdminTargetDetail targetId={adminTargetMatch[1]} data={data} actions={actions} navigate={navigate} />;
+}
 
     if (location.pathname === "/admin/activities") {
       return <AdminActivities data={data} />;

@@ -748,7 +748,7 @@ const filteredTargets = data.targets
     </>
   );
 }
-export function AdminTargetDetail({ targetId, data }) {
+export function AdminTargetDetail({ targetId, data, actions, navigate }) {
   const target = targetById(data.targets, targetId);
 
   if (!target) {
@@ -768,21 +768,20 @@ export function AdminTargetDetail({ targetId, data }) {
   action={
     (target.lifecycleStatus || "active") !== "ended" ? (
       <Button
-        variant="ghost"
-        onClick={() => {
-          const confirmed = window.confirm(`${target.name}님을 관리 종료 처리할까요?`);
-          if (!confirmed) return;
+  variant="ghost"
+  onClick={() => {
+    const confirmed = window.confirm(`${target.name}님을 관리 종료 처리할까요?`);
+    if (!confirmed) return;
 
-          actions.updateTarget({
-            ...target,
-            lifecycleStatus: "ended",
-          });
+    actions.updateTarget(target.id, {
+      lifecycleStatus: "ended",
+    });
 
-          setSelectedTargetId(null);
-        }}
-      >
-        관리 종료
-      </Button>
+    navigate("/admin/targets");
+  }}
+>
+  관리 종료
+</Button>
     ) : (
       <StatusBadge label="관리종료" />
     )
