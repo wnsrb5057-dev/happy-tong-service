@@ -1477,6 +1477,17 @@ export function AdminReportPreview({ data, currentUser }) {
 
 export function AdminTargetEdit({ targetId, data, actions, navigate }) {
   const target = data.targets.find((item) => item.id === targetId);
+  const checkerOptions = data.users.filter((user) => user.role === "checker");
+  const [form, setForm] = useState(() => ({
+    name: target?.name || "",
+    age: target?.age ? String(target.age) : "",
+    gender: target?.gender || "여성",
+    address: target?.address || "",
+    riskLevel: target?.riskLevel || "normal",
+    defaultCheckType: target?.defaultCheckType || "external",
+    assignedCheckerId: target?.assignedCheckerId || "",
+  }));
+  const [error, setError] = useState("");
 
   if (!target) {
     return (
@@ -1491,12 +1502,51 @@ export function AdminTargetEdit({ targetId, data, actions, navigate }) {
     );
   }
 
+  function updateForm(key, value) {
+    setForm((current) => ({ ...current, [key]: value }));
+  }
+
+  function handleSubmit(event) {
+    event.preventDefault();
+
+    const trimmedName = form.name.trim();
+    const trimmedAddress = form.address.trim();
+    const parsedAge = Number(form.age);
+
+    if (!trimmedName) {
+      setError("이름을 입력해주세요.");
+      return;
+    }
+
+    if (!form.age.trim() || Number.isNaN(parsedAge)) {
+      setError("나이는 숫자로 입력해주세요.");
+      return;
+    }
+
+    if (!trimmedAddress) {
+      setError("주소를 입력해주세요.");
+      return;
+    }
+
+    actions.updateTarget(target.id, {
+      name: trimmedName,
+      age: parsedAge,
+      gender: form.gender,
+      address: trimmedAddress,
+      riskLevel: form.riskLevel,
+      defaultCheckType: form.defaultCheckType,
+      assignedCheckerId: form.assignedCheckerId,
+    });
+
+    navigate(`/admin/targets/${target.id}`);
+  }
+
   return (
     <>
       <PageHeader
         eyebrow="대상자 수정"
         title={`${target.name} 정보 수정`}
-        description="대상자 정보 수정 화면입니다. 다음 단계에서 입력 폼을 연결합니다."
+        description="기본 대상자 정보를 수정하고 저장할 수 있습니다."
         action={
           <Button variant="ghost" onClick={() => navigate(`/admin/targets/${target.id}`)}>
             상세로 돌아가기
@@ -1504,12 +1554,84 @@ export function AdminTargetEdit({ targetId, data, actions, navigate }) {
         }
       />
 
-      <Card>
-        <p className="muted">
-          현재는 수정 화면 진입 확인용 임시 화면입니다. 다음 단계에서 이름, 주소, 위험도,
-          확인 유형, 담당 체커 등을 수정할 수 있는 폼을 추가합니다.
-        </p>
-      </Card>
+      <form className="form-stack" onSubmit={handleSubmit}>
+        <Card>
+          <TextInput
+            id="target-edit-name"
+            label="이름"
+            value={form.name}
+            onChange={(event) => updateForm("name", event.target.value)}
+            placeholder="대상자 이름"
+          />
+          <TextInput
+            id="target-edit-age"
+            label="나이"
+            inputMode="numeric"
+            value={form.age}
+            onChange={(event) => updateForm("age", event.target.value)}
+            placeholder="나이"
+          />
+          <SelectInput
+            id="target-edit-gender"
+            label="성별"
+            value={form.gender}
+            onChange={(event) => updateForm("gender", event.target.value)}
+          >
+            <option value="여성">여성</option>
+            <option value="남성">남성</option>
+          </SelectInput>
+          <TextInput
+            id="target-edit-address"
+            label="주소"
+            value={form.address}
+            onChange={(event) => updateForm("address", event.target.value)}
+            placeholder="상세 주소"
+          />
+          <SelectInput
+            id="target-edit-risk"
+            label="위험도"
+            value={form.riskLevel}
+            onChange={(event) => updateForm("riskLevel", event.target.value)}
+          >
+            <option value="normal">정상</option>
+            <option value="caution">주의</option>
+            <option value="danger">위험</option>
+          </SelectInput>
+          <SelectInput
+            id="target-edit-check-type"
+            label="기본 확인 유형"
+            value={form.defaultCheckType}
+            onChange={(event) => updateForm("defaultCheckType", event.target.value)}
+          >
+            <option value="external">외부 확인</option>
+            <option value="call">전화 확인</option>
+            <option value="visit">방문 확인</option>
+            <option value="intensive">집중 모니터링</option>
+          </SelectInput>
+          <SelectInput
+            id="target-edit-checker"
+            label="담당 체커"
+            value={form.assignedCheckerId}
+            onChange={(event) => updateForm("assignedCheckerId", event.target.value)}
+          >
+            <option value="">미배정</option>
+            {checkerOptions.map((checker) => (
+              <option key={checker.id} value={checker.id}>
+                {checker.name}
+              </option>
+            ))}
+          </SelectInput>
+        </Card>
+
+        {error ? <p className="form-error">{error}</p> : null}
+
+        <div className="action-grid">
+          <Button type="submit">저장</Button>
+          <Button variant="secondary" onClick={() => navigate(`/admin/targets/${target.id}`)}>
+            취소
+          </Button>
+        </div>
+      </form>
     </>
   );
 }
