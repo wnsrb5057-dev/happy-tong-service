@@ -5816,44 +5816,45 @@ button.upload-box {
   }
 }
 
-/* ===== Admin common filter tabs layout ===== */
+/* ===== Admin CSS stabilization ===== */
 .app-shell-admin .filter-tabs {
-  display: grid !important;
-  grid-auto-flow: column !important;
-  grid-auto-columns: minmax(0, 1fr) !important;
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 0;
   width: 100%;
-  gap: 0 !important;
-  overflow: visible !important;
-  overflow-x: visible !important;
-  white-space: nowrap;
-  border: 0 !important;
-  border-bottom: 0 !important;
-  background: transparent !important;
-  box-shadow: none !important;
+  margin: 16px 0 18px;
+  padding: 0 2px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  background: transparent;
+  box-shadow: none;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.app-shell-admin .filter-tabs::-webkit-scrollbar {
+  display: none;
 }
 
 .app-shell-admin .filter-tabs button {
   position: relative;
-  width: 100% !important;
-  min-width: 0 !important;
-  height: 50px;
-  padding: 0 4px !important;
-  margin: 0 !important;
-  border: 0 !important;
-  border-radius: 0 !important;
-  border-bottom: 0 !important;
-  background: transparent !important;
-  box-shadow: none !important;
-
-  display: flex !important;
-  align-items: center;
-  justify-content: center;
-
-  color: var(--body);
+  flex: 1 0 auto;
+  min-width: 88px;
+  min-height: 50px;
+  padding: 0 14px;
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--muted);
   font-size: 14px;
   font-weight: 800;
   line-height: 1.2;
   text-align: center;
+  white-space: nowrap;
 }
 
 .app-shell-admin .filter-tabs button::after {
@@ -5863,102 +5864,20 @@ button.upload-box {
   right: 0;
   bottom: -1px;
   height: 3px;
-  background: transparent;
   border-radius: 999px 999px 0 0;
-}
-
-.app-shell-admin .filter-tabs button.filter-tab-active {
-  color: var(--primary) !important;
-  background: transparent !important;
-}
-
-.app-shell-admin .filter-tabs button.filter-tab-active::after {
-  background: var(--primary);
-}
-
-/* 모바일에서도 스크롤 탭 금지, 균등 분할 유지 */
-@media (max-width: 640px) {
-  .app-shell-admin .filter-tabs {
-    display: grid !important;
-    grid-auto-flow: column !important;
-    grid-auto-columns: minmax(0, 1fr) !important;
-    overflow: visible !important;
-    overflow-x: visible !important;
-    scrollbar-width: none;
-  }
-
-  .app-shell-admin .filter-tabs::-webkit-scrollbar {
-    display: none;
-  }
-
-  .app-shell-admin .filter-tabs button {
-    height: 50px;
-    font-size: 14px;
-    letter-spacing: -0.03em;
-  }
-}
-
-/* ===== Admin common filter tabs selected state fix ===== */
-.app-shell-admin .filter-tabs {
-  display: grid !important;
-  grid-auto-flow: column !important;
-  grid-auto-columns: minmax(0, 1fr) !important;
-  width: 100%;
-  gap: 0 !important;
-  overflow: visible !important;
-  overflow-x: visible !important;
-  border: 0 !important;
-  border-bottom: 1px solid var(--line) !important;
-  background: transparent !important;
-  box-shadow: none !important;
-}
-
-.app-shell-admin .filter-tabs button {
-  position: relative !important;
-  width: 100% !important;
-  min-width: 0 !important;
-  height: 50px;
-  padding: 0 4px !important;
-  margin: 0 !important;
-  border: 0 !important;
-  border-radius: 0 !important;
-  background: transparent !important;
-  box-shadow: none !important;
-
-  display: flex !important;
-  align-items: center;
-  justify-content: center;
-
-  color: #8A949E !important;
-  font-size: 14px;
-  font-weight: 800;
-  line-height: 1.2;
-  text-align: center;
-}
-
-.app-shell-admin .filter-tabs button::after {
-  content: "";
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: -1px;
-  height: 3px;
   background: transparent;
-  border-radius: 999px 999px 0 0;
 }
 
 .app-shell-admin .filter-tabs button.filter-tab-active,
 .app-shell-admin .filter-tabs button.active {
-  color: var(--ink) !important;
-  font-weight: 900;
+  color: var(--ink);
 }
 
 .app-shell-admin .filter-tabs button.filter-tab-active::after,
 .app-shell-admin .filter-tabs button.active::after {
-  background: var(--primary) !important;
+  background: var(--blue);
 }
 
-/* ===== Admin statistics chart row alignment ===== */
 .chart-card .chart-list {
   display: grid;
   gap: 18px;
@@ -5971,7 +5890,7 @@ button.upload-box {
 }
 
 .chart-card .bar-row {
-  display: grid !important;
+  display: grid;
   grid-template-columns: 1fr auto;
   align-items: center;
   gap: 12px;
@@ -6002,105 +5921,79 @@ button.upload-box {
   overflow: hidden;
 }
 
-@media (max-width: 640px) {
-  .app-shell-admin .chart-card {
-    padding: 18px 20px;
-  }
-
-  .app-shell-admin .chart-card .chart-list {
-    gap: 18px;
-  }
-
-  .app-shell-admin .chart-card .bar-row {
-    grid-template-columns: 1fr auto;
-  }
-
-  .app-shell-admin .chart-card .bar-row span,
-  .app-shell-admin .chart-card .bar-row strong {
-    font-size: 15px;
-  }
-}
-
-/* ===== Admin filter tabs underline final fix ===== */
-.app-shell-admin .filter-tabs {
-  border-bottom: 1px solid var(--line) !important;
-  overflow: visible !important;
-}
-
-.app-shell-admin .filter-tabs button {
-  position: relative !important;
-  border-bottom: 3px solid transparent !important;
-  box-shadow: none !important;
-}
-
-.app-shell-admin .filter-tabs button::after {
-  display: none !important;
-}
-
-.app-shell-admin .filter-tabs button.filter-tab-active,
-.app-shell-admin .filter-tabs button.active {
-  color: var(--ink) !important;
-  border-bottom-color: var(--primary) !important;
-  box-shadow: inset 0 -3px 0 var(--primary) !important;
-}
-
-/* ===== Admin filter tabs blue underline fix ===== */
-.app-shell-admin .filter-tabs button.filter-tab-active,
-.app-shell-admin .filter-tabs button.active {
-  color: var(--ink) !important;
-  border-bottom-color: #256ef4 !important;
-  box-shadow: inset 0 -3px 0 #256ef4 !important;
-}
-
-.app-shell-admin .filter-tabs button.filter-tab-active::after,
-.app-shell-admin .filter-tabs button.active::after {
-  background: #256ef4 !important;
-}
-
-/* ===== Admin report mobile form layout ===== */
 .app-shell-admin .report-form-card,
 .app-shell-admin .report-editor-card,
 .app-shell-admin .report-form,
-.app-shell-admin .report-draft-card {
+.app-shell-admin .report-draft-card,
+.app-shell-admin .admin-report-form-card {
   text-align: left;
 }
 
-.app-shell-admin .report-form-card input,
-.app-shell-admin .report-editor-card input,
-.app-shell-admin .report-form input,
-.app-shell-admin .report-draft-card input,
-.app-shell-admin input[type="date"] {
-  min-height: 48px;
-  height: 48px;
-  padding: 0 14px;
-  border-radius: 10px;
-  font-size: 15px;
-  font-weight: 700;
-}
-
-/* 보고서 기간 날짜 입력 2열 정렬 */
-.app-shell-admin .report-period-grid,
-.app-shell-admin .report-date-grid,
-.app-shell-admin .period-grid,
-.app-shell-admin .date-range-grid {
+.app-shell-admin .admin-report-period-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
   width: 100%;
+  align-items: start;
 }
 
-.app-shell-admin .report-period-grid label,
-.app-shell-admin .report-date-grid label,
-.app-shell-admin .period-grid label,
-.app-shell-admin .date-range-grid label {
-  display: block;
-  margin-bottom: 8px;
+.app-shell-admin .report-date-field {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  width: 100%;
+}
+
+.app-shell-admin .report-date-field > span {
   font-size: 14px;
   font-weight: 800;
+  line-height: 1.35;
   color: var(--ink);
 }
 
-/* 보고서 상단 버튼 정렬 */
+.app-shell-admin .report-date-input-wrap {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+}
+
+.app-shell-admin .report-date-input {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  height: 48px;
+  min-height: 48px;
+  padding: 0 40px 0 12px;
+  box-sizing: border-box;
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+  background: var(--white);
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 48px;
+  text-align: left;
+}
+
+.app-shell-admin .report-date-input::-webkit-date-and-time-value {
+  text-align: left;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.app-shell-admin .report-date-icon {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  line-height: 1;
+  pointer-events: none;
+}
+
 .app-shell-admin .report-header-actions,
 .app-shell-admin .report-page-actions {
   display: flex;
@@ -6120,25 +6013,42 @@ button.upload-box {
   white-space: nowrap;
 }
 
-/* 모바일 보고서 화면 */
 @media (max-width: 640px) {
-  .app-shell-admin .report-form-card,
-  .app-shell-admin .report-editor-card,
-  .app-shell-admin .report-draft-card {
+  .app-shell-admin .filter-tabs {
+    margin-top: 14px;
+    padding: 0 2px;
+  }
+
+  .app-shell-admin .filter-tabs button {
+    flex: 0 0 auto;
+    min-width: 90px;
+  }
+
+  .app-shell-admin .chart-card {
     padding: 18px 20px;
   }
 
-  .app-shell-admin .report-period-grid,
-  .app-shell-admin .report-date-grid,
-  .app-shell-admin .period-grid,
-  .app-shell-admin .date-range-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  .app-shell-admin .admin-report-period-grid {
     gap: 10px;
   }
 
-  .app-shell-admin input[type="date"] {
-    width: 100%;
-    min-width: 0;
+  .app-shell-admin .report-date-input {
+    padding: 0 34px 0 10px;
+    -webkit-appearance: none;
+    appearance: none;
+  }
+
+  .app-shell-admin .report-date-input::-webkit-calendar-picker-indicator {
+    opacity: 0;
+    position: absolute;
+    right: 0;
+    width: 38px;
+    height: 48px;
+    cursor: pointer;
+  }
+
+  .app-shell-admin .report-date-icon {
+    right: 10px;
     font-size: 15px;
   }
 
@@ -6147,573 +6057,65 @@ button.upload-box {
     justify-content: flex-start;
     margin-top: 12px;
   }
-
-  .app-shell-admin .report-header-actions button,
-  .app-shell-admin .report-page-actions button {
-    min-width: 128px;
-  }
 }
 
-/* ===== Admin filter tabs unified underline final ===== */
-.app-shell-admin .filter-tabs {
-  display: grid !important;
-  grid-auto-flow: column !important;
-  grid-auto-columns: minmax(0, 1fr) !important;
-  width: 100%;
-  gap: 0 !important;
-  overflow: visible !important;
-  overflow-x: visible !important;
-  border: 0 !important;
-  border-bottom: 1px solid var(--line) !important;
-  background: transparent !important;
-  box-shadow: none !important;
-}
-
-.app-shell-admin .filter-tabs button {
-  position: relative !important;
-  width: 100% !important;
-  min-width: 0 !important;
-  height: 50px;
-  padding: 0 4px !important;
-  margin: 0 !important;
-  border: 0 !important;
-  border-bottom: 0 !important;
-  border-radius: 0 !important;
-  background: transparent !important;
-  box-shadow: none !important;
-  outline: none;
-
-  display: flex !important;
-  align-items: center;
-  justify-content: center;
-
-  color: #8a949e !important;
-  font-size: 14px;
-  font-weight: 800;
-  line-height: 1.2;
-  text-align: center;
-}
-
-.app-shell-admin .filter-tabs button::after {
-  display: none !important;
-  content: none !important;
-}
-
-.app-shell-admin .filter-tabs button::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: -1px;
-  height: 3px;
-  background: transparent;
-  border-radius: 999px 999px 0 0;
-}
-
-.app-shell-admin .filter-tabs button.filter-tab-active,
-.app-shell-admin .filter-tabs button.active {
-  color: var(--ink) !important;
-  font-weight: 900;
-  border: 0 !important;
-  box-shadow: none !important;
-}
-
-.app-shell-admin .filter-tabs button.filter-tab-active::before,
-.app-shell-admin .filter-tabs button.active::before {
-  background: #256ef4 !important;
-}
-
-/* ===== Admin report form exact mobile layout ===== */
-.admin-report-form-card {
-  text-align: left;
-}
-
-.admin-report-period-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-  width: 100%;
-}
-
-.admin-report-form-card label {
-  font-size: 14px;
-  font-weight: 800;
-  color: var(--ink);
-}
-
-.admin-report-form-card input,
-.admin-report-form-card textarea,
-.admin-report-form-card select {
-  width: 100%;
-  min-width: 0;
-}
-
-.admin-report-form-card input[type="date"],
-.admin-report-form-card input[type="text"] {
-  min-height: 48px;
-  height: 48px;
-  padding: 0 14px;
-  border-radius: 10px;
-  font-size: 15px;
-  font-weight: 700;
-}
-
-.app-shell-admin .page-header .btn,
-.app-shell-admin .page-header button {
-  white-space: nowrap;
-}
-
-@media (max-width: 640px) {
-  .app-shell-admin .admin-report-form-card {
-    padding: 18px 20px;
-  }
-
-  .app-shell-admin .admin-report-period-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 10px;
-  }
-
-  .app-shell-admin .admin-report-form-card input[type="date"] {
-    height: 48px;
-    min-height: 48px;
-    font-size: 15px;
-    padding: 0 12px;
-  }
-
-  .app-shell-admin .admin-report-form-card input[type="date"]::-webkit-calendar-picker-indicator {
-    width: 18px;
-    height: 18px;
-  }
-
-  .app-shell-admin .page-header .btn,
-  .app-shell-admin .page-header button {
-    width: auto;
-    min-width: 112px;
-    min-height: 44px;
-    padding: 0 14px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    white-space: nowrap;
-    text-align: center;
-  }
-}
-
-/* ===== Admin report date input overlap fix ===== */
-.admin-report-period-grid {
-  display: grid !important;
-  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-  gap: 12px !important;
-  width: 100%;
-}
-
-.admin-report-period-grid > * {
-  min-width: 0 !important;
-  width: 100%;
-}
-
-.admin-report-period-grid .form-field,
-.admin-report-period-grid label,
-.admin-report-period-grid input {
-  min-width: 0 !important;
-  max-width: 100% !important;
-  width: 100% !important;
-  box-sizing: border-box !important;
-}
-
-.admin-report-period-grid input[type="date"] {
-  height: 48px !important;
-  min-height: 48px !important;
-  padding: 0 12px !important;
-  border-radius: 10px !important;
-  font-size: 14px !important;
-  font-weight: 800 !important;
-  letter-spacing: -0.04em;
-}
-
-@media (max-width: 380px) {
-  .admin-report-period-grid {
-    gap: 8px !important;
-  }
-
-  .admin-report-period-grid input[type="date"] {
-    padding: 0 8px !important;
-    font-size: 13px !important;
-  }
-}
-
-/* ===== Admin report date grid final fix ===== */
-.admin-report-period-grid {
-  display: grid !important;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important;
-  gap: 10px !important;
-  width: 100% !important;
-}
-
-.admin-report-period-grid > * {
-  min-width: 0 !important;
-  width: 100% !important;
-}
-
-.admin-report-period-grid input {
-  min-width: 0 !important;
-  width: 100% !important;
-  max-width: 100% !important;
-  box-sizing: border-box !important;
-}
-
-.admin-report-period-grid input[type="date"] {
-  font-size: 14px !important;
-  letter-spacing: -0.05em;
-  padding-left: 10px !important;
-  padding-right: 8px !important;
-}
-
-/* ===== Report date input hard override ===== */
-#report-start,
-#report-end {
-  width: 100% !important;
-  max-width: 100% !important;
-  min-width: 0 !important;
-
-  height: 48px !important;
-  min-height: 48px !important;
-  max-height: 48px !important;
-
-  padding: 0 12px !important;
-  box-sizing: border-box !important;
-  border-radius: 10px !important;
-
-  font-size: 15px !important;
-  font-weight: 500 !important;
-  letter-spacing: -0.04em !important;
-  line-height: 48px !important;
-  text-align: left !important;
-
-  display: block !important;
-  transform: none !important;
-}
-
-#report-start::-webkit-date-and-time-value,
-#report-end::-webkit-date-and-time-value {
-  text-align: left !important;
-  font-size: 15px !important;
-  font-weight: 500 !important;
-}
-
-#report-start::-webkit-calendar-picker-indicator,
-#report-end::-webkit-calendar-picker-indicator {
-  width: 18px !important;
-  height: 18px !important;
-  margin-left: 2px !important;
-}
-
-.admin-report-period-grid {
-  display: grid !important;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important;
-  gap: 10px !important;
-  width: 100% !important;
-  align-items: start !important;
-}
-
-.admin-report-period-grid > * {
-  min-width: 0 !important;
-  width: 100% !important;
-}
-
-.admin-report-period-grid input {
-  min-width: 0 !important;
-  width: 100% !important;
-}
-
-/* ===== Report date field compact final fix ===== */
-.admin-report-period-grid {
-  display: grid !important;
-  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-  gap: 10px !important;
-  width: 100% !important;
-}
-
-.admin-report-period-grid .field {
-  min-width: 0 !important;
-  width: 100% !important;
-  display: grid !important;
-  gap: 8px !important;
-}
-
-.admin-report-period-grid .field > span {
-  font-size: 14px !important;
-  font-weight: 800 !important;
-  line-height: 1.35 !important;
-  color: var(--ink) !important;
-}
-
-.admin-report-period-grid #report-start,
-.admin-report-period-grid #report-end {
-  width: 100% !important;
-  min-width: 0 !important;
-  max-width: 100% !important;
-  height: 48px !important;
-  min-height: 48px !important;
-  max-height: 48px !important;
-  padding: 0 12px !important;
-  box-sizing: border-box !important;
-  border-radius: 10px !important;
-
-  font-size: 14px !important;
-  font-weight: 600 !important;
-  letter-spacing: -0.04em !important;
-  line-height: 48px !important;
-  text-align: left !important;
-
-  -webkit-appearance: none !important;
-  appearance: none !important;
-}
-
-.admin-report-period-grid #report-start::-webkit-date-and-time-value,
-.admin-report-period-grid #report-end::-webkit-date-and-time-value {
-  text-align: left !important;
-  font-size: 14px !important;
-  font-weight: 600 !important;
-  line-height: 48px !important;
-}
-
-@media (max-width: 640px) {
-  .app-shell-admin .admin-report-period-grid {
-    gap: 10px !important;
-  }
-
-  .app-shell-admin .admin-report-period-grid #report-start,
-  .app-shell-admin .admin-report-period-grid #report-end {
-    height: 48px !important;
-    min-height: 48px !important;
-    font-size: 14px !important;
-    padding: 0 10px !important;
-  }
-}
-
-/* ===== Report date calendar icon restore ===== */
-.admin-report-period-grid #report-start,
-.admin-report-period-grid #report-end {
-  position: relative;
-  -webkit-appearance: auto !important;
-  appearance: auto !important;
-  padding-right: 34px !important;
-}
-
-.admin-report-period-grid #report-start::-webkit-calendar-picker-indicator,
-.admin-report-period-grid #report-end::-webkit-calendar-picker-indicator {
-  display: block !important;
-  opacity: 1 !important;
-  width: 18px !important;
-  height: 18px !important;
-  cursor: pointer;
-}
-
-/* ===== Report date input custom layout final ===== */
-.admin-report-period-grid {
-  display: grid !important;
-  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-  gap: 10px !important;
-  width: 100% !important;
-  align-items: start !important;
-}
-
-.report-date-field {
-  display: grid !important;
-  gap: 8px !important;
-  min-width: 0 !important;
-  width: 100% !important;
-}
-
-.report-date-field > span {
-  font-size: 14px !important;
-  font-weight: 800 !important;
-  line-height: 1.35 !important;
-  color: var(--ink) !important;
-}
-
-.report-date-input-wrap {
-  position: relative;
-  width: 100%;
-  min-width: 0;
-}
-
-.report-date-input {
-  width: 100% !important;
-  min-width: 0 !important;
-  max-width: 100% !important;
-  height: 48px !important;
-  min-height: 48px !important;
-  box-sizing: border-box !important;
-  padding: 0 38px 0 12px !important;
-  border: 1px solid var(--line-strong);
-  border-radius: 10px !important;
-  background: #ffffff !important;
-
-  font-size: 14px !important;
-  font-weight: 600 !important;
-  letter-spacing: -0.04em !important;
-  color: var(--ink) !important;
-  text-align: left !important;
-
-  appearance: none !important;
-  -webkit-appearance: none !important;
-}
-
-.report-date-input::-webkit-date-and-time-value {
-  text-align: left !important;
-  font-size: 14px !important;
-  font-weight: 600 !important;
-}
-
-.report-date-input::-webkit-calendar-picker-indicator {
-  opacity: 0;
-  position: absolute;
-  right: 0;
-  width: 38px;
-  height: 48px;
-  cursor: pointer;
-}
-
-.report-date-icon {
-  position: absolute;
-  right: 12px;
-  top: 50%;
-  transform: translateY(-50%);
-  font-size: 16px;
-  line-height: 1;
-  pointer-events: none;
-}
-
-@media (max-width: 640px) {
-  .app-shell-admin .admin-report-period-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-    gap: 10px !important;
+@media (min-width: 641px) {
+  .app-shell-admin .report-date-icon {
+    display: none;
   }
 
   .app-shell-admin .report-date-input {
-    height: 48px !important;
-    min-height: 48px !important;
-    font-size: 14px !important;
-    padding: 0 34px 0 10px !important;
+    padding-right: 12px;
+    -webkit-appearance: auto;
+    appearance: auto;
   }
 
-  .app-shell-admin .report-date-icon {
-    right: 10px;
-    font-size: 15px;
-  }
-}
-
-/* ===== Report date icon desktop/mobile separation ===== */
-@media (min-width: 641px) {
-  .report-date-icon {
-    display: none !important;
-  }
-
-  .report-date-input {
-    padding-right: 12px !important;
-    -webkit-appearance: auto !important;
-    appearance: auto !important;
-  }
-
-  .report-date-input::-webkit-calendar-picker-indicator {
-    opacity: 1 !important;
-    position: static !important;
-    width: 18px !important;
-    height: 18px !important;
+  .app-shell-admin .report-date-input::-webkit-calendar-picker-indicator {
+    opacity: 1;
+    position: static;
+    width: 18px;
+    height: 18px;
     cursor: pointer;
   }
 }
 
-@media (max-width: 640px) {
-  .report-date-icon {
-    display: inline-flex !important;
+@media (min-width: 900px) {
+  .app-shell-admin .filter-tabs {
+    overflow: visible;
+    padding: 0;
   }
 
-  .report-date-input {
-    padding-right: 34px !important;
-    -webkit-appearance: none !important;
-    appearance: none !important;
+  .app-shell-admin .filter-tabs button {
+    flex: 1 1 0;
+    min-width: 0;
   }
 
-  .report-date-input::-webkit-calendar-picker-indicator {
-    opacity: 0 !important;
-    position: absolute !important;
-    right: 0 !important;
-    width: 38px !important;
-    height: 48px !important;
-    cursor: pointer;
-  }
-}
-
-/* ===== Admin target card desktop compact layout ===== */
-@media (min-width: 641px) {
-  .app-shell-admin .admin-target-card {
-    gap: 12px;
-    padding: 18px 20px;
-  }
-
-  .app-shell-admin .admin-target-meta {
-    display: flex !important;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 6px 14px;
-    width: 100%;
-  }
-
-  .app-shell-admin .admin-target-meta-item {
-    min-height: 0 !important;
-    padding: 0 !important;
-    border: 0 !important;
-    border-radius: 0 !important;
-    background: transparent !important;
-
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-  }
-
-  .app-shell-admin .admin-target-meta-item span {
-    margin: 0 !important;
-    font-size: 13px;
-    font-weight: 700;
-    color: var(--muted);
-  }
-
-  .app-shell-admin .admin-target-meta-item strong {
-    font-size: 14px;
-    font-weight: 800;
-    color: var(--ink);
-  }
-
-  .app-shell-admin .admin-target-meta-item:not(:last-child)::after {
-    content: "·";
-    margin-left: 10px;
-    color: var(--muted);
-  }
-
-  .app-shell-admin .admin-target-detail-action {
-    width: auto;
-    min-width: 92px;
-    align-self: flex-start;
-    padding: 0 18px;
-  }
-}
-
-/* ===== Admin target card desktop compact action layout ===== */
-@media (min-width: 641px) {
   .app-shell-admin .admin-target-card {
     position: relative;
+    gap: 12px;
+    min-height: 0;
     padding: 18px 132px 18px 20px;
-    min-height: 132px;
   }
 
   .app-shell-admin .admin-target-card .card-row {
     display: grid;
-    grid-template-columns: 1fr auto;
+    grid-template-columns: minmax(0, 1fr) auto;
     align-items: start;
     gap: 16px;
+  }
+
+  .app-shell-admin .admin-target-card .card-row > div:first-child {
+    min-width: 0;
+  }
+
+  .app-shell-admin .admin-target-card .card-row strong {
+    display: block;
+    margin-bottom: 4px;
+  }
+
+  .app-shell-admin .admin-target-card .card-row p {
+    margin: 0;
+    line-height: 1.5;
   }
 
   .app-shell-admin .admin-target-card .card-row > .badge,
@@ -6726,18 +6128,52 @@ button.upload-box {
 
   .app-shell-admin .admin-target-card .admin-target-detail-action {
     position: absolute;
-    top: 52px;
+    top: 54px;
     right: 20px;
-    width: 96px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: auto;
     min-width: 96px;
-    min-height: 42px;
-    height: 42px;
-    margin: 0;
-    padding: 0 14px;
+    min-height: 40px;
+    padding: 0 16px;
+    border-radius: 10px;
   }
 
   .app-shell-admin .admin-target-card .admin-target-meta {
-    margin-top: 14px;
-    padding-right: 0;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 14px;
+    margin-top: 12px;
+    width: 100%;
+  }
+
+  .app-shell-admin .admin-target-card .admin-target-meta-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+  }
+
+  .app-shell-admin .admin-target-card .admin-target-meta-item span {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--muted);
+  }
+
+  .app-shell-admin .admin-target-card .admin-target-meta-item strong {
+    font-size: 14px;
+    font-weight: 800;
+    color: var(--ink);
+  }
+
+  .app-shell-admin .admin-target-card .admin-target-meta-item:not(:last-child)::after {
+    content: "·";
+    margin-left: 10px;
+    color: var(--muted);
   }
 }
