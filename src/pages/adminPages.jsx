@@ -649,22 +649,25 @@ export function AdminTargets({ data, navigate }) {
   const [filter, setFilter] = useState("all");
   const isActiveTarget = (target) => (target.lifecycleStatus || "active") !== "ended";
 
-const filteredTargets = data.targets.filter((target) => {
-  const targetIsActive = isActiveTarget(target);
+const isActiveTarget = (target) => (target.lifecycleStatus || "active") !== "ended";
 
-  if (filter === "ended") {
-    return !targetIsActive;
-  }
+const filteredTargets = data.targets
+  .filter((target) => {
+    const targetIsActive = isActiveTarget(target);
 
-  if (!targetIsActive) {
-    return false;
-  }
+    if (filter === "ended") {
+      return !targetIsActive;
+    }
 
-  if (filter === "all") return true;
-  if (filter === "today") return isTodayTarget(target);
-  return target.riskLevel === filter;
-});
-    .sort(sortTargetsForAdmin);
+    if (!targetIsActive) {
+      return false;
+    }
+
+    if (filter === "all") return true;
+    if (filter === "today") return isTodayTarget(target);
+    return target.riskLevel === filter;
+  })
+  .sort(sortTargetsForAdmin);
 
   return (
     <>
