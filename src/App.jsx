@@ -25,6 +25,7 @@ import {
   AdminReportNew,
   AdminReportPreview,
   AdminStatistics,
+  AdminTargetNew,
   AdminTargetEdit,
   AdminTargetDetail,
   AdminTargets,
@@ -180,6 +181,9 @@ export default function App() {
           )
         );
       },
+      addTarget(target) {
+        setTargets((current) => [target, ...current]);
+      },
       updateTarget(targetOrId, updates = {}) {
   const targetId =
     typeof targetOrId === "object" && targetOrId !== null ? targetOrId.id : targetOrId;
@@ -264,6 +268,7 @@ export default function App() {
 function renderPage({ location, user, data, actions, navigate }) {
   const params = new URLSearchParams(location.search);
   const checkerTargetMatch = location.pathname.match(/^\/checker\/targets\/([^/]+)$/);
+  const adminTargetNewMatch = location.pathname === "/admin/targets/new";
   const adminTargetMatch = location.pathname.match(/^\/admin\/targets\/([^/]+)$/);
   const adminTargetEditMatch = location.pathname.match(/^\/admin\/targets\/([^/]+)\/edit$/);
   const adminCheckerMatch = location.pathname.match(/^\/admin\/checkers\/([^/]+)$/);
@@ -336,6 +341,10 @@ function renderPage({ location, user, data, actions, navigate }) {
 
     if (location.pathname === "/admin/targets") {
   return <AdminTargets data={data} actions={actions} navigate={navigate} />;
+}
+
+if (adminTargetNewMatch) {
+  return <AdminTargetNew data={data} actions={actions} navigate={navigate} />;
 }
 
 if (adminTargetEditMatch) {

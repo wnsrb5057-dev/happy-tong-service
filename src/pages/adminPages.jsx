@@ -684,7 +684,12 @@ const filteredTargets = data.targets
 
   return (
     <>
-      <PageHeader eyebrow="대상자 관리" title="대상자 현황" description="확인 유형, 위험도, 담당 체커를 확인합니다." />
+      <PageHeader
+        eyebrow="대상자 관리"
+        title="대상자 현황"
+        description="확인 유형, 위험도, 담당 체커를 확인합니다."
+        action={<Button onClick={() => navigate("/admin/targets/new")}>대상자 등록</Button>}
+      />
 
       <Card className="summary-card">
         <p className="eyebrow">대상자 현황</p>
@@ -1716,6 +1721,245 @@ export function AdminTargetEdit({ targetId, data, actions, navigate }) {
         <div className="action-grid">
           <Button type="submit">저장</Button>
           <Button variant="secondary" onClick={() => navigate(`/admin/targets/${target.id}`)}>
+            취소
+          </Button>
+        </div>
+      </form>
+    </>
+  );
+}
+
+export function AdminTargetNew({ data, actions, navigate }) {
+  const checkerOptions = data.users.filter((user) => user.role === "checker");
+  const dayOptions = ["월", "화", "수", "목", "금", "토", "일"];
+  const [form, setForm] = useState(() => ({
+    name: "",
+    age: "",
+    gender: "여성",
+    address: "",
+    riskLevel: "normal",
+    defaultCheckType: "external",
+    assignedCheckerId: "",
+    checkDays: ["월", "수", "금"],
+    checkTime: "",
+    healthStatus: "",
+    cautionNote: "",
+    medicationNote: "",
+    guardianName: "",
+    guardianPhone: "",
+  }));
+  const [error, setError] = useState("");
+
+  function updateForm(key, value) {
+    setForm((current) => ({ ...current, [key]: value }));
+  }
+
+  function toggleCheckDay(day) {
+    setForm((current) => ({
+      ...current,
+      checkDays: current.checkDays.includes(day)
+        ? current.checkDays.filter((item) => item !== day)
+        : [...current.checkDays, day],
+    }));
+  }
+
+  function handleSubmit(event) {
+    event.preventDefault();
+
+    const trimmedName = form.name.trim();
+    const trimmedAddress = form.address.trim();
+    const parsedAge = Number(form.age);
+
+    if (!trimmedName) {
+      setError("이름을 입력해주세요.");
+      return;
+    }
+
+    if (!form.age.trim() || Number.isNaN(parsedAge)) {
+      setError("나이는 숫자로 입력해주세요.");
+      return;
+    }
+
+    if (!trimmedAddress) {
+      setError("주소를 입력해주세요.");
+      return;
+    }
+
+    const todayLabel = ["일", "월", "화", "수", "목", "금", "토"][new Date().getDay()];
+    const isTodaySelected = form.checkDays.includes(todayLabel);
+    const now = new Date().toISOString();
+    const newTarget = {
+      id: `target-${Date.now()}`,
+      name: trimmedName,
+      age: parsedAge,
+      gender: form.gender,
+      address: trimmedAddress,
+      riskLevel: form.riskLevel,
+      defaultCheckType: form.defaultCheckType,
+      assignedCheckerId: form.assignedCheckerId,
+      checkDays: form.checkDays,
+      checkTime: form.checkTime,
+      visitTime: form.checkTime,
+      healthStatus: form.healthStatus.trim(),
+      cautionNote: form.cautionNote.trim(),
+      medicationNote: form.medicationNote.trim(),
+      guardianName: form.guardianName.trim(),
+      guardianPhone: form.guardianPhone.trim(),
+      todayScheduled: isTodaySelected,
+      todayVisit: isTodaySelected,
+      lifecycleStatus: "active",
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    actions.addTarget(newTarget);
+    navigate(`/admin/targets/${newTarget.id}`);
+  }
+
+  return (
+    <>
+      <PageHeader
+        eyebrow="대상자 등록"
+        title="신규 대상자 등록"
+        description="운영에 필요한 기본 정보를 입력하고 대상자를 등록합니다."
+        action={
+          <Button variant="ghost" onClick={() => navigate("/admin/targets")}>
+            목록으로 돌아가기
+          </Button>
+        }
+      />
+
+      <form className="form-stack" onSubmit={handleSubmit}>
+        <Card>
+          <TextInput
+            id="target-new-name"
+            label="이름"
+            value={form.name}
+            onChange={(event) => updateForm("name", event.target.value)}
+            placeholder="대상자 이름"
+          />
+          <TextInput
+            id="target-new-age"
+            label="나이"
+            inputMode="numeric"
+            value={form.age}
+            onChange={(event) => updateForm("age", event.target.value)}
+            placeholder="나이"
+          />
+          <SelectInput
+            id="target-new-gender"
+            label="성별"
+            value={form.gender}
+            onChange={(event) => updateForm("gender", event.target.value)}
+          >
+            <option value="여성">여성</option>
+            <option value="남성">남성</option>
+          </SelectInput>
+          <TextInput
+            id="target-new-address"
+            label="주소"
+            value={form.address}
+            onChange={(event) => updateForm("address", event.target.value)}
+            placeholder="상세 주소"
+          />
+          <SelectInput
+            id="target-new-risk"
+            label="위험도"
+            value={form.riskLevel}
+            onChange={(event) => updateForm("riskLevel", event.target.value)}
+          >
+            <option value="normal">정상</option>
+            <option value="caution">주의</option>
+            <option value="danger">위험</option>
+          </SelectInput>
+          <SelectInput
+            id="target-new-check-type"
+            label="기본 확인 유형"
+            value={form.defaultCheckType}
+            onChange={(event) => updateForm("defaultCheckType", event.target.value)}
+          >
+            <option value="external">외부 확인</option>
+            <option value="call">전화 확인</option>
+            <option value="visit">방문 확인</option>
+            <option value="intensive">집중 모니터링</option>
+          </SelectInput>
+          <SelectInput
+            id="target-new-checker"
+            label="담당 체커"
+            value={form.assignedCheckerId}
+            onChange={(event) => updateForm("assignedCheckerId", event.target.value)}
+          >
+            <option value="">미배정</option>
+            {checkerOptions.map((checker) => (
+              <option key={checker.id} value={checker.id}>
+                {checker.name}
+              </option>
+            ))}
+          </SelectInput>
+          <div className="field">
+            <span>확인 요일</span>
+            <div className="checker-assignment-list">
+              {dayOptions.map((day) => (
+                <CheckboxField
+                  key={day}
+                  label={day}
+                  checked={form.checkDays.includes(day)}
+                  onChange={() => toggleCheckDay(day)}
+                />
+              ))}
+            </div>
+          </div>
+          <TextInput
+            id="target-new-check-time"
+            label="확인 시간"
+            type="time"
+            value={form.checkTime}
+            onChange={(event) => updateForm("checkTime", event.target.value)}
+          />
+          <TextInput
+            id="target-new-health-status"
+            label="건강상태"
+            value={form.healthStatus}
+            onChange={(event) => updateForm("healthStatus", event.target.value)}
+            placeholder="건강 상태를 입력하세요"
+          />
+          <TextArea
+            id="target-new-caution-note"
+            label="주의사항"
+            rows="3"
+            value={form.cautionNote}
+            onChange={(event) => updateForm("cautionNote", event.target.value)}
+            placeholder="주의사항을 입력하세요"
+          />
+          <TextArea
+            id="target-new-medication-note"
+            label="복약 메모"
+            rows="3"
+            value={form.medicationNote}
+            onChange={(event) => updateForm("medicationNote", event.target.value)}
+            placeholder="복약 관련 메모를 입력하세요"
+          />
+          <TextInput
+            id="target-new-guardian-name"
+            label="보호자 이름"
+            value={form.guardianName}
+            onChange={(event) => updateForm("guardianName", event.target.value)}
+            placeholder="보호자 이름"
+          />
+          <TextInput
+            id="target-new-guardian-phone"
+            label="보호자 연락처"
+            value={form.guardianPhone}
+            onChange={(event) => updateForm("guardianPhone", event.target.value)}
+            placeholder="010-0000-0000"
+          />
+        </Card>
+
+        {error ? <p className="form-error">{error}</p> : null}
+
+        <div className="action-grid">
+          <Button type="submit">저장</Button>
+          <Button variant="secondary" onClick={() => navigate("/admin/targets")}>
             취소
           </Button>
         </div>
