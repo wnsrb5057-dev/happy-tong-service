@@ -46,6 +46,7 @@ import {
   buildTargetsCsvRows,
   downloadCsv,
 } from "../utils/exportCsv.js";
+import { getActiveTargets } from "../services/targetService.js";
 
 function getToday() {
   const now = new Date();
@@ -58,7 +59,7 @@ function byLatestDate(a, b) {
 }
 
 function truncateText(text, maxLength = 56) {
-  if (!text) return "메모 없음";
+  if (!text) return "�޸� ����";
   return text.length > maxLength ? `${text.slice(0, maxLength)}...` : text;
 }
 
@@ -75,15 +76,15 @@ function checkerById(users, checkerId) {
 }
 
 function targetName(targets, targetId) {
-  return targetById(targets, targetId)?.name ?? "대상자 없음";
+  return targetById(targets, targetId)?.name ?? "����� ����";
 }
 
 function checkerName(users, checkerId) {
-  return checkerById(users, checkerId)?.name ?? "체커 없음";
+  return checkerById(users, checkerId)?.name ?? "üĿ ����";
 }
 
 function checkerPhone(users, checkerId) {
-  return checkerById(users, checkerId)?.phone ?? "연락처 없음";
+  return checkerById(users, checkerId)?.phone ?? "����ó ����";
 }
 
 function getCheckType(record) {
@@ -125,7 +126,7 @@ function sortTargetsForAdmin(a, b) {
 }
 
 function getWeekPlan(targets) {
-  const days = ["일", "월", "화", "수", "목", "금", "토"];
+  const days = ["��", "��", "ȭ", "��", "��", "��", "��"];
   return days.map((day) => ({
     day,
     targets: targets.filter((target) => target.checkDays?.includes(day)),
@@ -155,7 +156,7 @@ function getCheckerStatus(checker, data) {
 
 export function AdminDashboard({ data, navigate }) {
   const today = getTodayFromStats();
-  const todayPlanDay = ["일", "월", "화", "수", "목", "금", "토"][new Date().getDay()];
+  const todayPlanDay = ["��", "��", "ȭ", "��", "��", "��", "��"][new Date().getDay()];
   const stats = getDashboardStats(data);
   const todayScheduled = data.targets.filter(isTodayScheduled).length;
   const completedToday = data.activityRecords.filter((record) => record.date === today && record.status === "completed").length;
@@ -210,31 +211,31 @@ const sortedRecentEmergencyReports = [...recentEmergencyReports].sort((a, b) => 
   return (
     <>
       <PageHeader
-        eyebrow="관리자 대시보드"
-        title="운영 현황"
-        description="오늘 운영에 문제가 있는지 먼저 확인합니다."
+        eyebrow="������ ��ú���"
+        title="� ��Ȳ"
+        description="���� ��� ������ �ִ��� ���� Ȯ���մϴ�."
       />
 
       <div className="admin-dashboard-layout">
         <Card className="summary-card admin-dashboard-summary">
-          <p className="eyebrow">오늘 운영 현황 · {today}</p>
-          <strong>확인 예정 {todayScheduled}건 · 완료 {completedToday}건 · 미작성 {stats.pendingActivityCount}건</strong>
-          <span>이상징후 {stats.emergencyCount}건 · 긴급 확인 {urgentReports.length}건</span>
+          <p className="eyebrow">���� � ��Ȳ �� {today}</p>
+          <strong>Ȯ�� ���� {todayScheduled}�� �� �Ϸ� {completedToday}�� �� ���ۼ� {stats.pendingActivityCount}��</strong>
+          <span>�̻�¡�� {stats.emergencyCount}�� �� ��� Ȯ�� {urgentReports.length}��</span>
         </Card>
 
          <div className="admin-dashboard-grid">
           <section className="section-block admin-dashboard-panel">
-            <SectionTitle title="우선 처리 필요" description="긴급 확인과 미처리 건을 먼저 확인하세요." />
+            <SectionTitle title="�켱 ó�� �ʿ�" description="��� Ȯ�ΰ� ��ó�� ���� ���� Ȯ���ϼ���." />
             <div className="priority-list">
-              <button type="button" onClick={() => navigate('/admin/emergencies')}>긴급 확인 필요 {urgentReports.length}건</button>
-              <button type="button" onClick={() => navigate('/admin/emergencies')}>미처리 이상징후 {unresolvedReports.length}건</button>
-              <button type="button" onClick={() => navigate('/admin/targets')}>위험 대상자 {stats.dangerTargetCount}명</button>
-              <button type="button" onClick={() => navigate('/admin/activities')}>기록 보완 필요 {stats.pendingActivityCount}건</button>
+              <button type="button" onClick={() => navigate('/admin/emergencies')}>��� Ȯ�� �ʿ� {urgentReports.length}��</button>
+              <button type="button" onClick={() => navigate('/admin/emergencies')}>��ó�� �̻�¡�� {unresolvedReports.length}��</button>
+              <button type="button" onClick={() => navigate('/admin/targets')}>���� ����� {stats.dangerTargetCount}��</button>
+              <button type="button" onClick={() => navigate('/admin/activities')}>��� ���� �ʿ� {stats.pendingActivityCount}��</button>
             </div>
           </section>
 
           <section className="section-block admin-dashboard-panel">
-            <SectionTitle title="이번 주 확인 계획" />
+            <SectionTitle title="�̹� �� Ȯ�� ��ȹ" />
             <div className="week-strip">
               {weekPlan.map((item) => (
                 <button
@@ -244,7 +245,7 @@ const sortedRecentEmergencyReports = [...recentEmergencyReports].sort((a, b) => 
                onClick={() => setSelectedPlanDay(item.day)}
              >
                <strong>{item.day}</strong>
-               <span>{item.targets.length}명</span>
+               <span>{item.targets.length}��</span>
              </button>
               ))}
             </div>
@@ -256,7 +257,7 @@ const sortedRecentEmergencyReports = [...recentEmergencyReports].sort((a, b) => 
         <div className="admin-dashboard-card-copy">
           <strong>{target.name}</strong>
           <p className="muted">
-            {checkerName(data.users, target.assignedCheckerId)} · {checkTypeLabels[getTargetCheckType(target)]}
+            {checkerName(data.users, target.assignedCheckerId)} �� {checkTypeLabels[getTargetCheckType(target)]}
           </p>
         </div>
         <StatusBadge type="risk" value={target.riskLevel} />
@@ -264,15 +265,15 @@ const sortedRecentEmergencyReports = [...recentEmergencyReports].sort((a, b) => 
     </Card>
   ))
 ) : (
-                <EmptyState title={`${selectedPlan.day}요일 확인 계획 없음`} description="해당 요일에 등록된 확인 대상자가 없습니다." />
+                <EmptyState title={`${selectedPlan.day}���� Ȯ�� ��ȹ ����`} description="�ش� ���Ͽ� ��ϵ� Ȯ�� ����ڰ� �����ϴ�." />
               )}
             </div>
           </section>
 
           <section className="section-block admin-dashboard-panel">
   <SectionTitle
-    title="최근 이상징후"
-    action={<Button variant="ghost" onClick={() => navigate('/admin/emergencies')}>전체 보기</Button>}
+    title="�ֱ� �̻�¡��"
+    action={<Button variant="ghost" onClick={() => navigate('/admin/emergencies')}>��ü ����</Button>}
   />
   <div className="stack">
     {sortedRecentEmergencyReports.length ? (
@@ -281,7 +282,7 @@ const sortedRecentEmergencyReports = [...recentEmergencyReports].sort((a, b) => 
           <div className="card-row">
             <div>
               <strong>{targetName(data.targets, report.targetId)}</strong>
-              <p className="muted">{report.date} · {report.issueType}</p>
+              <p className="muted">{report.date} �� {report.issueType}</p>
             </div>
             <div className="badge-row compact-badges">
               <StatusBadge type="urgency" value={report.urgency} />
@@ -295,26 +296,26 @@ const sortedRecentEmergencyReports = [...recentEmergencyReports].sort((a, b) => 
     className="dashboard-small-button"
     onClick={() => navigate(`/admin/emergencies/${report.id}`)}
   >
-    상세보기
+    �󼼺���
   </Button>
 </div>
         </Card>
       ))
     ) : (
-      <EmptyState title="긴급 알림 없음" description="새 보고가 등록되면 이 영역에 표시됩니다." />
+      <EmptyState title="��� �˸� ����" description="�� ������ ��ϵǸ� �� ������ ǥ�õ˴ϴ�." />
     )}
   </div>
 </section>
 
           <section className="section-block admin-dashboard-panel">
-            <SectionTitle title="최근 확인 기록" />
+            <SectionTitle title="�ֱ� Ȯ�� ���" />
             <div className="stack">
               {recentActivities.map((record) => (
                 <Card key={record.id}>
                   <div className="card-row">
                     <div>
                       <strong>{targetName(data.targets, record.targetId)}</strong>
-                      <p className="muted">{record.date} · {checkerName(data.users, record.checkerId)} · {activityTypeLabels[getCheckType(record)]}</p>
+                      <p className="muted">{record.date} �� {checkerName(data.users, record.checkerId)} �� {activityTypeLabels[getCheckType(record)]}</p>
                     </div>
                     <StatusBadge type="record" value={record.status} />
                   </div>
@@ -382,13 +383,13 @@ export function AdminCheckers({ data, actions, currentUser, navigate }) {
 
   return (
     <>
-      <PageHeader eyebrow="체커 관리" title="체커 운영 지원" description="담당 대상자와 확인 기록 보완 필요 여부를 확인합니다." />
+      <PageHeader eyebrow="üĿ ����" title="üĿ � ����" description="��� ����ڿ� Ȯ�� ��� ���� �ʿ� ���θ� Ȯ���մϴ�." />
 
       <section className="section-block">
         <div className="section-title">
           <div>
-            <h2>체커 이용 신청</h2>
-            <p className="muted">소속 기관별로 접수된 체커 신청을 확인하거나 반려합니다.</p>
+            <h2>üĿ �̿� ��û</h2>
+            <p className="muted">�Ҽ� ������� ������ üĿ ��û�� Ȯ���ϰų� �ݷ��մϴ�.</p>
           </div>
         </div>
         {pendingSignupRequests.length ? (
@@ -398,41 +399,41 @@ export function AdminCheckers({ data, actions, currentUser, navigate }) {
                 <div className="card-row checker-request-head">
                   <div>
                     <strong>{request.name}</strong>
-                    <p className="muted">{request.loginId} · {request.phone}</p>
+                    <p className="muted">{request.loginId} �� {request.phone}</p>
                   </div>
-                  <span className="badge badge-info">승인 대기</span>
+                  <span className="badge badge-info">���� ���</span>
                 </div>
                 <div className="checker-request-meta">
-                  <p><strong>소속 기관</strong> {request.organizationName}</p>
-                  <p><strong>신청일</strong> {String(request.createdAt || "").slice(0, 10)}</p>
-                  <p><strong>메모</strong> {request.memo || "메모 없음"}</p>
+                  <p><strong>�Ҽ� ���</strong> {request.organizationName}</p>
+                  <p><strong>��û��</strong> {String(request.createdAt || "").slice(0, 10)}</p>
+                  <p><strong>�޸�</strong> {request.memo || "�޸� ����"}</p>
                 </div>
                 <div className="checker-request-actions">
-                  <Button onClick={() => actions.approveSignupRequest(request.id)}>이용 승인</Button>
-                  <Button variant="secondary" onClick={() => actions.rejectSignupRequest(request.id)}>반려</Button>
+                  <Button onClick={() => actions.approveSignupRequest(request.id)}>�̿� ����</Button>
+                  <Button variant="secondary" onClick={() => actions.rejectSignupRequest(request.id)}>�ݷ�</Button>
                 </div>
               </Card>
             ))}
           </div>
         ) : (
           <EmptyState
-            title="현재 기관으로 접수된 대기 신청이 없습니다."
-            description="다른 기관으로 신청한 체커는 이 화면에 표시되지 않습니다."
+            title="���� ������� ������ ��� ��û�� �����ϴ�."
+            description="�ٸ� ������� ��û�� üĿ�� �� ȭ�鿡 ǥ�õ��� �ʽ��ϴ�."
           />
         )}
       </section>
 
       <Card className="summary-card">
-        <p className="eyebrow">체커 현황</p>
-        <strong>전체 {checkers.length}명 · 오늘 확인 진행 {activeCount}명</strong>
-        <span>기록 보완 필요 {pendingCheckerCount}명 · 지원 필요 {attentionCount}명</span>
+        <p className="eyebrow">üĿ ��Ȳ</p>
+        <strong>��ü {checkers.length}�� �� ���� Ȯ�� ���� {activeCount}��</strong>
+        <span>��� ���� �ʿ� {pendingCheckerCount}�� �� ���� �ʿ� {attentionCount}��</span>
       </Card>
 
-      <div className="filter-tabs compact-filter-tabs" aria-label="체커 필터">
+      <div className="filter-tabs compact-filter-tabs" aria-label="üĿ ����">
         {[
-          { value: "all", label: "전체" },
-          { value: "active", label: "정상" },
-          { value: "needs_attention", label: "지원 필요" },
+          { value: "all", label: "��ü" },
+          { value: "active", label: "����" },
+          { value: "needs_attention", label: "���� �ʿ�" },
         ].map((item) => (
           <button
             className={filter === item.value ? "filter-tab-active" : ""}
@@ -456,17 +457,17 @@ export function AdminCheckers({ data, actions, currentUser, navigate }) {
               <StatusBadge type="checker" value={checker.status} />
             </div>
             <div className="admin-checker-metrics">
-              <div><span>담당 대상자</span><strong>{checker.assignedCount}명</strong></div>
-              <div><span>오늘 확인 완료</span><strong>{checker.completedCount}건</strong></div>
-              <div><span>기록 보완 필요</span><strong>{checker.pendingCount}건</strong></div>
-              <div><span>이상징후 보고 관련</span><strong>{checker.emergencyCount ? `${checker.emergencyCount}건` : "없음"}</strong></div>
+              <div><span>��� �����</span><strong>{checker.assignedCount}��</strong></div>
+              <div><span>���� Ȯ�� �Ϸ�</span><strong>{checker.completedCount}��</strong></div>
+              <div><span>��� ���� �ʿ�</span><strong>{checker.pendingCount}��</strong></div>
+              <div><span>�̻�¡�� ���� ����</span><strong>{checker.emergencyCount ? `${checker.emergencyCount}��` : "����"}</strong></div>
             </div>
             <Button
               variant="ghost"
               className="full-width admin-checker-detail-button"
               onClick={() => navigate(`/admin/checkers/${checker.id}`)}
             >
-              상세 정보
+              �� ����
             </Button>
           </Card>
         ))}
@@ -525,7 +526,7 @@ export function AdminCheckerDetail({ checkerId, data, actions, navigate }) {
 
   function handleAssignmentSave() {
     actions.updateCheckerAssignments(checkerId, draftAssignments);
-    setSaveMessage("담당 대상자 배정이 저장되었습니다.");
+    setSaveMessage("��� ����� ������ ����Ǿ����ϴ�.");
     window.setTimeout(() => {
       setSaveMessage("");
     }, 2400);
@@ -534,8 +535,8 @@ export function AdminCheckerDetail({ checkerId, data, actions, navigate }) {
   if (!checker || !checkerSummary) {
     return (
       <div className="center-panel">
-        <EmptyState title="체커 정보를 찾을 수 없습니다." description="목록으로 돌아가 다시 확인해주세요." />
-        <Button onClick={() => navigate("/admin/checkers")}>목록으로 이동</Button>
+        <EmptyState title="üĿ ������ ã�� �� �����ϴ�." description="������� ���ư� �ٽ� Ȯ�����ּ���." />
+        <Button onClick={() => navigate("/admin/checkers")}>������� �̵�</Button>
       </div>
     );
   }
@@ -543,12 +544,12 @@ export function AdminCheckerDetail({ checkerId, data, actions, navigate }) {
   return (
     <>
       <PageHeader
-        eyebrow="체커 상세"
+        eyebrow="üĿ ��"
         title={checkerSummary.name}
-        description="체커 운영 현황과 담당 대상자 배정을 확인합니다."
+        description="üĿ � ��Ȳ�� ��� ����� ������ Ȯ���մϴ�."
         action={
           <Button variant="ghost" onClick={() => navigate("/admin/checkers")}>
-            목록으로 이동
+            ������� �̵�
           </Button>
         }
       />
@@ -557,30 +558,30 @@ export function AdminCheckerDetail({ checkerId, data, actions, navigate }) {
         <div className="card-row admin-checker-detail-head">
           <div>
             <strong>{checkerSummary.name}</strong>
-            <p className="muted">{checkerSummary.phone} · {checkerSummary.organizationName || "소속 기관 정보 없음"}</p>
+            <p className="muted">{checkerSummary.phone} �� {checkerSummary.organizationName || "�Ҽ� ��� ���� ����"}</p>
           </div>
           <StatusBadge type="checker" value={checkerSummary.status} />
         </div>
         <div className="admin-checker-detail-metrics">
-          <div><span>담당 대상자 수</span><strong>{checkerSummary.assignedCount}명</strong></div>
-          <div><span>오늘 확인 완료</span><strong>{checkerSummary.completedCount}건</strong></div>
-          <div><span>기록 보완 필요</span><strong>{checkerSummary.pendingCount}건</strong></div>
-          <div><span>이상징후 보고 관련</span><strong>{checkerSummary.emergencyCount ? `${checkerSummary.emergencyCount}건` : "없음"}</strong></div>
+          <div><span>��� ����� ��</span><strong>{checkerSummary.assignedCount}��</strong></div>
+          <div><span>���� Ȯ�� �Ϸ�</span><strong>{checkerSummary.completedCount}��</strong></div>
+          <div><span>��� ���� �ʿ�</span><strong>{checkerSummary.pendingCount}��</strong></div>
+          <div><span>�̻�¡�� ���� ����</span><strong>{checkerSummary.emergencyCount ? `${checkerSummary.emergencyCount}��` : "����"}</strong></div>
         </div>
       </Card>
 
       <section className="section-block">
         <div className="section-title">
           <div>
-            <h2>담당 대상자 배정</h2>
-            <p className="muted">현재 체커에게 배정된 대상자와 미배정 대상을 함께 확인합니다.</p>
+            <h2>��� ����� ����</h2>
+            <p className="muted">���� üĿ���� ������ ����ڿ� �̹��� ����� �Բ� Ȯ���մϴ�.</p>
           </div>
         </div>
 
         <Card className="checker-assignment-section admin-checker-assignment-card">
           <div className="checker-assignment-summary">
-            <strong>배정 현황</strong>
-            <span>현재 배정 {assignedTargetIds.length}명 · 미배정 {unassignedCount}명</span>
+            <strong>���� ��Ȳ</strong>
+            <span>���� ���� {assignedTargetIds.length}�� �� �̹��� {unassignedCount}��</span>
           </div>
 
           <div className="checker-assignment-list">
@@ -609,11 +610,11 @@ export function AdminCheckerDetail({ checkerId, data, actions, navigate }) {
                     <div className="badge-row compact-badges">
                       <StatusBadge type="checkType" value={getTargetCheckType(target)} />
                       {assignedToOther ? (
-                        <span className="badge badge-muted">{`${assignedChecker?.name || "다른 체커"} 배정중`}</span>
+                        <span className="badge badge-muted">{`${assignedChecker?.name || "�ٸ� üĿ"} ������`}</span>
                       ) : isChecked ? (
-                        <span className="badge badge-info">현재 이 체커에게 배정됨</span>
+                        <span className="badge badge-info">���� �� üĿ���� ������</span>
                       ) : (
-                        <span className="badge badge-muted">미배정</span>
+                        <span className="badge badge-muted">�̹���</span>
                       )}
                     </div>
                   </div>
@@ -630,15 +631,15 @@ export function AdminCheckerDetail({ checkerId, data, actions, navigate }) {
 
   {hasUnsavedChanges ? (
     <p className="admin-checker-unsaved-text">
-      저장되지 않은 변경사항이 있습니다.
+      ������� ���� ��������� �ֽ��ϴ�.
     </p>
   ) : null}
 </div>
           <div className="checker-assignment-actions">
           <Button onClick={handleAssignmentSave}>
-  {saveMessage ? "저장 완료" : "배정 저장"}
+  {saveMessage ? "���� �Ϸ�" : "���� ����"}
 </Button>
-            <Button variant="secondary" onClick={handleAssignmentCancel}>변경 취소</Button>
+            <Button variant="secondary" onClick={handleAssignmentCancel}>���� ���</Button>
           </div>
         </Card>
       </section>
@@ -647,8 +648,12 @@ export function AdminCheckerDetail({ checkerId, data, actions, navigate }) {
 }
 export function AdminTargets({ data, navigate }) {
   const [filter, setFilter] = useState("all");
+  const activeTargets = getActiveTargets(data.targets);
   const filteredTargets = data.targets
     .filter((target) => {
+      const lifecycleStatus = target.lifecycleStatus || "active";
+      if (filter === "ended") return lifecycleStatus === "ended";
+      if (lifecycleStatus === "ended") return false;
       if (filter === "today") return isTodayScheduled(target);
       if (filter === "all") return true;
       return target.riskLevel === filter;
@@ -657,23 +662,24 @@ export function AdminTargets({ data, navigate }) {
 
   return (
     <>
-      <PageHeader eyebrow="대상자 관리" title="대상자 현황" description="확인 유형, 위험도, 담당 체커를 확인합니다." />
+      <PageHeader eyebrow="����� ����" title="����� ��Ȳ" description="Ȯ�� ����, ���赵, ��� üĿ�� Ȯ���մϴ�." />
 
       <Card className="summary-card">
-        <p className="eyebrow">대상자 현황</p>
-        <strong>전체 {data.targets.length}명 · 오늘 확인 {data.targets.filter(isTodayScheduled).length}명</strong>
+        <p className="eyebrow">����� ��Ȳ</p>
+        <strong>��ü {activeTargets.length}�� �� ���� Ȯ�� {activeTargets.filter(isTodayScheduled).length}��</strong>
         <span>
-          정상 {data.targets.filter((target) => target.riskLevel === "normal").length}명 · 주의 {data.targets.filter((target) => target.riskLevel === "caution").length}명 · 위험 {data.targets.filter((target) => target.riskLevel === "danger").length}명
+          ���� {activeTargets.filter((target) => target.riskLevel === "normal").length}�� �� ���� {activeTargets.filter((target) => target.riskLevel === "caution").length}�� �� ���� {activeTargets.filter((target) => target.riskLevel === "danger").length}��
         </span>
       </Card>
 
-      <div className="filter-tabs target-filter-tabs" aria-label="대상자 필터">
+      <div className="filter-tabs target-filter-tabs" aria-label="����� ����">
         {[
-          { value: "all", label: "전체" },
-          { value: "normal", label: "정상" },
-          { value: "caution", label: "주의" },
-          { value: "danger", label: "위험" },
-          { value: "today", label: "오늘 확인" },
+          { value: "all", label: "��ü" },
+          { value: "normal", label: "����" },
+          { value: "caution", label: "����" },
+          { value: "danger", label: "����" },
+          { value: "today", label: "���� Ȯ��" },
+          { value: "ended", label: "��������" },
         ].map((item) => (
           <button
             className={filter === item.value ? "filter-tab-active" : ""}
@@ -692,102 +698,136 @@ export function AdminTargets({ data, navigate }) {
             <div className="card-row">
               <div>
                 <strong>{target.name}</strong>
-                <p>{target.age}세 · {target.gender} · {getTargetArea(target)}</p>
+                <p>{target.age}�� �� {target.gender} �� {getTargetArea(target)}</p>
               </div>
               <StatusBadge type="risk" value={target.riskLevel} />
             </div>
             <div className="admin-target-meta">
   <div className="admin-target-meta-item">
-    <span>담당 체커</span>
+    <span>��� üĿ</span>
     <strong>{checkerName(data.users, target.assignedCheckerId)}</strong>
   </div>
   <div className="admin-target-meta-item">
-    <span>기본 확인 유형</span>
+    <span>�⺻ Ȯ�� ����</span>
     <strong>{checkTypeLabels[getTargetCheckType(target)]}</strong>
   </div>
   <div className="admin-target-meta-item">
-    <span>확인 요일</span>
-    <strong>{target.checkDays?.join(", ") || "요일 미정"}</strong>
+    <span>Ȯ�� ����</span>
+    <strong>{target.checkDays?.join(", ") || "���� ����"}</strong>
   </div>
   <div className="admin-target-meta-item">
-    <span>최근 확인일</span>
+    <span>�ֱ� Ȯ����</span>
     <strong>{target.lastVisitDate}</strong>
   </div>
 </div>
-            <span className="admin-target-detail-action">상세보기</span>
+            <span className="admin-target-detail-action">�󼼺���</span>
           </button>
         ))}
       </div>
     </>
   );
 }
-export function AdminTargetDetail({ targetId, data }) {
+export function AdminTargetDetail({ targetId, data, actions, navigate }) {
   const target = targetById(data.targets, targetId);
 
   if (!target) {
-    return <EmptyState title="대상자를 찾을 수 없습니다" description="대상자 관리 화면에서 다시 선택해주세요." />;
+    return <EmptyState title="����ڸ� ã�� �� �����ϴ�" description="����� ���� ȭ�鿡�� �ٽ� �������ּ���." />;
   }
 
   const checker = checkerById(data.users, target.assignedCheckerId);
   const visits = data.activityRecords.filter((record) => record.targetId === target.id).sort(byLatestDate);
   const reports = data.emergencyReports.filter((report) => report.targetId === target.id).sort(byLatestDate);
 
+  function handleEndLifecycle() {
+    if ((target.lifecycleStatus || "active") === "ended") {
+      return;
+    }
+
+    const confirmed = window.confirm("�� ������� ������ �����Ͻðڽ��ϱ�?");
+    if (!confirmed) {
+      return;
+    }
+
+    actions.updateTargetLifecycleStatus(target.id, "ended");
+    navigate("/admin/targets");
+  }
+
   return (
     <>
       <PageHeader
-        eyebrow="대상자 상세"
+        eyebrow="����� ��"
         title={target.name}
-        description={`${target.age}세 · ${target.gender} · ${target.address}`}
+        description={`${target.age}�� �� ${target.gender} �� ${target.address}`}
       />
 
       <Card>
-        <h2>기본정보</h2>
+        <h2>�⺻����</h2>
         <InfoList
           items={[
-            { label: "이름", value: target.name },
-            { label: "연령/성별", value: `${target.age}세 · ${target.gender}` },
-            { label: "주소", value: target.address },
-            { label: "위험도", value: <StatusBadge type="risk" value={target.riskLevel} /> },
-            { label: "최근 확인일", value: target.lastVisitDate },
-            { label: "기본 확인 유형", value: checkTypeLabels[getTargetCheckType(target)] },
-            { label: "확인 요일", value: target.checkDays?.join(", ") || "요일 미정" },
+            { label: "�̸�", value: target.name },
+            { label: "����/����", value: `${target.age}�� �� ${target.gender}` },
+            { label: "�ּ�", value: target.address },
+            { label: "���赵", value: <StatusBadge type="risk" value={target.riskLevel} /> },
+            { label: "�ֱ� Ȯ����", value: target.lastVisitDate },
+            { label: "�⺻ Ȯ�� ����", value: checkTypeLabels[getTargetCheckType(target)] },
+            { label: "Ȯ�� ����", value: target.checkDays?.join(", ") || "���� ����" },
           ]}
         />
       </Card>
 
       <Card>
-        <h2>담당 정보</h2>
+        <h2>��� ����</h2>
         <InfoList
           items={[
-            { label: "담당 체커", value: checker?.name ?? "미배정" },
-            { label: "체커 연락처", value: checker?.phone ?? "연락처 없음" },
+            { label: "��� üĿ", value: checker?.name ?? "�̹���" },
+            { label: "üĿ ����ó", value: checker?.phone ?? "����ó ����" },
           ]}
         />
       </Card>
 
       <Card>
-        <h2>건강 및 주의사항</h2>
+        <h2>�ǰ� �� ���ǻ���</h2>
         <InfoList
           items={[
-            { label: "건강상태", value: target.healthStatus },
-            { label: "주의사항", value: target.cautionNote },
-            { label: "복약 메모", value: target.medicationNote || "등록된 복약 메모 없음" },
+            { label: "�ǰ�����", value: target.healthStatus },
+            { label: "���ǻ���", value: target.cautionNote },
+            { label: "���� �޸�", value: target.medicationNote || "��ϵ� ���� �޸� ����" },
           ]}
         />
       </Card>
 
       <Card>
-        <h2>보호자 정보</h2>
+        <h2>��ȣ�� ����</h2>
         <InfoList
           items={[
-            { label: "보호자 이름", value: target.guardianName },
-            { label: "보호자 연락처", value: target.guardianPhone },
+            { label: "��ȣ�� �̸�", value: target.guardianName },
+            { label: "��ȣ�� ����ó", value: target.guardianPhone },
           ]}
         />
+      </Card>
+
+      <Card>
+        <h2>{"관리 상태"}</h2>
+        <InfoList
+          items={[
+            {
+              label: "상태",
+              value: (target.lifecycleStatus || "active") === "ended" ? "관리종료" : "관리중",
+            },
+          ]}
+        />
+        <Button
+          variant={(target.lifecycleStatus || "active") === "ended" ? "secondary" : "danger"}
+          className="full-width"
+          onClick={handleEndLifecycle}
+          disabled={(target.lifecycleStatus || "active") === "ended"}
+        >
+          {(target.lifecycleStatus || "active") === "ended" ? "관리종료됨" : "관리 종료"}
+        </Button>
       </Card>
 
       <section className="section-block">
-        <SectionTitle title="최근 확인 기록" />
+        <SectionTitle title="�ֱ� Ȯ�� ���" />
         <div className="stack compact-stack">
           {visits.length ? (
             visits.slice(0, 5).map((record) => (
@@ -795,7 +835,7 @@ export function AdminTargetDetail({ targetId, data }) {
                 <div className="card-row">
                   <div>
                     <strong>{record.date}</strong>
-                    <p className="muted">{checkerName(data.users, record.checkerId)} · {activityTypeLabels[getCheckType(record)]}</p>
+                    <p className="muted">{checkerName(data.users, record.checkerId)} �� {activityTypeLabels[getCheckType(record)]}</p>
                   </div>
                   <div className="badge-row compact-badges">
                     <StatusBadge type="health" value={record.healthStatus || 'good'} />
@@ -806,13 +846,13 @@ export function AdminTargetDetail({ targetId, data }) {
               </Card>
             ))
           ) : (
-            <EmptyState title="확인 기록이 없습니다" description="기록이 등록되면 이 영역에 표시됩니다." />
+            <EmptyState title="Ȯ�� ����� �����ϴ�" description="����� ��ϵǸ� �� ������ ǥ�õ˴ϴ�." />
           )}
         </div>
       </section>
 
       <section className="section-block">
-        <SectionTitle title="이상징후 보고" />
+        <SectionTitle title="�̻�¡�� ����" />
         <div className="stack compact-stack">
           {reports.length ? (
             reports.slice(0, 5).map((report) => (
@@ -834,7 +874,7 @@ export function AdminTargetDetail({ targetId, data }) {
               </Card>
             ))
           ) : (
-            <EmptyState title="이상징후 보고가 없습니다" description="보고가 등록되면 이 영역에 표시됩니다." />
+            <EmptyState title="�̻�¡�� ������ �����ϴ�" description="������ ��ϵǸ� �� ������ ǥ�õ˴ϴ�." />
           )}
         </div>
       </section>
@@ -859,20 +899,20 @@ export function AdminActivities({ data }) {
 
   return (
     <>
-      <PageHeader eyebrow="확인 기록" title="확인 기록 조회" description="체커가 작성한 확인 기록을 검토합니다." />
+      <PageHeader eyebrow="Ȯ�� ���" title="Ȯ�� ��� ��ȸ" description="üĿ�� �ۼ��� Ȯ�� ����� �����մϴ�." />
 
       <Card className="summary-card">
-        <p className="eyebrow">기록 현황</p>
-        <strong>전체 {data.activityRecords.length}건 · 오늘 {data.activityRecords.filter((record) => record.date === today).length}건</strong>
-        <span>이상징후 포함 {data.activityRecords.filter((record) => record.hasIssue || record.issueLevel === "need_check" || record.issueLevel === "urgent").length}건 · 미완료 {data.activityRecords.filter((record) => record.status !== "completed").length}건</span>
+        <p className="eyebrow">��� ��Ȳ</p>
+        <strong>��ü {data.activityRecords.length}�� �� ���� {data.activityRecords.filter((record) => record.date === today).length}��</strong>
+        <span>�̻�¡�� ���� {data.activityRecords.filter((record) => record.hasIssue || record.issueLevel === "need_check" || record.issueLevel === "urgent").length}�� �� �̿Ϸ� {data.activityRecords.filter((record) => record.status !== "completed").length}��</span>
       </Card>
 
-      <div className="filter-tabs activity-filter-tabs" aria-label="확인 기록 필터">
+      <div className="filter-tabs activity-filter-tabs" aria-label="Ȯ�� ��� ����">
   {[
-    { value: "all", label: "전체" },
-    { value: "today", label: "오늘" },
-    { value: "issue", label: "이상징후" },
-    { value: "pending", label: "미완료" },
+    { value: "all", label: "��ü" },
+    { value: "today", label: "����" },
+    { value: "issue", label: "�̻�¡��" },
+    { value: "pending", label: "�̿Ϸ�" },
   ].map((item) => (
     <button
       className={filter === item.value ? "filter-tab-active" : ""}
@@ -891,7 +931,7 @@ export function AdminActivities({ data }) {
           <div className="admin-activity-primary">
             <strong>{targetName(data.targets, record.targetId)}</strong>
             <p className="muted">
-              {record.date || "날짜 정보 없음"} · {checkerName(data.users, record.checkerId)} · {activityTypeLabels[getCheckType(record)]}
+              {record.date || "��¥ ���� ����"} �� {checkerName(data.users, record.checkerId)} �� {activityTypeLabels[getCheckType(record)]}
             </p>
           </div>
         
@@ -902,7 +942,7 @@ export function AdminActivities({ data }) {
           <div className="badge-row compact-badges admin-activity-badges">
             <StatusBadge type="health" value={record.healthStatus || "good"} />
             <span className={record.hasIssue || record.issueLevel !== "none" ? "badge badge-risk-danger" : "badge badge-muted"}>
-              {record.hasIssue || record.issueLevel !== "none" ? "이상징후 있음" : "이상징후 없음"}
+              {record.hasIssue || record.issueLevel !== "none" ? "�̻�¡�� ����" : "�̻�¡�� ����"}
             </span>
             <StatusBadge type="record" value={record.status} />
           </div>
@@ -912,14 +952,14 @@ export function AdminActivities({ data }) {
             className="admin-activity-inline-button"
             onClick={() => setOpenRecordId(openRecordId === record.id ? "" : record.id)}
           >
-            상세보기
+            �󼼺���
           </Button>
         
           {openRecordId === record.id ? (
             <div className="detail-box admin-activity-detail-box">
-              <p>체커: {checkerName(data.users, record.checkerId)}</p>
-              <p>체크 유형: {activityTypeLabels[getCheckType(record)]}</p>
-              <p>메모: {record.memo || "메모 없음"}</p>
+              <p>üĿ: {checkerName(data.users, record.checkerId)}</p>
+              <p>üũ ����: {activityTypeLabels[getCheckType(record)]}</p>
+              <p>�޸�: {record.memo || "�޸� ����"}</p>
               {record.issueSummary ? <p className="danger-text">{record.issueSummary}</p> : null}
             </div>
           ) : null}
@@ -952,20 +992,20 @@ export function AdminEmergencies({ data, navigate }) {
 
   return (
     <>
-      <PageHeader eyebrow="이상징후 관리" title="이상징후 보고 현황" description="긴급 확인이 필요한 보고부터 우선 확인합니다." />
+      <PageHeader eyebrow="�̻�¡�� ����" title="�̻�¡�� ���� ��Ȳ" description="��� Ȯ���� �ʿ��� �������� �켱 Ȯ���մϴ�." />
 
       <Card className="summary-card">
-        <p className="eyebrow">우선 확인 필요</p>
-        <strong>긴급 확인 필요 {urgentCount}건 · 미처리 {unresolvedCount}건</strong>
+        <p className="eyebrow">�켱 Ȯ�� �ʿ�</p>
+        <strong>��� Ȯ�� �ʿ� {urgentCount}�� �� ��ó�� {unresolvedCount}��</strong>
       </Card>
 
-      <div className="filter-tabs emergency-filter-tabs" aria-label="이상징후 보고 필터">
+      <div className="filter-tabs emergency-filter-tabs" aria-label="�̻�¡�� ���� ����">
         {[
-          { value: "all", label: "전체" },
-          { value: "received", label: "미처리" },
-          { value: "in_progress", label: "처리중" },
-          { value: "completed", label: "완료" },
-          { value: "high", label: "긴급 확인" },
+          { value: "all", label: "��ü" },
+          { value: "received", label: "��ó��" },
+          { value: "in_progress", label: "ó����" },
+          { value: "completed", label: "�Ϸ�" },
+          { value: "high", label: "��� Ȯ��" },
         ].map((item) => (
           <button
             className={filter === item.value ? "filter-tab-active" : ""}
@@ -987,7 +1027,7 @@ export function AdminEmergencies({ data, navigate }) {
   <div className="admin-emergency-list-head">
     <div className="admin-emergency-list-copy">
       <strong>{targetName(data.targets, report.targetId)}</strong>
-      <p className="muted">{report.date} · {report.issueType}</p>
+      <p className="muted">{report.date} �� {report.issueType}</p>
     </div>
 
     <div className="admin-emergency-list-badges">
@@ -1005,7 +1045,7 @@ export function AdminEmergencies({ data, navigate }) {
     className="admin-emergency-detail-button"
     onClick={() => navigate(`/admin/emergencies/${report.id}`)}
   >
-    상세보기
+    �󼼺���
   </Button>
 </Card>
         ))}
@@ -1022,7 +1062,7 @@ export function AdminEmergencyDetail({ emergencyId, data, actions, navigate }) {
   }));
 
   if (!report) {
-    return <EmptyState title="이상징후 보고를 찾을 수 없습니다" description="보고 목록에서 다시 선택해주세요." />;
+    return <EmptyState title="�̻�¡�� ������ ã�� �� �����ϴ�" description="���� ��Ͽ��� �ٽ� �������ּ���." />;
   }
 
   function updateForm(key, value) {
@@ -1035,32 +1075,32 @@ export function AdminEmergencyDetail({ emergencyId, data, actions, navigate }) {
       adminMemo: form.adminMemo,
       updatedAt: new Date().toISOString(),
     });
-    setNotice('처리 정보가 저장되었습니다.');
+    setNotice('ó�� ������ ����Ǿ����ϴ�.');
   }
 
   return (
     <>
       <PageHeader
-        eyebrow="이상징후 상세"
+        eyebrow="�̻�¡�� ��"
         title={targetName(data.targets, report.targetId)}
-        description={`${report.date} · ${report.issueType}`}
+        description={`${report.date} �� ${report.issueType}`}
         action={<StatusBadge type="issueLevel" value={getIssueLevel(report)} />}
       />
 
       <Card className="admin-emergency-detail-info-card">
   <div className="admin-emergency-meta">
     <div className="admin-emergency-meta-item">
-      <span>대상자</span>
+      <span>�����</span>
       <strong>{targetName(data.targets, report.targetId)}</strong>
     </div>
 
     <div className="admin-emergency-meta-item">
-      <span>체커</span>
+      <span>üĿ</span>
       <strong>{checkerName(data.users, report.checkerId)}</strong>
     </div>
 
     <div className="admin-emergency-meta-item">
-      <span>연락처</span>
+      <span>����ó</span>
       <strong>{checkerPhone(data.users, report.checkerId)}</strong>
     </div>
   </div>
@@ -1072,30 +1112,30 @@ export function AdminEmergencyDetail({ emergencyId, data, actions, navigate }) {
 </Card>
 
       <Card>
-        <h2>상세 내용</h2>
+        <h2>�� ����</h2>
         <p>{report.description}</p>
       </Card>
 
       <Card>
-        <SelectInput id="admin-emergency-status" label="처리 상태" value={form.status} onChange={(event) => updateForm('status', event.target.value)}>
-          <option value="received">접수됨</option>
-          <option value="in_progress">처리중</option>
-          <option value="completed">완료</option>
+        <SelectInput id="admin-emergency-status" label="ó�� ����" value={form.status} onChange={(event) => updateForm('status', event.target.value)}>
+          <option value="received">������</option>
+          <option value="in_progress">ó����</option>
+          <option value="completed">�Ϸ�</option>
         </SelectInput>
         <TextArea
           id="admin-emergency-memo"
-          label="관리자 메모"
+          label="������ �޸�"
           rows="4"
           value={form.adminMemo}
           onChange={(event) => updateForm('adminMemo', event.target.value)}
-          placeholder="보호자 연락 완료, 추가 확인 예정 등"
+          placeholder="��ȣ�� ���� �Ϸ�, �߰� Ȯ�� ���� ��"
         />
         {notice ? <p className="notice">{notice}</p> : null}
         <Button className="full-width" onClick={handleSave}>
-          처리 정보 저장
+          ó�� ���� ����
         </Button>
         <Button variant="ghost" className="full-width" onClick={() => navigate('/admin/emergencies')}>
-          목록으로 이동
+          ������� �̵�
         </Button>
       </Card>
     </>
@@ -1112,7 +1152,7 @@ function ChartCard({ title, description, rows }) {
           <div className="chart-row" key={row.label}>
             <div className="bar-row">
               <span>{row.label}</span>
-              <strong>{row.value}건</strong>
+              <strong>{row.value}��</strong>
             </div>
             <div className="bar-track">
               <div className={`bar-fill ${row.tone ? `bar-${row.tone}` : ""}`} style={{ width: `${(row.value / max) * 100}%` }} />
@@ -1132,7 +1172,7 @@ function ReportDocument({ report, currentUser }) {
   return (
     <article className="report-document" id="report-preview">
       <header className="report-document-header">
-        <p>해피통서비스</p>
+        <p>�����뼭��</p>
         <h2>{report.title}</h2>
         <span>{period}</span>
       </header>
@@ -1140,55 +1180,55 @@ function ReportDocument({ report, currentUser }) {
       <table className="report-table">
         <tbody>
           <tr>
-            <th>작성일</th>
+            <th>�ۼ���</th>
             <td>{report.updatedAt || report.createdAt}</td>
-            <th>작성자</th>
-            <td>{currentUser?.name || "관리자"}</td>
+            <th>�ۼ���</th>
+            <td>{currentUser?.name || "������"}</td>
           </tr>
           <tr>
-            <th>총 대상자</th>
-            <td>{report.totalTargets}명</td>
-            <th>총 체커</th>
-            <td>{report.totalCheckers}명</td>
+            <th>�� �����</th>
+            <td>{report.totalTargets}��</td>
+            <th>�� üĿ</th>
+            <td>{report.totalCheckers}��</td>
           </tr>
           <tr>
-            <th>확인 기록</th>
-            <td>{report.totalActivities}건</td>
-            <th>외부/전화/방문/집중</th>
-            <td>{report.externalCount || 0}건 / {report.callCount}건 / {report.visitCount}건 / {report.intensiveCount || 0}건</td>
+            <th>Ȯ�� ���</th>
+            <td>{report.totalActivities}��</td>
+            <th>�ܺ�/��ȭ/�湮/����</th>
+            <td>{report.externalCount || 0}�� / {report.callCount}�� / {report.visitCount}�� / {report.intensiveCount || 0}��</td>
           </tr>
           <tr>
-            <th>이상징후 보고</th>
-            <td>{report.emergencyCount}건</td>
-            <th>미처리 이상징후</th>
-            <td>{report.unresolvedEmergencyCount}건</td>
+            <th>�̻�¡�� ����</th>
+            <td>{report.emergencyCount}��</td>
+            <th>��ó�� �̻�¡��</th>
+            <td>{report.unresolvedEmergencyCount}��</td>
           </tr>
           <tr>
-            <th>위험 대상자</th>
-            <td colSpan="3">{report.dangerTargetCount}명</td>
+            <th>���� �����</th>
+            <td colSpan="3">{report.dangerTargetCount}��</td>
           </tr>
         </tbody>
       </table>
 
       <section>
-        <h3>확인 기록 요약</h3>
+        <h3>Ȯ�� ��� ���</h3>
         <p>{report.keyIssues}</p>
       </section>
       <section>
-        <h3>이상징후 보고 요약</h3>
-        <p>이상징후 보고는 총 {report.emergencyCount}건이며 미처리 건은 {report.unresolvedEmergencyCount}건입니다.</p>
+        <h3>�̻�¡�� ���� ���</h3>
+        <p>�̻�¡�� ������ �� {report.emergencyCount}���̸� ��ó�� ���� {report.unresolvedEmergencyCount}���Դϴ�.</p>
       </section>
       <section>
-        <h3>위험 대상자 현황</h3>
-        <p>위험 대상자는 {report.dangerTargetCount}명입니다. 추가 지원 필요 대상자: {supportTargets || "없음"}</p>
+        <h3>���� ����� ��Ȳ</h3>
+        <p>���� ����ڴ� {report.dangerTargetCount}���Դϴ�. �߰� ���� �ʿ� �����: {supportTargets || "����"}</p>
       </section>
       <section>
-        <h3>조치 내용</h3>
+        <h3>��ġ ����</h3>
         <p>{report.actionTaken}</p>
       </section>
       <section>
-        <h3>관리자 의견</h3>
-        <p>{report.adminOpinion || "입력된 의견 없음"}</p>
+        <h3>������ �ǰ�</h3>
+        <p>{report.adminOpinion || "�Էµ� �ǰ� ����"}</p>
       </section>
     </article>
   );
@@ -1207,13 +1247,13 @@ export function AdminReportNew({ data, actions, navigate, currentUser }) {
 
   function validateReportForm(formValue = form) {
     if (!String(formValue.title || '').trim()) {
-      return '보고서 제목을 입력해주세요.';
+      return '������ ������ �Է����ּ���.';
     }
     if (!formValue.periodStart || !formValue.periodEnd) {
-      return '보고 기간 시작일과 종료일을 입력해주세요.';
+      return '���� �Ⱓ �����ϰ� �������� �Է����ּ���.';
     }
     if (formValue.periodStart > formValue.periodEnd) {
-      return '보고 기간 시작일은 종료일보다 늦을 수 없습니다.';
+      return '���� �Ⱓ �������� �����Ϻ��� ���� �� �����ϴ�.';
     }
     return '';
   }
@@ -1269,7 +1309,7 @@ export function AdminReportNew({ data, actions, navigate, currentUser }) {
     setForm(nextForm);
     setPreview(toReportPayload(nextForm));
     setError('');
-    setNotice('확인 기록 기반으로 보고서 초안 문장을 생성했습니다.');
+    setNotice('Ȯ�� ��� ������� ������ �ʾ� ������ �����߽��ϴ�.');
   }
 
   function handleGenerate() {
@@ -1279,7 +1319,7 @@ export function AdminReportNew({ data, actions, navigate, currentUser }) {
     actions.addAdminReport(report);
     saveReportDraft(report);
     setPreview(report);
-    setNotice('보고서 미리보기가 생성되었습니다.');
+    setNotice('������ �̸����Ⱑ �����Ǿ����ϴ�.');
   }
 
   function handlePrint() {
@@ -1288,7 +1328,7 @@ export function AdminReportNew({ data, actions, navigate, currentUser }) {
 
   saveReportDraft(report);
   setPreview(report);
-  setNotice('인쇄 화면에서 PDF로 저장할 수 있습니다.');
+  setNotice('�μ� ȭ�鿡�� PDF�� ������ �� �ֽ��ϴ�.');
 
   window.setTimeout(() => {
     window.print();
@@ -1298,24 +1338,24 @@ export function AdminReportNew({ data, actions, navigate, currentUser }) {
   return (
     <>
       <PageHeader
-        eyebrow="행정 보고서"
-        title="보고서 작성 초안"
-        description="확인 기록과 이상징후 보고를 바탕으로 행정 보고서 초안을 작성합니다."
-        action={<Button variant="ghost" onClick={() => navigate('/admin/reports/preview')}>미리보기 화면</Button>}
+        eyebrow="���� ������"
+        title="������ �ۼ� �ʾ�"
+        description="Ȯ�� ��ϰ� �̻�¡�� ������ �������� ���� ������ �ʾ��� �ۼ��մϴ�."
+        action={<Button variant="ghost" onClick={() => navigate('/admin/reports/preview')}>�̸����� ȭ��</Button>}
       />
 
       <form className="form-stack admin-report-form">
   <Card className="admin-report-form-card">
     <TextInput
       id="report-title"
-      label="보고서 제목"
+      label="������ ����"
       value={form.title}
       onChange={(event) => updateForm('title', event.target.value)}
     />
 
     <div className="admin-report-period-grid">
   <label className="report-date-field" htmlFor="report-start">
-    <span>보고 기간 시작일</span>
+    <span>���� �Ⱓ ������</span>
     <div className="report-date-input-wrap">
       <input
         id="report-start"
@@ -1324,12 +1364,12 @@ export function AdminReportNew({ data, actions, navigate, currentUser }) {
         value={form.periodStart}
         onChange={(event) => updateForm('periodStart', event.target.value)}
       />
-      <span className="report-date-icon" aria-hidden="true">📅</span>
+      <span className="report-date-icon" aria-hidden="true">??</span>
     </div>
   </label>
 
   <label className="report-date-field" htmlFor="report-end">
-    <span>보고 기간 종료일</span>
+    <span>���� �Ⱓ ������</span>
     <div className="report-date-input-wrap">
       <input
         id="report-end"
@@ -1338,37 +1378,37 @@ export function AdminReportNew({ data, actions, navigate, currentUser }) {
         value={form.periodEnd}
         onChange={(event) => updateForm('periodEnd', event.target.value)}
       />
-      <span className="report-date-icon" aria-hidden="true">📅</span>
+      <span className="report-date-icon" aria-hidden="true">??</span>
     </div>
   </label>
 </div>
   </Card>
 
         <Card className="admin-report-form-card">
-          <TextArea id="report-key-issues" label="주요 특이사항" rows="4" value={form.keyIssues} onChange={(event) => updateForm('keyIssues', event.target.value)} />
-          <TextArea id="report-action" label="조치 내용" rows="4" value={form.actionTaken} onChange={(event) => updateForm('actionTaken', event.target.value)} />
+          <TextArea id="report-key-issues" label="�ֿ� Ư�̻���" rows="4" value={form.keyIssues} onChange={(event) => updateForm('keyIssues', event.target.value)} />
+          <TextArea id="report-action" label="��ġ ����" rows="4" value={form.actionTaken} onChange={(event) => updateForm('actionTaken', event.target.value)} />
           <TextInput
             id="support-targets"
-            label="추가 지원 필요 대상자"
+            label="�߰� ���� �ʿ� �����"
             value={Array.isArray(form.additionalSupportTargets) ? form.additionalSupportTargets.join(', ') : form.additionalSupportTargets}
             onChange={(event) => updateForm('additionalSupportTargets', event.target.value)}
           />
-          <TextArea id="admin-opinion" label="관리자 의견" rows="4" value={form.adminOpinion} onChange={(event) => updateForm('adminOpinion', event.target.value)} />
+          <TextArea id="admin-opinion" label="������ �ǰ�" rows="4" value={form.adminOpinion} onChange={(event) => updateForm('adminOpinion', event.target.value)} />
         </Card>
 
         {error ? <p className="form-error">{error}</p> : null}
         {notice ? <p className="notice">{notice}</p> : null}
         <div className="report-actions">
   <Button className="report-primary-action" onClick={handleAutoGenerate}>
-    보고서 초안 자동 생성
+    ������ �ʾ� �ڵ� ����
   </Button>
 
   <div className="report-secondary-actions">
     <Button variant="secondary" onClick={handleGenerate}>
-      미리보기 생성
+      �̸����� ����
     </Button>
     <Button variant="ghost" onClick={handlePrint}>
-      PDF 내보내기
+      PDF ��������
     </Button>
   </div>
 </div>
@@ -1376,7 +1416,7 @@ export function AdminReportNew({ data, actions, navigate, currentUser }) {
 
       {preview ? (
         <section className="section-block print-area">
-          <SectionTitle title="보고서 미리보기" description="인쇄 시 이 영역만 출력됩니다." />
+          <SectionTitle title="������ �̸�����" description="�μ� �� �� ������ ��µ˴ϴ�." />
           <ReportDocument report={preview} currentUser={currentUser} />
         </section>
       ) : null}
@@ -1405,12 +1445,12 @@ export function AdminReportPreview({ data, currentUser }) {
   return (
     <>
       <PageHeader
-  eyebrow="보고서 미리보기"
-  title="행정 보고서 출력"
-  description="저장된 보고서 초안을 문서 형태로 확인하고 PDF로 저장합니다."
+  eyebrow="������ �̸�����"
+  title="���� ������ ���"
+  description="����� ������ �ʾ��� ���� ���·� Ȯ���ϰ� PDF�� �����մϴ�."
   action={
     <Button onClick={() => window.print()}>
-      PDF 내보내기
+      PDF ��������
     </Button>
   }
 />
@@ -1432,25 +1472,25 @@ export function AdminStatistics({ data }) {
     }, {})
   ).map(([label, value]) => ({ label, value, tone: "orange" }));
   const statusRows = [
-    { label: "접수됨", value: emergencyStats.reports.filter((report) => report.status === "received").length, tone: "red" },
-    { label: "처리중", value: emergencyStats.reports.filter((report) => report.status === "in_progress").length, tone: "orange" },
-    { label: "완료", value: emergencyStats.reports.filter((report) => report.status === "completed").length, tone: "green" },
+    { label: "������", value: emergencyStats.reports.filter((report) => report.status === "received").length, tone: "red" },
+    { label: "ó����", value: emergencyStats.reports.filter((report) => report.status === "in_progress").length, tone: "orange" },
+    { label: "�Ϸ�", value: emergencyStats.reports.filter((report) => report.status === "completed").length, tone: "green" },
   ];
 
   return (
     <>
       <PageHeader
-        eyebrow="통계"
-        title="운영 통계"
-        description="확인 기록과 이상징후 현황을 핵심 지표 중심으로 확인합니다."
+        eyebrow="���"
+        title="� ���"
+        description="Ȯ�� ��ϰ� �̻�¡�� ��Ȳ�� �ٽ� ��ǥ �߽����� Ȯ���մϴ�."
       />
 
-<div className="filter-tabs compact-filter-tabs statistics-period-tabs" aria-label="통계 기간 필터">
+<div className="filter-tabs compact-filter-tabs statistics-period-tabs" aria-label="��� �Ⱓ ����">
         {[
-          { value: "all", label: "전체" },
-          { value: "today", label: "오늘" },
-          { value: "7days", label: "최근 7일" },
-          { value: "30days", label: "최근 30일" },
+          { value: "all", label: "��ü" },
+          { value: "today", label: "����" },
+          { value: "7days", label: "�ֱ� 7��" },
+          { value: "30days", label: "�ֱ� 30��" },
         ].map((item) => (
           <button
             className={period === item.value ? "filter-tab-active" : ""}
@@ -1464,26 +1504,26 @@ export function AdminStatistics({ data }) {
       </div>
 
       <div className="stats-grid statistics-grid">
-        <StatCard label="전체 확인 기록" value={`${stats.totalActivities}건`} tone="green" />
-        <StatCard label="이상징후 보고" value={`${stats.emergencyCount}건`} tone="red" />
-        <StatCard label="미처리 이상징후" value={`${stats.unresolvedEmergencyCount}건`} tone={stats.unresolvedEmergencyCount ? "red" : "green"} />
-        <StatCard label="위험 대상자" value={`${stats.dangerTargetCount}명`} tone={stats.dangerTargetCount ? "red" : "green"} />
+        <StatCard label="��ü Ȯ�� ���" value={`${stats.totalActivities}��`} tone="green" />
+        <StatCard label="�̻�¡�� ����" value={`${stats.emergencyCount}��`} tone="red" />
+        <StatCard label="��ó�� �̻�¡��" value={`${stats.unresolvedEmergencyCount}��`} tone={stats.unresolvedEmergencyCount ? "red" : "green"} />
+        <StatCard label="���� �����" value={`${stats.dangerTargetCount}��`} tone={stats.dangerTargetCount ? "red" : "green"} />
       </div>
 
       <section className="chart-grid">
         <ChartCard
-          title="최근 7일 확인 건수"
-          description="최근 7일 날짜별 확인 기록 수입니다."
+          title="�ֱ� 7�� Ȯ�� �Ǽ�"
+          description="�ֱ� 7�� ��¥�� Ȯ�� ��� ���Դϴ�."
           rows={recentRows.map((row) => ({ label: row.label, value: row.count, tone: "green" }))}
         />
         <ChartCard
-          title="이상징후 유형별 발생 건수"
-          description="기간 필터가 반영된 이상징후 유형 분포입니다."
-          rows={issueTypeRows.length ? issueTypeRows : [{ label: "이상징후 없음", value: 0, tone: "green" }]}
+          title="�̻�¡�� ������ �߻� �Ǽ�"
+          description="�Ⱓ ���Ͱ� �ݿ��� �̻�¡�� ���� �����Դϴ�."
+          rows={issueTypeRows.length ? issueTypeRows : [{ label: "�̻�¡�� ����", value: 0, tone: "green" }]}
         />
         <ChartCard
-          title="처리 상태별 이상징후 현황"
-          description="접수, 처리중, 완료 상태 분포입니다."
+          title="ó�� ���º� �̻�¡�� ��Ȳ"
+          description="����, ó����, �Ϸ� ���� �����Դϴ�."
           rows={statusRows}
         />
       </section>
@@ -1494,26 +1534,26 @@ export function AdminExports({ data }) {
   const [notice, setNotice] = useState("");
   const cards = [
     {
-      title: "확인 기록 내보내기",
-      description: "체커가 작성한 전체 확인 기록을 내려받습니다.",
+      title: "Ȯ�� ��� ��������",
+      description: "üĿ�� �ۼ��� ��ü Ȯ�� ����� �����޽��ϴ�.",
       filename: "happytong_activities.csv",
       rows: () => buildActivitiesCsvRows(data),
     },
     {
-      title: "이상징후 보고 내보내기",
-      description: "접수된 이상징후 보고 데이터를 내려받습니다.",
+      title: "�̻�¡�� ���� ��������",
+      description: "������ �̻�¡�� ���� �����͸� �����޽��ϴ�.",
       filename: "happytong_emergencies.csv",
       rows: () => buildEmergenciesCsvRows(data),
     },
     {
-      title: "대상자 목록 내보내기",
-      description: "관리 중인 대상자 정보를 내려받습니다.",
+      title: "����� ��� ��������",
+      description: "���� ���� ����� ������ �����޽��ϴ�.",
       filename: "happytong_targets.csv",
       rows: () => buildTargetsCsvRows(data),
     },
     {
-      title: "체커 목록 내보내기",
-      description: "등록된 체커 정보를 내려받습니다.",
+      title: "üĿ ��� ��������",
+      description: "��ϵ� üĿ ������ �����޽��ϴ�.",
       filename: "happytong_checkers.csv",
       rows: () => buildCheckersCsvRows(data),
     },
@@ -1521,15 +1561,15 @@ export function AdminExports({ data }) {
 
   function handleDownload(card) {
     downloadCsv(card.filename, card.rows());
-    setNotice(`${card.title} CSV 다운로드가 시작되었습니다.`);
+    setNotice(`${card.title} CSV �ٿ�ε尡 ���۵Ǿ����ϴ�.`);
   }
 
   return (
     <>
       <PageHeader
-        eyebrow="데이터 내보내기"
-        title="CSV 다운로드"
-        description="확인 기록, 이상징후 보고, 대상자, 체커 데이터를 CSV로 내려받을 수 있습니다."
+        eyebrow="������ ��������"
+        title="CSV �ٿ�ε�"
+        description="Ȯ�� ���, �̻�¡�� ����, �����, üĿ �����͸� CSV�� �������� �� �ֽ��ϴ�."
       />
 
       {notice ? <p className="notice">{notice}</p> : null}
@@ -1538,12 +1578,13 @@ export function AdminExports({ data }) {
         {cards.map((card) => (
           <Card key={card.filename}>
             <SectionTitle title={card.title} description={card.description} />
-            <Button className="full-width" onClick={() => handleDownload(card)}>CSV 다운로드</Button>
+            <Button className="full-width" onClick={() => handleDownload(card)}>CSV �ٿ�ε�</Button>
           </Card>
         ))}
       </div>
     </>
   );
 }
+
 
 
