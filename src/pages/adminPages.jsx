@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import {
   activityHealthLabels,
   activityTypeLabels,
@@ -766,11 +766,15 @@ export function AdminTargetDetail({ targetId, data, actions, navigate }) {
   title={target.name}
   description={`${target.age}세 · ${target.gender} · ${target.address}`}
   action={
-    (target.lifecycleStatus || "active") !== "ended" ? (
-      <Button
+    <div className="page-header-actions">
+      <Button variant="ghost" onClick={() => navigate(`/admin/targets/${target.id}/edit`)}>
+        정보 수정
+      </Button>
+      {(target.lifecycleStatus || "active") !== "ended" ? (
+        <Button
   variant="ghost"
   onClick={() => {
-    const confirmed = window.confirm(`${target.name}님을 관리 종료 처리할까요?`);
+    const confirmed = window.confirm(`${target.name}?섏쓣 愿由?醫낅즺 泥섎━?좉퉴??`);
     if (!confirmed) return;
 
     actions.updateTarget(target.id, {
@@ -780,11 +784,12 @@ export function AdminTargetDetail({ targetId, data, actions, navigate }) {
     navigate("/admin/targets");
   }}
 >
-  관리 종료
+  {"\uAD00\uB9AC \uC885\uB8CC"}
 </Button>
-    ) : (
-      <StatusBadge label="관리종료" />
-    )
+      ) : (
+        <StatusBadge label={"\uAD00\uB9AC\uC885\uB8CC"} />
+      )}
+    </div>
   }
 />
 
@@ -1468,6 +1473,46 @@ export function AdminReportPreview({ data, currentUser }) {
     </>
   );
 }
+
+export function AdminTargetEdit({ targetId, data, actions, navigate }) {
+  const target = data.targets.find((item) => item.id === targetId);
+
+  if (!target) {
+    return (
+      <>
+        <PageHeader
+          eyebrow="대상자 수정"
+          title="대상자를 찾을 수 없습니다"
+          description="대상자 목록으로 돌아가 다시 선택해주세요."
+        />
+        <Button onClick={() => navigate("/admin/targets")}>목록으로 돌아가기</Button>
+      </>
+    );
+  }
+
+  return (
+    <>
+      <PageHeader
+        eyebrow="대상자 수정"
+        title={`${target.name} 정보 수정`}
+        description="대상자 정보 수정 화면입니다. 다음 단계에서 입력 폼을 연결합니다."
+        action={
+          <Button variant="ghost" onClick={() => navigate(`/admin/targets/${target.id}`)}>
+            상세로 돌아가기
+          </Button>
+        }
+      />
+
+      <Card>
+        <p className="muted">
+          현재는 수정 화면 진입 확인용 임시 화면입니다. 다음 단계에서 이름, 주소, 위험도,
+          확인 유형, 담당 체커 등을 수정할 수 있는 폼을 추가합니다.
+        </p>
+      </Card>
+    </>
+  );
+}
+
 export function AdminStatistics({ data }) {
   const [period, setPeriod] = useState("all");
   const stats = getDashboardStats(data, period);

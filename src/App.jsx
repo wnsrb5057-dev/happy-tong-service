@@ -25,6 +25,7 @@ import {
   AdminReportNew,
   AdminReportPreview,
   AdminStatistics,
+  AdminTargetEdit,
   AdminTargetDetail,
   AdminTargets,
 } from "./pages/adminPages.jsx";
@@ -264,6 +265,7 @@ function renderPage({ location, user, data, actions, navigate }) {
   const params = new URLSearchParams(location.search);
   const checkerTargetMatch = location.pathname.match(/^\/checker\/targets\/([^/]+)$/);
   const adminTargetMatch = location.pathname.match(/^\/admin\/targets\/([^/]+)$/);
+  const adminTargetEditMatch = location.pathname.match(/^\/admin\/targets\/([^/]+)\/edit$/);
   const adminCheckerMatch = location.pathname.match(/^\/admin\/checkers\/([^/]+)$/);
   const adminEmergencyMatch = location.pathname.match(/^\/admin\/emergencies\/([^/]+)$/);
 
@@ -334,6 +336,17 @@ function renderPage({ location, user, data, actions, navigate }) {
 
     if (location.pathname === "/admin/targets") {
   return <AdminTargets data={data} actions={actions} navigate={navigate} />;
+}
+
+if (adminTargetEditMatch) {
+  return (
+    <AdminTargetEdit
+      targetId={adminTargetEditMatch[1]}
+      data={data}
+      actions={actions}
+      navigate={navigate}
+    />
+  );
 }
 
 if (adminTargetMatch) {

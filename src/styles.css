@@ -134,6 +134,13 @@ h2 {
   margin-bottom: 2px;
 }
 
+.page-header-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 .checker-request-card {
   gap: 12px;
 }
