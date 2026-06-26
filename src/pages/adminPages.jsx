@@ -758,6 +758,7 @@ export function AdminTargetDetail({ targetId, data, actions, navigate }) {
   const checker = checkerById(data.users, target.assignedCheckerId);
   const visits = data.activityRecords.filter((record) => record.targetId === target.id).sort(byLatestDate);
   const reports = data.emergencyReports.filter((report) => report.targetId === target.id).sort(byLatestDate);
+  const confirmMessage = `${target.name}님을 관리 종료 처리할까요?`;
 
   return (
     <>
@@ -774,7 +775,7 @@ export function AdminTargetDetail({ targetId, data, actions, navigate }) {
         <Button
   variant="ghost"
   onClick={() => {
-    const confirmed = window.confirm(`${target.name}?섏쓣 愿由?醫낅즺 泥섎━?좉퉴??`);
+    const confirmed = window.confirm(confirmMessage);
     if (!confirmed) return;
 
     actions.updateTarget(target.id, {
