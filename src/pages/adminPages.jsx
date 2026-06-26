@@ -647,7 +647,6 @@ export function AdminCheckerDetail({ checkerId, data, actions, navigate }) {
 }
 export function AdminTargets({ data, navigate }) {
   const [filter, setFilter] = useState("all");
-  const isActiveTarget = (target) => (target.lifecycleStatus || "active") !== "ended";
 
 const isActiveTarget = (target) => (target.lifecycleStatus || "active") !== "ended";
 
