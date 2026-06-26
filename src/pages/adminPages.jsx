@@ -647,12 +647,23 @@ export function AdminCheckerDetail({ checkerId, data, actions, navigate }) {
 }
 export function AdminTargets({ data, navigate }) {
   const [filter, setFilter] = useState("all");
-  const filteredTargets = data.targets
-    .filter((target) => {
-      if (filter === "today") return isTodayScheduled(target);
-      if (filter === "all") return true;
-      return target.riskLevel === filter;
-    })
+  const isActiveTarget = (target) => (target.lifecycleStatus || "active") !== "ended";
+
+const filteredTargets = data.targets.filter((target) => {
+  const targetIsActive = isActiveTarget(target);
+
+  if (filter === "ended") {
+    return !targetIsActive;
+  }
+
+  if (!targetIsActive) {
+    return false;
+  }
+
+  if (filter === "all") return true;
+  if (filter === "today") return isTodayTarget(target);
+  return target.riskLevel === filter;
+});
     .sort(sortTargetsForAdmin);
 
   return (
@@ -674,6 +685,7 @@ export function AdminTargets({ data, navigate }) {
           { value: "caution", label: "주의" },
           { value: "danger", label: "위험" },
           { value: "today", label: "오늘 확인" },
+          { value: "ended", label: "관리종료" },
         ].map((item) => (
           <button
             className={filter === item.value ? "filter-tab-active" : ""}
