@@ -762,10 +762,32 @@ export function AdminTargetDetail({ targetId, data }) {
   return (
     <>
       <PageHeader
-        eyebrow="대상자 상세"
-        title={target.name}
-        description={`${target.age}세 · ${target.gender} · ${target.address}`}
-      />
+  eyebrow="대상자 상세"
+  title={target.name}
+  description={`${target.age}세 · ${target.gender} · ${target.address}`}
+  action={
+    (target.lifecycleStatus || "active") !== "ended" ? (
+      <Button
+        variant="ghost"
+        onClick={() => {
+          const confirmed = window.confirm(`${target.name}님을 관리 종료 처리할까요?`);
+          if (!confirmed) return;
+
+          actions.updateTarget({
+            ...target,
+            lifecycleStatus: "ended",
+          });
+
+          setSelectedTargetId(null);
+        }}
+      >
+        관리 종료
+      </Button>
+    ) : (
+      <StatusBadge label="관리종료" />
+    )
+  }
+/>
 
       <Card>
         <h2>기본정보</h2>

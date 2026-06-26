@@ -179,6 +179,15 @@ export default function App() {
           )
         );
       },
+      updateTarget(targetId, updates) {
+  setTargets((current) =>
+    current.map((target) =>
+      target.id === targetId
+        ? { ...target, ...updates, updatedAt: new Date().toISOString() }
+        : target
+    )
+  );
+},
       updateCheckerAssignments(checkerId, targetIds) {
         const nextAssignedIds = new Set(targetIds);
 
