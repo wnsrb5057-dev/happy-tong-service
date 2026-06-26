@@ -33,6 +33,32 @@ function targetName(targets, targetId) {
   return targets.find((target) => target.id === targetId)?.name ?? "대상자 없음";
 }
 
+function getHistoryTargetInfo(targets, targetId) {
+  const target = targets.find((item) => item.id === targetId) ?? null;
+
+  if (!target) {
+    return {
+      target: null,
+      label: "대상자 정보 없음",
+      searchText: "",
+    };
+  }
+
+  if (!isActiveTarget(target)) {
+    return {
+      target,
+      label: "관리종료 대상자",
+      searchText: `${target.name || ""} ${target.address || ""}`.toLowerCase(),
+    };
+  }
+
+  return {
+    target,
+    label: target.name || "대상자 정보 없음",
+    searchText: `${target.name || ""} ${target.address || ""}`.toLowerCase(),
+  };
+}
+
 function getTargetArea(target) {
   return target.area || target.district || target.address;
 }
@@ -643,8 +669,8 @@ export function ActivityHistory({ user, data, saved }) {
     return allRecords.filter((record) => {
       const recordType = record.checkType || record.type;
       const hasIssue = record.hasIssue || record.issueLevel === "need_check" || record.issueLevel === "urgent";
-      const target = data.targets.find((item) => item.id === targetId && isActiveTarget(item));
-      const targetText = `${target?.name || ""} ${target?.address || ""}`.toLowerCase();
+      const historyTarget = getHistoryTargetInfo(data.targets, record.targetId);
+      const targetText = historyTarget.searchText;
 
       if (targetIdFilter && record.targetId !== targetIdFilter) {
         return false;
@@ -729,6 +755,7 @@ export function ActivityHistory({ user, data, saved }) {
       <div className="stack">
         {records.length ? records.map((record) => {
           const hasIssue = record.hasIssue || record.issueLevel !== "none";
+          const historyTarget = getHistoryTargetInfo(data.targets, record.targetId);
           return (
             <Card key={record.id} className="history-record-card">
               <div className="history-record-top">
@@ -736,7 +763,7 @@ export function ActivityHistory({ user, data, saved }) {
                 <StatusBadge type="record" value={record.status} />
               </div>
               <div className="history-record-subtitle">
-                <strong>{targetName(data.targets, record.targetId)}</strong>
+                <strong>{historyTarget.label}</strong>
                 <span>{activityTypeLabels[record.checkType || record.type]}</span>
               </div>
               <p className="history-record-memo">{truncateText(record.issueSummary || record.memo || getCheckItemText(record.checkType || record.type || "external", record.checkItems), 60)}</p>

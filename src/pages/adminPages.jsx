@@ -12,6 +12,7 @@ import {
 import {
   Button,
   Card,
+  CheckboxField,
   EmptyState,
   InfoList,
   PageHeader,
@@ -1478,6 +1479,12 @@ export function AdminReportPreview({ data, currentUser }) {
 export function AdminTargetEdit({ targetId, data, actions, navigate }) {
   const target = data.targets.find((item) => item.id === targetId);
   const checkerOptions = data.users.filter((user) => user.role === "checker");
+  const dayOptions = ["월", "화", "수", "목", "금", "토", "일"];
+  const initialCheckDays = Array.isArray(target?.checkDays)
+    ? target.checkDays
+    : typeof target?.checkDays === "string"
+      ? target.checkDays.split(",").map((item) => item.trim()).filter(Boolean)
+      : [];
   const [form, setForm] = useState(() => ({
     name: target?.name || "",
     age: target?.age ? String(target.age) : "",
@@ -1486,6 +1493,13 @@ export function AdminTargetEdit({ targetId, data, actions, navigate }) {
     riskLevel: target?.riskLevel || "normal",
     defaultCheckType: target?.defaultCheckType || "external",
     assignedCheckerId: target?.assignedCheckerId || "",
+    checkDays: initialCheckDays,
+    checkTime: target?.checkTime || target?.visitTime || "",
+    healthStatus: target?.healthStatus || "",
+    cautionNote: target?.cautionNote || "",
+    medicationNote: target?.medicationNote || "",
+    guardianName: target?.guardianName || "",
+    guardianPhone: target?.guardianPhone || "",
   }));
   const [error, setError] = useState("");
 
@@ -1504,6 +1518,15 @@ export function AdminTargetEdit({ targetId, data, actions, navigate }) {
 
   function updateForm(key, value) {
     setForm((current) => ({ ...current, [key]: value }));
+  }
+
+  function toggleCheckDay(day) {
+    setForm((current) => ({
+      ...current,
+      checkDays: current.checkDays.includes(day)
+        ? current.checkDays.filter((item) => item !== day)
+        : [...current.checkDays, day],
+    }));
   }
 
   function handleSubmit(event) {
@@ -1536,6 +1559,14 @@ export function AdminTargetEdit({ targetId, data, actions, navigate }) {
       riskLevel: form.riskLevel,
       defaultCheckType: form.defaultCheckType,
       assignedCheckerId: form.assignedCheckerId,
+      checkDays: form.checkDays,
+      checkTime: form.checkTime,
+      visitTime: form.checkTime,
+      healthStatus: form.healthStatus.trim(),
+      cautionNote: form.cautionNote.trim(),
+      medicationNote: form.medicationNote.trim(),
+      guardianName: form.guardianName.trim(),
+      guardianPhone: form.guardianPhone.trim(),
     });
 
     navigate(`/admin/targets/${target.id}`);
@@ -1621,6 +1652,63 @@ export function AdminTargetEdit({ targetId, data, actions, navigate }) {
               </option>
             ))}
           </SelectInput>
+          <div className="field">
+            <span>확인 요일</span>
+            <div className="checker-assignment-list">
+              {dayOptions.map((day) => (
+                <CheckboxField
+                  key={day}
+                  label={day}
+                  checked={form.checkDays.includes(day)}
+                  onChange={() => toggleCheckDay(day)}
+                />
+              ))}
+            </div>
+          </div>
+          <TextInput
+            id="target-edit-check-time"
+            label="확인 시간"
+            type="time"
+            value={form.checkTime}
+            onChange={(event) => updateForm("checkTime", event.target.value)}
+          />
+          <TextInput
+            id="target-edit-health-status"
+            label="건강상태"
+            value={form.healthStatus}
+            onChange={(event) => updateForm("healthStatus", event.target.value)}
+            placeholder="건강 상태를 입력하세요"
+          />
+          <TextArea
+            id="target-edit-caution-note"
+            label="주의사항"
+            rows="3"
+            value={form.cautionNote}
+            onChange={(event) => updateForm("cautionNote", event.target.value)}
+            placeholder="주의사항을 입력하세요"
+          />
+          <TextArea
+            id="target-edit-medication-note"
+            label="복약 메모"
+            rows="3"
+            value={form.medicationNote}
+            onChange={(event) => updateForm("medicationNote", event.target.value)}
+            placeholder="복약 관련 메모를 입력하세요"
+          />
+          <TextInput
+            id="target-edit-guardian-name"
+            label="보호자 이름"
+            value={form.guardianName}
+            onChange={(event) => updateForm("guardianName", event.target.value)}
+            placeholder="보호자 이름"
+          />
+          <TextInput
+            id="target-edit-guardian-phone"
+            label="보호자 연락처"
+            value={form.guardianPhone}
+            onChange={(event) => updateForm("guardianPhone", event.target.value)}
+            placeholder="010-0000-0000"
+          />
         </Card>
 
         {error ? <p className="form-error">{error}</p> : null}
