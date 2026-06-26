@@ -3,11 +3,8 @@ import { Analytics } from "@vercel/analytics/react";
 import Layout from "./components/Layout.jsx";
 import { Button, EmptyState } from "./components/UI.jsx";
 import {
-  adminReports as initialAdminReports,
-  targets as initialTargets,
   users,
 } from "./data/mockData.js";
-import { organizations } from "./data/organizations.js";
 import LoginPage, { SignupRequestPage } from "./pages/LoginPage.jsx";
 import {
   ActivityHistory,
@@ -31,40 +28,30 @@ import {
   AdminTargetDetail,
   AdminTargets,
 } from "./pages/adminPages.jsx";
-import { readActivityRecords } from "./services/activityService.js";
+import { readActivityRecords, writeActivityRecords } from "./services/activityService.js";
+import { readAdminReports, writeAdminReports } from "./services/adminReportDataService.js";
 import {
   buildApprovedCheckerFromRequest,
   clearCurrentUser,
   readCurrentUser,
   readRegisteredUsers,
   saveCurrentUser,
+  writeRegisteredUsers,
 } from "./services/authService.js";
-import { readEmergencyReports } from "./services/emergencyService.js";
-import { LEGACY_STORAGE_KEYS, STORAGE_KEYS, mergeById, readWithMigration, safeReadStorage, writeStorage } from "./utils/storage.js";
+import { readEmergencyReports, writeEmergencyReports } from "./services/emergencyService.js";
+import { readOrganizations } from "./services/organizationService.js";
+import { readSignupRequests, writeSignupRequests } from "./services/signupRequestService.js";
+import { readTargets, writeTargets } from "./services/targetService.js";
+import { mergeById } from "./utils/storage.js";
 
-function usePersistentState(key, readInitialValue) {
+function usePersistentState(readInitialValue, writeValue) {
   const [state, setState] = useState(readInitialValue);
 
   useEffect(() => {
-    writeStorage(key, state);
-  }, [key, state]);
+    writeValue(state);
+  }, [state, writeValue]);
 
   return [state, setState];
-}
-
-function readAdminReports() {
-  const savedReports = readWithMigration(STORAGE_KEYS.adminReports, [], LEGACY_STORAGE_KEYS.adminReports);
-  return mergeById(initialAdminReports, Array.isArray(savedReports) ? savedReports : []);
-}
-
-function readTargets() {
-  const savedTargets = readWithMigration(STORAGE_KEYS.targets, [], LEGACY_STORAGE_KEYS.targets);
-  return mergeById(initialTargets, Array.isArray(savedTargets) ? savedTargets : []);
-}
-
-function readSignupRequests() {
-  const savedRequests = safeReadStorage(STORAGE_KEYS.signupRequests, []);
-  return Array.isArray(savedRequests) ? savedRequests : [];
 }
 
 function getCurrentLocation() {
@@ -76,13 +63,14 @@ function getCurrentLocation() {
 
 export default function App() {
   const [location, setLocation] = useState(getCurrentLocation);
-  const [targets, setTargets] = usePersistentState(STORAGE_KEYS.targets, readTargets);
-  const [activityRecords, setActivityRecords] = usePersistentState(STORAGE_KEYS.activityRecords, readActivityRecords);
-  const [emergencyReports, setEmergencyReports] = usePersistentState(STORAGE_KEYS.emergencyReports, readEmergencyReports);
-  const [adminReports, setAdminReports] = usePersistentState(STORAGE_KEYS.adminReports, readAdminReports);
-  const [signupRequests, setSignupRequests] = usePersistentState(STORAGE_KEYS.signupRequests, readSignupRequests);
-  const [registeredUsers, setRegisteredUsers] = usePersistentState(STORAGE_KEYS.registeredUsers, readRegisteredUsers);
+  const [targets, setTargets] = usePersistentState(readTargets, writeTargets);
+  const [activityRecords, setActivityRecords] = usePersistentState(readActivityRecords, writeActivityRecords);
+  const [emergencyReports, setEmergencyReports] = usePersistentState(readEmergencyReports, writeEmergencyReports);
+  const [adminReports, setAdminReports] = usePersistentState(readAdminReports, writeAdminReports);
+  const [signupRequests, setSignupRequests] = usePersistentState(readSignupRequests, writeSignupRequests);
+  const [registeredUsers, setRegisteredUsers] = usePersistentState(readRegisteredUsers, writeRegisteredUsers);
   const [currentUser, setCurrentUser] = useState(readCurrentUser);
+  const organizations = readOrganizations();
 
   useEffect(() => {
     function handlePopState() {
@@ -398,6 +386,4 @@ function NotFound({ navigate }) {
     </div>
   );
 }
-
-
 

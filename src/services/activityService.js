@@ -1,5 +1,5 @@
 import { activityRecords as initialActivityRecords } from "../data/mockData.js";
-import { LEGACY_STORAGE_KEYS, STORAGE_KEYS, mergeById, readWithMigration } from "../utils/storage.js";
+import { LEGACY_STORAGE_KEYS, STORAGE_KEYS, mergeById, readWithMigration, writeStorage } from "../utils/storage.js";
 
 export function normalizeActivityRecord(record) {
   const date = record.date || new Date().toISOString().slice(0, 10);
@@ -20,4 +20,11 @@ export function readActivityRecords() {
   const savedRecords = readWithMigration(STORAGE_KEYS.activityRecords, [], LEGACY_STORAGE_KEYS.activityRecords);
   const normalizedSavedRecords = Array.isArray(savedRecords) ? savedRecords.map(normalizeActivityRecord) : [];
   return mergeById(initialActivityRecords.map(normalizeActivityRecord), normalizedSavedRecords);
+}
+
+export function writeActivityRecords(records) {
+  writeStorage(
+    STORAGE_KEYS.activityRecords,
+    Array.isArray(records) ? records.map(normalizeActivityRecord) : []
+  );
 }

@@ -25,8 +25,16 @@ export function readRegisteredUsers() {
   return Array.isArray(storedUsers) ? storedUsers : [];
 }
 
+export function writeRegisteredUsers(users) {
+  writeStorage(STORAGE_KEYS.registeredUsers, Array.isArray(users) ? users : []);
+}
+
 export function readAllUsers() {
   return [...baseUsers.map(enrichBaseUser), ...readRegisteredUsers()];
+}
+
+export function readUsers() {
+  return readAllUsers();
 }
 
 export function authenticateUser(username, password) {

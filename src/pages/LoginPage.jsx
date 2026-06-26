@@ -3,7 +3,7 @@ import { organizations } from "../data/organizations.js";
 import BrandLogo from "../components/BrandLogo.jsx";
 import { Button, SelectInput, TextArea, TextInput } from "../components/UI.jsx";
 import { authenticateUser, readAllUsers } from "../services/authService.js";
-import { safeReadStorage, STORAGE_KEYS, writeStorage } from "../utils/storage.js";
+import { appendSignupRequest, readSignupRequests } from "../services/signupRequestService.js";
 
 function formatPhoneNumber(value) {
   const digits = String(value || "").replace(/\D/g, "").slice(0, 11);
@@ -138,8 +138,7 @@ export function SignupRequestPage({ navigate }) {
       return;
     }
 
-    const currentRequests = safeReadStorage(STORAGE_KEYS.signupRequests, []);
-    const requestList = Array.isArray(currentRequests) ? currentRequests : [];
+    const requestList = readSignupRequests();
     const normalizedLoginId = form.loginId.trim().toLowerCase();
     const existingUsers = readAllUsers();
     const selectedOrganization = organizations.find((organization) => organization.id === form.organizationId);
@@ -172,7 +171,7 @@ export function SignupRequestPage({ navigate }) {
       createdAt: new Date().toISOString(),
     };
 
-    writeStorage(STORAGE_KEYS.signupRequests, [nextRequest, ...requestList]);
+    appendSignupRequest(nextRequest);
     setSubmitted(true);
     setError("");
     setForm({

@@ -1,5 +1,5 @@
 import { emergencyReports as initialEmergencyReports } from "../data/mockData.js";
-import { LEGACY_STORAGE_KEYS, STORAGE_KEYS, mergeById, readWithMigration } from "../utils/storage.js";
+import { LEGACY_STORAGE_KEYS, STORAGE_KEYS, mergeById, readWithMigration, writeStorage } from "../utils/storage.js";
 
 export function normalizeEmergencyReport(report) {
   const statusMap = {
@@ -22,4 +22,11 @@ export function readEmergencyReports() {
   const savedReports = readWithMigration(STORAGE_KEYS.emergencyReports, [], LEGACY_STORAGE_KEYS.emergencyReports);
   const normalizedSavedReports = Array.isArray(savedReports) ? savedReports.map(normalizeEmergencyReport) : [];
   return mergeById(initialEmergencyReports.map(normalizeEmergencyReport), normalizedSavedReports);
+}
+
+export function writeEmergencyReports(reports) {
+  writeStorage(
+    STORAGE_KEYS.emergencyReports,
+    Array.isArray(reports) ? reports.map(normalizeEmergencyReport) : []
+  );
 }
