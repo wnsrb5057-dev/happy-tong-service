@@ -17,7 +17,7 @@ import {
   StatusBadge,
   TextArea,
 } from "../components/UI.jsx";
-import { findTargetById, getAssignedTargets } from "../services/targetService.js";
+import { getAssignedTargets } from "../services/targetService.js";
 import { getToday } from "../utils/statistics.js";
 import ElderAvatarIcon from "../components/ElderAvatarIcon.jsx";
 import heroGrandmother from "../assets/happytong-hero-grandmother.png";
@@ -144,7 +144,7 @@ function TargetCard({ target, navigate, homePreview = false }) {
 }
 
 export function CheckerHome({ user, data, navigate, emergencySent }) {
-  const assignedTargets = getAssignedTargets(data.targets, user.id);
+  const assignedTargets = data.targets.filter((target) => target.assignedCheckerId === user.id);
   const todayTargets = assignedTargets.filter(isTodayScheduled);
   const pendingRecords = data.activityRecords.filter(
     (record) => record.checkerId === user.id && record.status !== "completed"
@@ -222,7 +222,7 @@ export function CheckerHome({ user, data, navigate, emergencySent }) {
 }
 
 export function CheckerTargets({ user, data, navigate }) {
-  const assignedTargets = getAssignedTargets(data.targets, user.id);
+  const assignedTargets = data.targets.filter((target) => target.assignedCheckerId === user.id);
   const todayCount = assignedTargets.filter(isTodayScheduled).length;
   const riskCount = assignedTargets.filter((target) => target.riskLevel === "caution" || target.riskLevel === "danger").length;
 
@@ -253,7 +253,7 @@ export function CheckerTargets({ user, data, navigate }) {
 }
 
 export function CheckerTargetDetail({ targetId, user, data, navigate }) {
-  const target = findTargetById(getAssignedTargets(data.targets, user.id), targetId);
+  const target = data.targets.find((item) => item.id === targetId && item.assignedCheckerId === user.id);
 
   if (!target) {
     return <EmptyState title="대상자를 찾을 수 없습니다" description="대상자 목록에서 다시 선택해주세요." />;

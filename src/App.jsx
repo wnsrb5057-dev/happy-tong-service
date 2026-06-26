@@ -196,13 +196,6 @@ export default function App() {
           })
         );
       },
-      updateTargetLifecycleStatus(targetId, lifecycleStatus) {
-        setTargets((current) =>
-          current.map((target) =>
-            target.id === targetId ? { ...target, lifecycleStatus } : target
-          )
-        );
-      },
     }),
     [setActivityRecords, setEmergencyReports, setAdminReports, setRegisteredUsers, setSignupRequests, setTargets]
   );
@@ -329,7 +322,7 @@ function renderPage({ location, user, data, actions, navigate }) {
     }
 
     if (adminTargetMatch) {
-      return <AdminTargetDetail targetId={adminTargetMatch[1]} data={data} actions={actions} navigate={navigate} />;
+      return <AdminTargetDetail targetId={adminTargetMatch[1]} data={data} />;
     }
 
     if (location.pathname === "/admin/activities") {
@@ -376,10 +369,10 @@ function renderPage({ location, user, data, actions, navigate }) {
 function RoleBlocked({ navigate }) {
   return (
     <EmptyState
-      title="?�근 권한???�습?�다"
-      description="?�재 로그?�한 권한??맞는 ?�면?�로 ?�동?�주?�요."
+      title="접근 권한이 없습니다"
+      description="현재 로그인한 권한에 맞는 화면으로 이동해주세요."
     >
-      <Button onClick={navigate}>?�동?�기</Button>
+      <Button onClick={navigate}>이동하기</Button>
     </EmptyState>
   );
 }
@@ -387,14 +380,10 @@ function RoleBlocked({ navigate }) {
 function NotFound({ navigate }) {
   return (
     <div className="center-panel">
-      <EmptyState title="?�면??찾을 ???�습?�다" description="?�청??경로�??�시 ?�인?�주?�요." />
-      <Button onClick={navigate}>기본 ?�면?�로 ?�동</Button>
+      <EmptyState title="화면을 찾을 수 없습니다" description="요청한 경로를 다시 확인해주세요." />
+      <Button onClick={navigate}>기본 화면으로 이동</Button>
       <Analytics />
     </div>
   );
 }
-
-
-
-
 
