@@ -22,6 +22,9 @@ import { getToday } from "../utils/statistics.js";
 import ElderAvatarIcon from "../components/ElderAvatarIcon.jsx";
 import heroGrandmother from "../assets/happytong-hero-grandmother.png";
 
+function isActiveTarget(target) {
+  return (target.lifecycleStatus || "active") !== "ended";
+}
 function isTodayScheduled(target) {
   return target.todayScheduled ?? target.todayVisit;
 }
@@ -144,7 +147,7 @@ function TargetCard({ target, navigate, homePreview = false }) {
 }
 
 export function CheckerHome({ user, data, navigate, emergencySent }) {
-  const assignedTargets = data.targets.filter((target) => target.assignedCheckerId === user.id);
+  const assignedTargets = data.targets.filter((target) => target.assignedCheckerId === user.id && isActiveTarget(target));
   const todayTargets = assignedTargets.filter(isTodayScheduled);
   const pendingRecords = data.activityRecords.filter(
     (record) => record.checkerId === user.id && record.status !== "completed"
@@ -222,7 +225,7 @@ export function CheckerHome({ user, data, navigate, emergencySent }) {
 }
 
 export function CheckerTargets({ user, data, navigate }) {
-  const assignedTargets = data.targets.filter((target) => target.assignedCheckerId === user.id);
+  const assignedTargets = data.targets.filter((target) => target.assignedCheckerId === user.id && isActiveTarget(target));
   const todayCount = assignedTargets.filter(isTodayScheduled).length;
   const riskCount = assignedTargets.filter((target) => target.riskLevel === "caution" || target.riskLevel === "danger").length;
 
@@ -253,7 +256,7 @@ export function CheckerTargets({ user, data, navigate }) {
 }
 
 export function CheckerTargetDetail({ targetId, user, data, navigate }) {
-  const target = data.targets.find((item) => item.id === targetId && item.assignedCheckerId === user.id);
+  const target = data.targets.find((item) => item.id === targetId && isActiveTarget(item));
 
   if (!target) {
     return <EmptyState title="대상자를 찾을 수 없습니다" description="대상자 목록에서 다시 선택해주세요." />;
@@ -375,7 +378,7 @@ export function CheckerTargetDetail({ targetId, user, data, navigate }) {
 }
 
 export function ActivityNew({ user, data, actions, navigate, initialTargetId }) {
-  const assignedTargets = getAssignedTargets(data.targets, user.id);
+  const assignedTargets = getAssignedTargets(data.targets, user.id).filter(isActiveTarget);
   const validInitialTargetId = assignedTargets.some((target) => target.id === initialTargetId)
     ? initialTargetId
     : assignedTargets[0]?.id || "";
@@ -640,7 +643,7 @@ export function ActivityHistory({ user, data, saved }) {
     return allRecords.filter((record) => {
       const recordType = record.checkType || record.type;
       const hasIssue = record.hasIssue || record.issueLevel === "need_check" || record.issueLevel === "urgent";
-      const target = data.targets.find((item) => item.id === record.targetId);
+      const target = data.targets.find((item) => item.id === targetId && isActiveTarget(item));
       const targetText = `${target?.name || ""} ${target?.address || ""}`.toLowerCase();
 
       if (targetIdFilter && record.targetId !== targetIdFilter) {
