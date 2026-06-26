@@ -663,7 +663,20 @@ const filteredTargets = data.targets
     }
 
     if (filter === "all") return true;
-    if (filter === "today") return isTodayTarget(target);
+    if (filter === "today") {
+  const todayLabel = ["일", "월", "화", "수", "목", "금", "토"][new Date().getDay()];
+  const checkDays = target.checkDays || target.checkDay || target.days || target.checkDayLabels || [];
+
+  if (Array.isArray(checkDays)) {
+    return checkDays.includes(todayLabel);
+  }
+
+  if (typeof checkDays === "string") {
+    return checkDays.includes(todayLabel);
+  }
+
+  return false;
+}
     return target.riskLevel === filter;
   })
   .sort(sortTargetsForAdmin);
