@@ -182,6 +182,29 @@ export default function App() {
           )
         );
       },
+      updateUser(userId, updates) {
+        setRegisteredUsers((current) => {
+          const nextUsers = current.map((user) =>
+            user.id === userId
+              ? { ...user, ...updates, updatedAt: new Date().toISOString() }
+              : user
+          );
+
+          if (nextUsers.some((user) => user.id === userId)) {
+            return nextUsers;
+          }
+
+          const baseUser = users.find((user) => user.id === userId);
+          if (!baseUser) {
+            return current;
+          }
+
+          return [
+            { ...baseUser, ...updates, updatedAt: new Date().toISOString() },
+            ...current,
+          ];
+        });
+      },
       addTarget(target) {
         setTargets((current) => [target, ...current]);
       },

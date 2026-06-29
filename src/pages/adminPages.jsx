@@ -87,6 +87,30 @@ function checkerPhone(users, checkerId) {
   return checkerById(users, checkerId)?.phone ?? "연락처 없음";
 }
 
+function getCheckerPhoneValue(checker) {
+  return checker?.phone || checker?.phoneNumber || checker?.contactPhone || "";
+}
+
+function getCheckerAreaValue(checker) {
+  return checker?.area || checker?.region || checker?.assignedArea || "";
+}
+
+function getCheckerStatusLabel(status) {
+  if (status === "paused") return "일시중지";
+  if (status === "left") return "활동종료";
+  if (status === "active") return "활동중";
+  if (status === "needs_attention") return "지원 필요";
+  return status || "상태 없음";
+}
+
+function renderCheckerStatusBadge(status) {
+  if (status === "active" || status === "needs_attention") {
+    return <StatusBadge type="checker" value={status} />;
+  }
+
+  return <span className="badge badge-muted">{getCheckerStatusLabel(status)}</span>;
+}
+
 function getCheckType(record) {
   return record.checkType || record.type || "external";
 }
@@ -452,9 +476,13 @@ export function AdminCheckers({ data, actions, currentUser, navigate }) {
             <div className="card-row">
               <div>
                 <strong>{checker.name}</strong>
-                <p className="muted">{checker.phone}</p>
+                <p className="muted">
+                  {getCheckerPhoneValue(checker) || "연락처 없음"}
+                  {" · "}
+                  {getCheckerAreaValue(checker) || "담당 지역 없음"}
+                </p>
               </div>
-              <StatusBadge type="checker" value={checker.status} />
+              {renderCheckerStatusBadge(checker.status)}
             </div>
             <div className="admin-checker-metrics">
               <div><span>담당 대상자</span><strong>{checker.assignedCount}명</strong></div>
@@ -563,9 +591,13 @@ export function AdminCheckerDetail({ checkerId, data, actions, navigate }) {
         <div className="card-row admin-checker-detail-head">
           <div>
             <strong>{checkerSummary.name}</strong>
-            <p className="muted">{checkerSummary.phone} · {checkerSummary.organizationName || "소속 기관 정보 없음"}</p>
+            <p className="muted">
+              {getCheckerPhoneValue(checkerSummary) || "연락처 없음"}
+              {" · "}
+              {getCheckerAreaValue(checkerSummary) || "담당 지역 없음"}
+            </p>
           </div>
-          <StatusBadge type="checker" value={checkerSummary.status} />
+          {renderCheckerStatusBadge(checkerSummary.status)}
         </div>
         <div className="admin-checker-detail-metrics">
           <div><span>담당 대상자 수</span><strong>{checkerSummary.assignedCount}명</strong></div>
@@ -654,6 +686,13 @@ export function AdminCheckerDetail({ checkerId, data, actions, navigate }) {
 
 export function AdminCheckerEdit({ checkerId, data, actions, navigate }) {
   const checker = data.users.find((item) => item.id === checkerId && item.role === "checker");
+  const [form, setForm] = useState(() => ({
+    name: checker?.name || "",
+    phone: getCheckerPhoneValue(checker),
+    area: getCheckerAreaValue(checker),
+    status: checker?.status || "active",
+  }));
+  const [error, setError] = useState("");
 
   if (!checker) {
     return (
@@ -666,6 +705,42 @@ export function AdminCheckerEdit({ checkerId, data, actions, navigate }) {
         <Button onClick={() => navigate("/admin/checkers")}>목록으로 돌아가기</Button>
       </>
     );
+  }
+
+  function updateForm(key, value) {
+    setForm((current) => ({ ...current, [key]: value }));
+  }
+
+  function handleSubmit(event) {
+    event.preventDefault();
+
+    const trimmedName = form.name.trim();
+    const trimmedPhone = form.phone.trim();
+    const trimmedArea = form.area.trim();
+
+    if (!trimmedName) {
+      setError("이름을 입력해주세요.");
+      return;
+    }
+
+    if (!trimmedPhone) {
+      setError("연락처를 입력해주세요.");
+      return;
+    }
+
+    if (!trimmedArea) {
+      setError("담당 지역을 입력해주세요.");
+      return;
+    }
+
+    actions.updateUser(checker.id, {
+      name: trimmedName,
+      phone: trimmedPhone,
+      area: trimmedArea,
+      status: form.status,
+    });
+
+    navigate(`/admin/checkers/${checker.id}`);
   }
 
   return (
@@ -681,12 +756,50 @@ export function AdminCheckerEdit({ checkerId, data, actions, navigate }) {
         }
       />
 
-      <Card>
-        <p className="muted">
-          현재는 수정 화면 진입 확인용 임시 화면입니다. 다음 단계에서 이름, 연락처,
-          활동 상태, 담당 가능 지역 등을 수정할 수 있는 폼을 추가합니다.
-        </p>
-      </Card>
+      <form className="form-stack" onSubmit={handleSubmit}>
+        <Card>
+          <TextInput
+            id="checker-edit-name"
+            label="이름"
+            value={form.name}
+            onChange={(event) => updateForm("name", event.target.value)}
+            placeholder="체커 이름"
+          />
+          <TextInput
+            id="checker-edit-phone"
+            label="연락처"
+            value={form.phone}
+            onChange={(event) => updateForm("phone", event.target.value)}
+            placeholder="010-0000-0000"
+          />
+          <TextInput
+            id="checker-edit-area"
+            label="담당 지역"
+            value={form.area}
+            onChange={(event) => updateForm("area", event.target.value)}
+            placeholder="예: 은평구 갈현동"
+          />
+          <SelectInput
+            id="checker-edit-status"
+            label="활동 상태"
+            value={form.status}
+            onChange={(event) => updateForm("status", event.target.value)}
+          >
+            <option value="active">활동중</option>
+            <option value="paused">일시중지</option>
+            <option value="left">활동종료</option>
+          </SelectInput>
+        </Card>
+
+        {error ? <p className="form-error">{error}</p> : null}
+
+        <div className="action-grid">
+          <Button type="submit">저장</Button>
+          <Button variant="secondary" onClick={() => navigate(`/admin/checkers/${checker.id}`)}>
+            취소
+          </Button>
+        </div>
+      </form>
     </>
   );
 }
