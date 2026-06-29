@@ -75,6 +75,40 @@ function checkerById(users, checkerId) {
   return users.find((user) => user.id === checkerId);
 }
 
+function getAssignedCheckerState(checker) {
+  return checker?.status || checker?.activityStatus || "active";
+}
+
+function getTargetCheckerAlert(checker) {
+  if (!checker) {
+    return {
+      badge: "담당 체커 미배정",
+      message: "재배정 필요",
+      tone: "danger",
+    };
+  }
+
+  const checkerStatus = getAssignedCheckerState(checker);
+
+  if (checkerStatus === "paused") {
+    return {
+      badge: "체커 일시중지",
+      message: "재배정 검토 필요",
+      tone: "warning",
+    };
+  }
+
+  if (checkerStatus === "left") {
+    return {
+      badge: "체커 활동종료",
+      message: "재배정 필요",
+      tone: "danger",
+    };
+  }
+
+  return null;
+}
+
 function targetName(targets, targetId) {
   return targetById(targets, targetId)?.name ?? "대상자 없음";
 }
@@ -880,6 +914,17 @@ const filteredTargets = data.targets
       <div className="stack">
         {filteredTargets.map((target) => (
           <article className={`target-card admin-target-card risk-card-${target.riskLevel}`} key={target.id}>
+            {(() => {
+              const assignedChecker = checkerById(data.users, target.assignedCheckerId);
+              const checkerAlert = getTargetCheckerAlert(assignedChecker);
+
+              return checkerAlert ? (
+                <div className={`admin-target-alert admin-target-alert-${checkerAlert.tone}`}>
+                  <span className="badge badge-muted">{checkerAlert.badge}</span>
+                  <strong>{checkerAlert.message}</strong>
+                </div>
+              ) : null;
+            })()}
             <div className="card-row">
               <div>
                 <strong>{target.name}</strong>
@@ -927,6 +972,7 @@ export function AdminTargetDetail({ targetId, data, actions, navigate }) {
   }
 
   const checker = checkerById(data.users, target.assignedCheckerId);
+  const checkerAlert = getTargetCheckerAlert(checker);
   const visits = data.activityRecords.filter((record) => record.targetId === target.id).sort(byLatestDate);
   const reports = data.emergencyReports.filter((report) => report.targetId === target.id).sort(byLatestDate);
   const confirmMessage = `${target.name}님을 관리 종료 처리할까요?`;
@@ -988,6 +1034,13 @@ export function AdminTargetDetail({ targetId, data, actions, navigate }) {
             { label: "체커 연락처", value: checker?.phone ?? "연락처 없음" },
           ]}
         />
+        {checkerAlert ? (
+          <p className={`admin-target-detail-alert admin-target-detail-alert-${checkerAlert.tone}`}>
+            {checkerAlert.tone === "warning"
+              ? "담당 체커가 일시중지 상태입니다. 재배정 검토가 필요합니다."
+              : "담당 체커가 활동종료 상태입니다. 재배정이 필요합니다."}
+          </p>
+        ) : null}
       </Card>
 
       <Card>

@@ -6411,6 +6411,41 @@ button.upload-box {
   justify-self: start !important;
 }
 
+.app-shell-admin .admin-target-alert {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.app-shell-admin .admin-target-alert strong {
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.app-shell-admin .admin-target-alert-warning strong {
+  color: #b26a00;
+}
+
+.app-shell-admin .admin-target-alert-danger strong {
+  color: var(--red);
+}
+
+.app-shell-admin .admin-target-detail-alert {
+  margin-top: 10px;
+  font-size: 14px;
+  line-height: 1.5;
+  font-weight: 700;
+}
+
+.app-shell-admin .admin-target-detail-alert-warning {
+  color: #b26a00;
+}
+
+.app-shell-admin .admin-target-detail-alert-danger {
+  color: var(--red);
+}
+
 @media (min-width: 900px) {
   .app-shell-admin .admin-target-meta {
     display: flex !important;
