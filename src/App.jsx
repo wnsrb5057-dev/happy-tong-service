@@ -16,6 +16,7 @@ import {
 } from "./pages/checkerPages.jsx";
 import {
   AdminActivities,
+  AdminCheckerEdit,
   AdminCheckerDetail,
   AdminCheckers,
   AdminDashboard,
@@ -271,6 +272,7 @@ function renderPage({ location, user, data, actions, navigate }) {
   const adminTargetNewMatch = location.pathname === "/admin/targets/new";
   const adminTargetMatch = location.pathname.match(/^\/admin\/targets\/([^/]+)$/);
   const adminTargetEditMatch = location.pathname.match(/^\/admin\/targets\/([^/]+)\/edit$/);
+  const adminCheckerEditMatch = location.pathname.match(/^\/admin\/checkers\/([^/]+)\/edit$/);
   const adminCheckerMatch = location.pathname.match(/^\/admin\/checkers\/([^/]+)$/);
   const adminEmergencyMatch = location.pathname.match(/^\/admin\/emergencies\/([^/]+)$/);
 
@@ -333,6 +335,17 @@ function renderPage({ location, user, data, actions, navigate }) {
 
     if (location.pathname === "/admin/checkers") {
       return <AdminCheckers data={data} actions={actions} currentUser={user} navigate={navigate} />;
+    }
+
+    if (adminCheckerEditMatch) {
+      return (
+        <AdminCheckerEdit
+          checkerId={adminCheckerEditMatch[1]}
+          data={data}
+          actions={actions}
+          navigate={navigate}
+        />
+      );
     }
 
     if (adminCheckerMatch) {

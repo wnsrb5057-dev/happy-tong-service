@@ -548,9 +548,14 @@ export function AdminCheckerDetail({ checkerId, data, actions, navigate }) {
         title={checkerSummary.name}
         description="체커 운영 현황과 담당 대상자 배정을 확인합니다."
         action={
-          <Button variant="ghost" onClick={() => navigate("/admin/checkers")}>
-            목록으로 이동
-          </Button>
+          <div className="page-header-actions">
+            <Button variant="ghost" onClick={() => navigate(`/admin/checkers/${checkerSummary.id}/edit`)}>
+              정보 수정
+            </Button>
+            <Button variant="ghost" onClick={() => navigate("/admin/checkers")}>
+              목록으로 이동
+            </Button>
+          </div>
         }
       />
 
@@ -646,6 +651,46 @@ export function AdminCheckerDetail({ checkerId, data, actions, navigate }) {
     </>
   );
 }
+
+export function AdminCheckerEdit({ checkerId, data, actions, navigate }) {
+  const checker = data.users.find((item) => item.id === checkerId && item.role === "checker");
+
+  if (!checker) {
+    return (
+      <>
+        <PageHeader
+          eyebrow="체커 수정"
+          title="체커를 찾을 수 없습니다"
+          description="체커 목록으로 돌아가 다시 선택해주세요."
+        />
+        <Button onClick={() => navigate("/admin/checkers")}>목록으로 돌아가기</Button>
+      </>
+    );
+  }
+
+  return (
+    <>
+      <PageHeader
+        eyebrow="체커 수정"
+        title={`${checker.name} 정보 수정`}
+        description="체커 정보 수정 화면입니다. 다음 단계에서 입력 폼을 연결합니다."
+        action={
+          <Button variant="ghost" onClick={() => navigate(`/admin/checkers/${checker.id}`)}>
+            상세로 돌아가기
+          </Button>
+        }
+      />
+
+      <Card>
+        <p className="muted">
+          현재는 수정 화면 진입 확인용 임시 화면입니다. 다음 단계에서 이름, 연락처,
+          활동 상태, 담당 가능 지역 등을 수정할 수 있는 폼을 추가합니다.
+        </p>
+      </Card>
+    </>
+  );
+}
+
 export function AdminTargets({ data, navigate }) {
   const [filter, setFilter] = useState("all");
 
