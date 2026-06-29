@@ -6471,3 +6471,342 @@ button.upload-box {
     margin-top: 0 !important;
   }
 }
+
+.app-shell-admin .admin-dashboard-kpi-grid {
+  margin: 0;
+}
+
+.app-shell-admin .admin-dashboard-chart-grid {
+  display: grid;
+  gap: 16px;
+}
+
+.app-shell-admin .admin-dashboard-chart-grid .chart-card {
+  height: 100%;
+}
+
+.app-shell-admin .admin-dashboard-chart-card {
+  display: grid;
+  gap: 18px;
+}
+
+.app-shell-admin .dashboard-donut-layout {
+  display: grid;
+  gap: 18px;
+  align-items: center;
+}
+
+.app-shell-admin .dashboard-donut-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.app-shell-admin .dashboard-donut-chart {
+  position: relative;
+  width: 180px;
+  height: 180px;
+  border-radius: 50%;
+}
+
+.app-shell-admin .dashboard-donut-hole {
+  position: absolute;
+  inset: 22px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--white);
+  text-align: center;
+}
+
+.app-shell-admin .dashboard-donut-hole strong {
+  font-size: 28px;
+  font-weight: 900;
+  color: var(--ink);
+}
+
+.app-shell-admin .dashboard-donut-hole span {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.app-shell-admin .dashboard-donut-legend {
+  display: grid;
+  gap: 12px;
+}
+
+.app-shell-admin .dashboard-donut-legend-item {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 10px;
+  align-items: center;
+}
+
+.app-shell-admin .dashboard-donut-legend-item strong {
+  display: block;
+  margin-bottom: 2px;
+}
+
+.app-shell-admin .dashboard-donut-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.app-shell-admin .dashboard-donut-dot.tone-blue {
+  background: var(--primary);
+}
+
+.app-shell-admin .dashboard-donut-dot.tone-green {
+  background: var(--green);
+}
+
+.app-shell-admin .dashboard-donut-dot.tone-orange {
+  background: var(--orange);
+}
+
+.app-shell-admin .dashboard-donut-dot.tone-red {
+  background: var(--red);
+}
+
+.app-shell-admin .dashboard-trend-chart {
+  width: 100%;
+  min-height: 180px;
+  padding: 8px 0 0;
+}
+
+.app-shell-admin .dashboard-trend-chart svg {
+  width: 100%;
+  height: 180px;
+  overflow: visible;
+}
+
+.app-shell-admin .dashboard-trend-line {
+  fill: none;
+  stroke: var(--primary);
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.app-shell-admin .dashboard-trend-point {
+  fill: var(--primary);
+}
+
+.app-shell-admin .dashboard-trend-labels {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.app-shell-admin .dashboard-trend-label {
+  text-align: center;
+}
+
+.app-shell-admin .dashboard-trend-label strong {
+  display: block;
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--ink);
+}
+
+.app-shell-admin .dashboard-trend-label span {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.app-shell-admin .dashboard-status-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.app-shell-admin .dashboard-status-card {
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface-indigo);
+}
+
+.app-shell-admin .dashboard-status-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.app-shell-admin .dashboard-status-card-head strong {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--ink);
+}
+
+.app-shell-admin .dashboard-status-card-head span {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--ink);
+}
+
+.app-shell-admin .dashboard-status-track {
+  width: 100%;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--line);
+  overflow: hidden;
+}
+
+.app-shell-admin .dashboard-status-fill {
+  height: 100%;
+  border-radius: inherit;
+}
+
+.app-shell-admin .dashboard-status-fill.tone-blue {
+  background: var(--primary);
+}
+
+.app-shell-admin .dashboard-status-fill.tone-green {
+  background: var(--green);
+}
+
+.app-shell-admin .dashboard-status-fill.tone-orange {
+  background: var(--orange);
+}
+
+.app-shell-admin .dashboard-status-fill.tone-red {
+  background: var(--red);
+}
+
+.app-shell-admin .dashboard-status-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: var(--surface-blue);
+}
+
+.app-shell-admin .dashboard-status-summary strong {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--ink);
+}
+
+.app-shell-admin .dashboard-status-summary span {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.app-shell-admin .admin-dashboard-reassignment-card {
+  display: grid;
+  gap: 14px;
+}
+
+.app-shell-admin .admin-dashboard-reassignment-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.app-shell-admin .admin-dashboard-reassignment-head strong {
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--ink);
+}
+
+.app-shell-admin .admin-dashboard-reassignment-head span {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.app-shell-admin .admin-dashboard-reassignment-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 0;
+  border-top: 1px solid var(--line);
+}
+
+.app-shell-admin .admin-dashboard-reassignment-item:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.app-shell-admin .admin-dashboard-reassignment-item strong {
+  display: block;
+  margin-bottom: 4px;
+}
+
+.app-shell-admin .admin-dashboard-reassignment-item .badge {
+  flex: 0 0 auto;
+}
+
+@media (min-width: 900px) {
+  .app-shell-admin .admin-dashboard-kpi-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 14px;
+  }
+
+  .app-shell-admin .admin-dashboard-chart-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 20px;
+  }
+
+  .app-shell-admin .dashboard-donut-layout {
+    grid-template-columns: minmax(180px, 220px) minmax(0, 1fr);
+    gap: 22px;
+  }
+
+  .app-shell-admin .dashboard-status-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 899px) {
+  .app-shell-admin .admin-dashboard-kpi-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .app-shell-admin .admin-dashboard-reassignment-head {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .app-shell-admin .admin-dashboard-reassignment-item {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .app-shell-admin .dashboard-donut-chart {
+    width: 156px;
+    height: 156px;
+  }
+
+  .app-shell-admin .dashboard-donut-hole {
+    inset: 20px;
+  }
+
+  .app-shell-admin .dashboard-trend-labels {
+    gap: 6px;
+  }
+
+  .app-shell-admin .dashboard-trend-label strong {
+    font-size: 13px;
+  }
+
+  .app-shell-admin .dashboard-status-summary {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}

@@ -213,17 +213,22 @@ function getCheckerStatus(checker, data) {
 }
 
 export function AdminDashboard({ data, navigate }) {
+  const targets = Array.isArray(data.targets) ? data.targets : [];
+  const users = Array.isArray(data.users) ? data.users : [];
+  const activityRecords = Array.isArray(data.activityRecords) ? data.activityRecords : [];
+  const emergencyReports = Array.isArray(data.emergencyReports) ? data.emergencyReports : [];
+  const activeTargets = targets.filter((target) => (target.lifecycleStatus || "active") !== "ended");
   const today = getTodayFromStats();
   const todayPlanDay = ["일", "월", "화", "수", "목", "금", "토"][new Date().getDay()];
-  const stats = getDashboardStats(data);
-  const todayScheduled = data.targets.filter(isTodayScheduled).length;
-  const completedToday = data.activityRecords.filter((record) => record.date === today && record.status === "completed").length;
-  const urgentReports = data.emergencyReports.filter((report) => getIssueLevel(report) === "urgent" && report.status !== "completed");
-  const unresolvedReports = data.emergencyReports.filter((report) => report.status !== "completed");
-  const weekPlan = getWeekPlan(data.targets);
+  const stats = getDashboardStats({ ...data, targets: activeTargets });
+  const todayScheduled = activeTargets.filter(isTodayScheduled).length;
+  const completedToday = activityRecords.filter((record) => record.date === today && record.status === "completed").length;
+  const urgentReports = emergencyReports.filter((report) => getIssueLevel(report) === "urgent" && report.status !== "completed");
+  const unresolvedReports = emergencyReports.filter((report) => report.status !== "completed");
+  const weekPlan = getWeekPlan(activeTargets);
   const [selectedPlanDay, setSelectedPlanDay] = useState(todayPlanDay);
   const selectedPlan = weekPlan.find((item) => item.day === selectedPlanDay) || weekPlan[0];
-  const recentEmergencyReports = [...data.emergencyReports]
+  const recentEmergencyReports = [...emergencyReports]
     .sort((a, b) => {
       const urgentDiff = Number(getIssueLevel(b) === "urgent") - Number(getIssueLevel(a) === "urgent");
       if (urgentDiff) return urgentDiff;
@@ -232,40 +237,110 @@ export function AdminDashboard({ data, navigate }) {
       return byLatestDate(a, b);
     })
     .slice(0, 5);
-  const recentActivities = [...data.activityRecords].sort(byLatestDate).slice(0, 4);
+  const recentActivities = [...activityRecords].sort(byLatestDate).slice(0, 4);
+  const reassignmentNeededTargets = activeTargets
+    .filter((target) => {
+      const assignedChecker = checkerById(users, target.assignedCheckerId);
+      const checkerState = getAssignedCheckerState(assignedChecker);
+      return !assignedChecker || checkerState === "paused" || checkerState === "left";
+    })
+    .sort(sortTargetsForAdmin);
+  const riskSummary = {
+    normal: activeTargets.filter((target) => target.riskLevel === "normal").length,
+    caution: activeTargets.filter((target) => target.riskLevel === "caution").length,
+    danger: activeTargets.filter((target) => target.riskLevel === "danger").length,
+  };
+  const riskRows = [
+    { label: "정상", value: riskSummary.normal, tone: "green" },
+    { label: "주의", value: riskSummary.caution, tone: "orange" },
+    { label: "위험", value: riskSummary.danger, tone: "red" },
+  ];
+  const recentActivityRows = getRecentDailyActivityStats(activityRecords, 7).map((row) => ({
+    label: row.label,
+    value: row.count,
+    tone: "blue",
+  }));
+  const totalActivityCount = activityRecords.length;
+  const activityTypeRows = [
+    { label: checkTypeLabels.external || "외부 확인", value: activityRecords.filter((record) => getCheckType(record) === "external").length, tone: "blue" },
+    { label: checkTypeLabels.call || "전화 확인", value: activityRecords.filter((record) => getCheckType(record) === "call").length, tone: "green" },
+    { label: checkTypeLabels.visit || "방문 확인", value: activityRecords.filter((record) => getCheckType(record) === "visit").length, tone: "orange" },
+    { label: checkTypeLabels.intensive || "집중 모니터링", value: activityRecords.filter((record) => getCheckType(record) === "intensive").length, tone: "red" },
+  ];
+  const emergencyStatusSummary = emergencyReports.reduce(
+    (summary, report) => {
+      const status = report.status || "received";
+
+      if (status === "completed") {
+        summary.completed += 1;
+      } else if (status === "received" || status === "pending") {
+        summary.received += 1;
+      } else {
+        summary.inProgress += 1;
+      }
+
+      return summary;
+    },
+    { received: 0, inProgress: 0, completed: 0 }
+  );
+  const totalEmergencyCount = emergencyReports.length;
+  const emergencyStatusRows = [
+    { label: emergencyStatusLabels.received || "접수됨", value: emergencyStatusSummary.received, tone: "orange" },
+    { label: emergencyStatusLabels.in_progress || emergencyStatusLabels.processing || "처리중", value: emergencyStatusSummary.inProgress, tone: "blue" },
+    { label: emergencyStatusLabels.completed || "완료", value: emergencyStatusSummary.completed, tone: "green" },
+  ];
+  const unresolvedTargetIds = new Set(unresolvedReports.map((report) => report.targetId));
+  const urgentTargetIds = new Set(urgentReports.map((report) => report.targetId));
+  const reassignmentTargetIds = new Set(reassignmentNeededTargets.map((target) => target.id));
+  const priorityTargets = activeTargets
+    .filter((target) => target.riskLevel === "danger" || unresolvedTargetIds.has(target.id) || reassignmentTargetIds.has(target.id))
+    .sort((a, b) => {
+      const urgentDiff = Number(urgentTargetIds.has(b.id)) - Number(urgentTargetIds.has(a.id));
+      if (urgentDiff) return urgentDiff;
+
+      const unresolvedDiff = Number(unresolvedTargetIds.has(b.id)) - Number(unresolvedTargetIds.has(a.id));
+      if (unresolvedDiff) return unresolvedDiff;
+
+      const reassignmentDiff = Number(reassignmentTargetIds.has(b.id)) - Number(reassignmentTargetIds.has(a.id));
+      if (reassignmentDiff) return reassignmentDiff;
+
+      return sortTargetsForAdmin(a, b);
+    })
+    .slice(0, 5);
 
   const riskPriority = {
-  danger: 0,
-  warning: 1,
-  normal: 2,
-};
+    danger: 0,
+    caution: 1,
+    normal: 2,
+  };
 
-const urgencyPriority = {
-  high: 0,
-  medium: 1,
-  low: 2,
-};
+  const urgencyPriority = {
+    high: 0,
+    medium: 1,
+    low: 2,
+  };
 
-const statusPriority = {
-  pending: 0,
-  received: 1,
-  processing: 2,
-  completed: 3,
-};
+  const statusPriority = {
+    pending: 0,
+    received: 1,
+    in_progress: 2,
+    processing: 2,
+    completed: 3,
+  };
 
-const sortedSelectedPlanTargets = [...selectedPlan.targets].sort((a, b) => {
-  return (riskPriority[a.riskLevel] ?? 99) - (riskPriority[b.riskLevel] ?? 99);
-});
+  const sortedSelectedPlanTargets = [...selectedPlan.targets].sort((a, b) => {
+    return (riskPriority[a.riskLevel] ?? 99) - (riskPriority[b.riskLevel] ?? 99);
+  });
 
-const sortedRecentEmergencyReports = [...recentEmergencyReports].sort((a, b) => {
-  const urgencyDiff = (urgencyPriority[a.urgency] ?? 99) - (urgencyPriority[b.urgency] ?? 99);
-  if (urgencyDiff !== 0) return urgencyDiff;
+  const sortedRecentEmergencyReports = [...recentEmergencyReports].sort((a, b) => {
+    const urgencyDiff = (urgencyPriority[a.urgency] ?? 99) - (urgencyPriority[b.urgency] ?? 99);
+    if (urgencyDiff !== 0) return urgencyDiff;
 
-  const statusDiff = (statusPriority[a.status] ?? 99) - (statusPriority[b.status] ?? 99);
-  if (statusDiff !== 0) return statusDiff;
+    const statusDiff = (statusPriority[a.status] ?? 99) - (statusPriority[b.status] ?? 99);
+    if (statusDiff !== 0) return statusDiff;
 
-  return new Date(b.date) - new Date(a.date);
-});
+    return new Date(b.date) - new Date(a.date);
+  });
   return (
     <>
       <PageHeader
@@ -281,15 +356,133 @@ const sortedRecentEmergencyReports = [...recentEmergencyReports].sort((a, b) => 
           <span>이상징후 {stats.emergencyCount}건 · 긴급 확인 {urgentReports.length}건</span>
         </Card>
 
+        <div className="statistics-grid admin-dashboard-kpi-grid">
+          <StatCard label="전체 대상자" value={`${activeTargets.length}명`} tone="blue" helper="운영 중 대상자 기준" />
+          <StatCard label="오늘 확인" value={`${completedToday}건`} tone="green" helper={`예정 ${todayScheduled}건`} />
+          <StatCard label="미처리 이상징후" value={`${unresolvedReports.length}건`} tone="orange" helper={`긴급 ${urgentReports.length}건`} />
+          <StatCard label="재배정 필요" value={`${reassignmentNeededTargets.length}명`} tone="red" helper="담당 체커 상태 기준" />
+        </div>
+
+        <div className="chart-grid admin-dashboard-chart-grid">
+          <DonutSummaryCard
+            title="위험도 분포"
+            description="운영 중 대상자의 위험도를 한눈에 확인합니다."
+            rows={riskRows}
+            unit="명"
+          />
+          {activityRecords.length ? (
+            <MiniTrendChart
+              title="최근 7일 확인 활동 추이"
+              description="최근 일주일간 확인 기록 건수입니다."
+              rows={recentActivityRows}
+            />
+          ) : (
+            <Card className="chart-card admin-dashboard-chart-card">
+              <SectionTitle title="최근 7일 확인 활동 추이" description="최근 일주일간 확인 기록 건수입니다." />
+              <EmptyState title="최근 확인 기록이 없습니다" description="확인 기록이 쌓이면 최근 활동 추이가 이곳에 표시됩니다." />
+            </Card>
+          )}
+          <ChartCard
+            title="확인 유형별 현황"
+            description="외부 확인, 전화 확인, 방문 확인, 집중 모니터링 비중입니다."
+            rows={activityTypeRows}
+          />
+          <EmergencyStatusOverview
+            title="이상징후 처리 현황"
+            description="접수부터 완료까지의 처리 상태를 요약합니다."
+            rows={emergencyStatusRows}
+            total={totalEmergencyCount}
+            unresolvedCount={unresolvedReports.length}
+          />
+        </div>
+
          <div className="admin-dashboard-grid">
           <section className="section-block admin-dashboard-panel">
-            <SectionTitle title="우선 처리 필요" description="긴급 확인과 미처리 건을 먼저 확인하세요." />
-            <div className="priority-list">
-              <button type="button" onClick={() => navigate('/admin/emergencies')}>긴급 확인 필요 {urgentReports.length}건</button>
-              <button type="button" onClick={() => navigate('/admin/emergencies')}>미처리 이상징후 {unresolvedReports.length}건</button>
-              <button type="button" onClick={() => navigate('/admin/targets')}>위험 대상자 {stats.dangerTargetCount}명</button>
-              <button type="button" onClick={() => navigate('/admin/activities')}>기록 보완 필요 {stats.pendingActivityCount}건</button>
+            <SectionTitle title="우선 확인 대상자" description="위험도와 미처리 이상징후를 기준으로 우선순위를 정리했습니다." />
+            <div className="stack compact-stack">
+              {priorityTargets.length ? (
+                priorityTargets.map((target) => {
+                  const hasUrgentReport = urgentTargetIds.has(target.id);
+                  const hasUnresolvedReport = unresolvedTargetIds.has(target.id);
+                  const needsReassignment = reassignmentTargetIds.has(target.id);
+
+                  return (
+                    <Card key={target.id} className={`admin-dashboard-target-card risk-card-${target.riskLevel}`}>
+                      <div className="admin-dashboard-card-head">
+                        <div className="admin-dashboard-card-copy">
+                          <strong>{target.name}</strong>
+                          <p className="muted">
+                            {checkerName(users, target.assignedCheckerId)} · {checkTypeLabels[getTargetCheckType(target)]}
+                          </p>
+                        </div>
+                        <div className="admin-dashboard-card-badges">
+                          {hasUrgentReport ? <StatusBadge type="issueLevel" value="urgent" /> : null}
+                          {!hasUrgentReport && hasUnresolvedReport ? <StatusBadge type="issueLevel" value="need_check" /> : null}
+                          {needsReassignment ? <span className="badge badge-warning">재배정 검토</span> : null}
+                          <StatusBadge type="risk" value={target.riskLevel} />
+                        </div>
+                      </div>
+                      <p className="admin-dashboard-card-description">
+                        {hasUrgentReport
+                          ? "긴급 확인이 필요한 이상징후가 접수되었습니다."
+                          : needsReassignment
+                            ? "담당 체커 상태를 확인하고 재배정을 검토해야 합니다."
+                          : hasUnresolvedReport
+                            ? "미처리 이상징후가 있어 확인이 필요합니다."
+                            : "위험도 기준 우선 확인 대상자입니다."}
+                      </p>
+                      <div className="dashboard-card-actions">
+                        <Button
+                          variant="ghost"
+                          className="dashboard-small-button"
+                          onClick={() => navigate(`/admin/targets/${target.id}`)}
+                        >
+                          상세보기
+                        </Button>
+                      </div>
+                    </Card>
+                  );
+                })
+              ) : (
+                <EmptyState title="우선 확인 대상자 없음" description="현재 위험 대상자 또는 미처리 이상징후 대상자가 없습니다." />
+              )}
             </div>
+          </section>
+
+          <section className="section-block admin-dashboard-panel">
+            <SectionTitle
+              title="재배정 필요 대상자"
+              description="담당 체커 미배정 또는 체커 상태 변경으로 재배정 검토가 필요한 대상자입니다."
+              action={<Button variant="ghost" onClick={() => navigate('/admin/targets')}>대상자 보기</Button>}
+            />
+            <Card className="admin-dashboard-reassignment-card">
+              <div className="admin-dashboard-reassignment-head">
+                <strong>{reassignmentNeededTargets.length}명</strong>
+                <span>담당 체커 상태 기준</span>
+              </div>
+              <div className="stack compact-stack">
+                {reassignmentNeededTargets.length ? (
+                  reassignmentNeededTargets.slice(0, 4).map((target) => {
+                    const assignedChecker = checkerById(users, target.assignedCheckerId);
+                    const checkerAlert = getTargetCheckerAlert(assignedChecker);
+
+                    return (
+                      <div className="admin-dashboard-reassignment-item" key={target.id}>
+                        <div>
+                          <strong>{target.name}</strong>
+                          <p className="muted">
+                            {checkerName(users, target.assignedCheckerId)} · {getTargetArea(target)}
+                          </p>
+                        </div>
+                        {checkerAlert ? <span className={`badge badge-${checkerAlert.tone}`}>{checkerAlert.message}</span> : null}
+                      </div>
+                    );
+                  })
+                ) : (
+                  <p className="muted">현재 재배정이 필요한 대상자가 없습니다.</p>
+                )}
+              </div>
+            </Card>
           </section>
 
           <section className="section-block admin-dashboard-panel">
@@ -339,7 +532,7 @@ const sortedRecentEmergencyReports = [...recentEmergencyReports].sort((a, b) => 
         <Card key={report.id} className={report.urgency === 'high' ? 'danger-card' : 'alert-card'}>
           <div className="card-row">
             <div>
-              <strong>{targetName(data.targets, report.targetId)}</strong>
+              <strong>{targetName(targets, report.targetId)}</strong>
               <p className="muted">{report.date} · {report.issueType}</p>
             </div>
             <div className="badge-row compact-badges">
@@ -372,8 +565,8 @@ const sortedRecentEmergencyReports = [...recentEmergencyReports].sort((a, b) => 
                 <Card key={record.id}>
                   <div className="card-row">
                     <div>
-                      <strong>{targetName(data.targets, record.targetId)}</strong>
-                      <p className="muted">{record.date} · {checkerName(data.users, record.checkerId)} · {activityTypeLabels[getCheckType(record)]}</p>
+                      <strong>{targetName(targets, record.targetId)}</strong>
+                      <p className="muted">{record.date} · {checkerName(users, record.checkerId)} · {activityTypeLabels[getCheckType(record)]}</p>
                     </div>
                     <StatusBadge type="record" value={record.status} />
                   </div>
@@ -1379,24 +1572,135 @@ export function AdminEmergencyDetail({ emergencyId, data, actions, navigate }) {
     </>
   );
 }
-function ChartCard({ title, description, rows }) {
+function ChartCard({ title, description, rows, unit = "건" }) {
   const max = Math.max(...rows.map((row) => row.value), 1);
 
   return (
-    <Card className="chart-card">
+    <Card className="chart-card admin-dashboard-chart-card">
       <SectionTitle title={title} description={description} />
       <div className="chart-list">
         {rows.map((row) => (
           <div className="chart-row" key={row.label}>
             <div className="bar-row">
               <span>{row.label}</span>
-              <strong>{row.value}건</strong>
+              <strong>{row.value}{unit}</strong>
             </div>
             <div className="bar-track">
               <div className={`bar-fill ${row.tone ? `bar-${row.tone}` : ""}`} style={{ width: `${(row.value / max) * 100}%` }} />
             </div>
           </div>
         ))}
+      </div>
+    </Card>
+  );
+}
+function DonutSummaryCard({ title, description, rows, unit = "건" }) {
+  const total = rows.reduce((sum, row) => sum + row.value, 0);
+  const safeTotal = total || 1;
+  let accumulated = 0;
+  const gradientStops = rows.map((row) => {
+    const start = accumulated;
+    accumulated += (row.value / safeTotal) * 100;
+    const toneColor = row.tone === "green"
+      ? "var(--green)"
+      : row.tone === "orange"
+        ? "var(--orange)"
+        : row.tone === "red"
+          ? "var(--red)"
+          : "var(--primary)";
+    return `${toneColor} ${start}% ${accumulated}%`;
+  });
+  const donutBackground = total
+    ? `conic-gradient(${gradientStops.join(", ")})`
+    : "conic-gradient(var(--line) 0% 100%)";
+
+  return (
+    <Card className="chart-card admin-dashboard-chart-card">
+      <SectionTitle title={title} description={description} />
+      <div className="dashboard-donut-layout">
+        <div className="dashboard-donut-wrap">
+          <div className="dashboard-donut-chart" style={{ background: donutBackground }}>
+            <div className="dashboard-donut-hole">
+              <strong>{total}{unit}</strong>
+              <span>운영 대상</span>
+            </div>
+          </div>
+        </div>
+        <div className="dashboard-donut-legend">
+          {rows.map((row) => (
+            <div className="dashboard-donut-legend-item" key={row.label}>
+              <span className={`dashboard-donut-dot tone-${row.tone || "blue"}`} />
+              <div>
+                <strong>{row.label}</strong>
+                <p className="muted">{row.value}{unit}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </Card>
+  );
+}
+function MiniTrendChart({ title, description, rows }) {
+  const max = Math.max(...rows.map((row) => row.value), 1);
+  const points = rows
+    .map((row, index) => {
+      const x = rows.length === 1 ? 50 : (index / (rows.length - 1)) * 100;
+      const y = 88 - (row.value / max) * 70;
+      return `${x},${y}`;
+    })
+    .join(" ");
+
+  return (
+    <Card className="chart-card admin-dashboard-chart-card">
+      <SectionTitle title={title} description={description} />
+      <div className="dashboard-trend-chart">
+        <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+          <polyline className="dashboard-trend-line" points={points} />
+          {rows.map((row, index) => {
+            const x = rows.length === 1 ? 50 : (index / (rows.length - 1)) * 100;
+            const y = 88 - (row.value / max) * 70;
+            return <circle className="dashboard-trend-point" cx={x} cy={y} r="2.6" key={row.label} />;
+          })}
+        </svg>
+      </div>
+      <div className="dashboard-trend-labels">
+        {rows.map((row) => (
+          <div className="dashboard-trend-label" key={row.label}>
+            <strong>{row.value}건</strong>
+            <span>{row.label}</span>
+          </div>
+        ))}
+      </div>
+    </Card>
+  );
+}
+function EmergencyStatusOverview({ title, description, rows, total, unresolvedCount }) {
+  const safeTotal = total || 1;
+
+  return (
+    <Card className="chart-card admin-dashboard-chart-card">
+      <SectionTitle title={title} description={description} />
+      <div className="dashboard-status-grid">
+        {rows.map((row) => {
+          const percent = total ? Math.round((row.value / safeTotal) * 100) : 0;
+          return (
+            <div className="dashboard-status-card" key={row.label}>
+              <div className="dashboard-status-card-head">
+                <strong>{row.label}</strong>
+                <span>{row.value}건</span>
+              </div>
+              <div className="dashboard-status-track">
+                <div className={`dashboard-status-fill tone-${row.tone || "blue"}`} style={{ width: `${percent}%` }} />
+              </div>
+              <p className="muted">{percent}%</p>
+            </div>
+          );
+        })}
+      </div>
+      <div className="dashboard-status-summary">
+        <strong>미처리 {unresolvedCount}건</strong>
+        <span>접수 및 처리중 상태를 우선 확인하세요.</span>
       </div>
     </Card>
   );
