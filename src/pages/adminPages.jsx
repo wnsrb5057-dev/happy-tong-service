@@ -879,7 +879,7 @@ const filteredTargets = data.targets
 
       <div className="stack">
         {filteredTargets.map((target) => (
-          <button className={`target-card admin-target-card risk-card-${target.riskLevel}`} key={target.id} type="button" onClick={() => navigate(`/admin/targets/${target.id}`)}>
+          <article className={`target-card admin-target-card risk-card-${target.riskLevel}`} key={target.id}>
             <div className="card-row">
               <div>
                 <strong>{target.name}</strong>
@@ -905,8 +905,15 @@ const filteredTargets = data.targets
     <strong>{target.lastVisitDate}</strong>
   </div>
 </div>
-            <span className="admin-target-detail-action">상세보기</span>
-          </button>
+            <Button
+              variant="ghost"
+              className="admin-target-detail-action"
+              onClick={() => navigate(`/admin/targets/${target.id}`)}
+              aria-label={`${target.name} 상세보기`}
+            >
+              상세보기
+            </Button>
+          </article>
         ))}
       </div>
     </>

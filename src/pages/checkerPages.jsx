@@ -71,6 +71,22 @@ function getTargetCheckType(target) {
   return target.defaultCheckType || "external";
 }
 
+function getAssignedCheckerInfo(users, target) {
+  const assignedChecker = users.find((user) => user.id === target?.assignedCheckerId);
+  const checkerName = assignedChecker?.name || "담당 체커 미배정";
+  const checkerPhone =
+    assignedChecker?.phone ||
+    assignedChecker?.phoneNumber ||
+    assignedChecker?.contactPhone ||
+    "연락처 없음";
+
+  return {
+    name: target?.managerName || checkerName,
+    org: target?.managerOrg || assignedChecker?.organizationName || "",
+    phone: target?.managerPhone || checkerPhone,
+  };
+}
+
 function createDefaultCheckItems(checkType) {
   return Object.fromEntries((checkItemGroups[checkType] || checkItemGroups.external).map((item) => [item.key, item.options[0].value]));
 }
@@ -116,23 +132,10 @@ function TargetCard({ target, navigate, homePreview = false }) {
     navigate(`/checker/targets/${target.id}`);
   }
 
-  function handleKeyDown(event) {
-    if (event.key === "Enter" || event.key === " ") {
-      event.preventDefault();
-      goDetail();
-    }
-  }
-
   const scheduleText = target.checkDays?.join(", ") || "요일 미정";
 
   return (
-    <article
-      className={`target-card risk-card-${target.riskLevel} ${homePreview ? "target-card-home" : "target-card-list"}`}
-      role="button"
-      tabIndex="0"
-      onClick={goDetail}
-      onKeyDown={handleKeyDown}
-    >
+    <article className={`target-card risk-card-${target.riskLevel} ${homePreview ? "target-card-home" : "target-card-list"}`}>
       <div className="card-row target-card-head">
         <div className="target-card-person">
           <ElderAvatarIcon gender={target.gender} size={homePreview ? "small" : "default"} />
@@ -161,10 +164,8 @@ function TargetCard({ target, navigate, homePreview = false }) {
       <Button
         variant="ghost"
         className="full-width target-detail-button"
-        onClick={(event) => {
-          event.stopPropagation();
-          goDetail();
-        }}
+        onClick={goDetail}
+        aria-label={`${target.name} 상세보기`}
       >
         상세보기
       </Button>
@@ -288,18 +289,19 @@ export function CheckerTargetDetail({ targetId, user, data, navigate }) {
     return <EmptyState title="대상자를 찾을 수 없습니다" description="대상자 목록에서 다시 선택해주세요." />;
   }
 
+  const assignedCheckerInfo = getAssignedCheckerInfo(data.users, target);
   const recentRecords = data.activityRecords
     .filter((record) => record.targetId === target.id)
     .sort((a, b) => new Date(b.date) - new Date(a.date))
     .slice(0, 3);
 
   function handleManagerCall() {
-    if (!target.managerPhone) {
+    if (!assignedCheckerInfo.phone || assignedCheckerInfo.phone === "연락처 없음") {
       window.alert("담당자 연락처가 등록되어 있지 않습니다.");
       return;
     }
 
-    window.location.href = `tel:${target.managerPhone}`;
+    window.location.href = `tel:${assignedCheckerInfo.phone}`;
   }
 
   return (
@@ -356,12 +358,21 @@ export function CheckerTargetDetail({ targetId, user, data, navigate }) {
         <h2>담당자 연락</h2>
         <InfoList
           items={[
-            { label: "담당자", value: `${target.managerName} · ${target.managerOrg}` },
-            { label: "연락처", value: target.managerPhone },
+            {
+              label: "담당자",
+              value: assignedCheckerInfo.org
+                ? `${assignedCheckerInfo.name} · ${assignedCheckerInfo.org}`
+                : assignedCheckerInfo.name,
+            },
+            { label: "연락처", value: assignedCheckerInfo.phone },
           ]}
         />
         <div className="action-grid">
-          <Button variant="secondary" onClick={handleManagerCall} disabled={!target.managerPhone}>
+          <Button
+            variant="secondary"
+            onClick={handleManagerCall}
+            disabled={!assignedCheckerInfo.phone || assignedCheckerInfo.phone === "연락처 없음"}
+          >
             담당자에게 연락
           </Button>
           <Button variant="danger" onClick={() => navigate(`/checker/emergency/new?targetId=${target.id}`)}>
