@@ -7390,3 +7390,186 @@ button.upload-box {
   padding: 0 10px;
   white-space: nowrap;
 }
+
+.app-shell-admin .admin-dashboard-shell {
+  margin-top: -2px;
+}
+
+.app-shell-admin .admin-dashboard-shell > .admin-dashboard-kpi-grid {
+  margin-top: 2px;
+}
+
+.app-shell-admin .admin-dashboard-shell > .admin-dashboard-columns {
+  margin-top: 2px;
+}
+
+.app-shell-admin .admin-dashboard-kpi-grid .stat-card {
+  min-height: 0;
+  gap: 2px;
+}
+
+.app-shell-admin .admin-dashboard-kpi-grid .stat-card .muted,
+.app-shell-admin .admin-dashboard-kpi-grid .stat-card small {
+  margin-top: 1px;
+}
+
+.app-shell-admin .admin-dashboard-chart-card,
+.app-shell-admin .admin-dashboard-list-card,
+.app-shell-admin .admin-dashboard-support-card {
+  min-height: 0;
+}
+
+.app-shell-admin .admin-dashboard-chart-card .section-title,
+.app-shell-admin .admin-dashboard-list-card .section-title,
+.app-shell-admin .admin-dashboard-support-card .section-title {
+  gap: 2px;
+}
+
+.app-shell-admin .dashboard-donut-layout {
+  align-items: start;
+}
+
+.app-shell-admin .dashboard-donut-wrap {
+  align-self: start;
+}
+
+.app-shell-admin .dashboard-donut-legend {
+  align-content: start;
+}
+
+.app-shell-admin .dashboard-trend-bars {
+  align-items: end;
+  margin-top: 2px;
+}
+
+.app-shell-admin .dashboard-status-grid,
+.app-shell-admin .dashboard-status-summary {
+  align-self: stretch;
+}
+
+.app-shell-admin .admin-dashboard-target-card,
+.app-shell-admin .admin-dashboard-emergency-card,
+.app-shell-admin .admin-dashboard-support-card .stack > .card,
+.app-shell-admin .admin-dashboard-list-card .stack > .card {
+  min-height: 0;
+}
+
+.app-shell-admin .admin-dashboard-target-card {
+  padding: 10px 12px;
+}
+
+.app-shell-admin .admin-dashboard-card-head {
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.app-shell-admin .admin-dashboard-card-copy {
+  gap: 2px;
+}
+
+.app-shell-admin .admin-dashboard-card-copy strong {
+  font-size: 14px;
+}
+
+.app-shell-admin .admin-dashboard-card-copy p,
+.app-shell-admin .admin-dashboard-card-description {
+  margin: 0;
+}
+
+.app-shell-admin .admin-dashboard-card-description {
+  line-height: 1.35;
+}
+
+.app-shell-admin .admin-dashboard-reassignment-card .stack {
+  gap: 4px;
+}
+
+.app-shell-admin .admin-dashboard-reassignment-item {
+  align-items: center;
+}
+
+.app-shell-admin .admin-dashboard-reassignment-item > div {
+  min-width: 0;
+}
+
+.app-shell-admin .admin-dashboard-reassignment-item .muted {
+  margin: 2px 0 0;
+}
+
+.app-shell-admin .admin-dashboard-panel .stack > .card {
+  padding: 10px 12px;
+}
+
+.app-shell-admin .admin-dashboard-panel .stack > .card .card-row {
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.app-shell-admin .admin-dashboard-panel .stack > .card .card-row > div:first-child p {
+  margin-top: 2px;
+}
+
+.app-shell-admin .admin-dashboard-panel .stack > .card > .muted {
+  margin: 0;
+}
+
+.app-shell-admin .dashboard-card-actions {
+  margin-top: 6px;
+}
+
+.app-shell-admin .dashboard-small-button,
+.app-shell-admin .admin-dashboard-list-card .btn,
+.app-shell-admin .admin-dashboard-support-card .btn {
+  flex-shrink: 0;
+  width: auto;
+  font-size: 12px;
+  line-height: 1;
+}
+
+@media (min-width: 900px) {
+  .app-shell-admin .page-header {
+    margin-bottom: 10px;
+  }
+
+  .app-shell-admin .admin-dashboard-kpi-grid {
+    margin-bottom: 0;
+  }
+
+  .app-shell-admin .admin-dashboard-columns {
+    align-items: start;
+  }
+
+  .app-shell-admin .admin-dashboard-list-card .card,
+  .app-shell-admin .admin-dashboard-support-card .card,
+  .app-shell-admin .admin-dashboard-reassignment-card {
+    padding: 8px 10px;
+  }
+
+  .app-shell-admin .admin-dashboard-target-card {
+    padding: 9px 11px;
+  }
+
+  .app-shell-admin .admin-dashboard-card-badges {
+    flex-shrink: 0;
+  }
+}
+
+@media (max-width: 899px) {
+  .app-shell-admin .admin-dashboard-shell {
+    margin-top: 0;
+  }
+
+  .app-shell-admin .admin-dashboard-shell > .admin-dashboard-kpi-grid,
+  .app-shell-admin .admin-dashboard-shell > .admin-dashboard-columns {
+    margin-top: 0;
+  }
+
+  .app-shell-admin .admin-dashboard-panel .stack > .card {
+    padding: 10px 11px;
+  }
+
+  .app-shell-admin .admin-dashboard-target-card,
+  .app-shell-admin .admin-dashboard-reassignment-card {
+    padding: 10px 11px;
+  }
+}
