@@ -144,6 +144,23 @@ export default function App() {
           )
         );
       },
+      addEmergencyHandlingLog(emergencyId, log) {
+        setEmergencyReports((current) =>
+          current.map((report) =>
+            report.id === emergencyId
+              ? {
+                  ...report,
+                  status: log.status,
+                  statusLabel: log.statusLabel,
+                  adminMemo: log.memo,
+                  handlingLogs: [...(Array.isArray(report.handlingLogs) ? report.handlingLogs : []), log],
+                  updatedAt: new Date().toISOString(),
+                  completedAt: log.status === "completed" ? new Date().toISOString() : report.completedAt,
+                }
+              : report
+          )
+        );
+      },
       addAdminReport(report) {
         setAdminReports((current) => {
           const exists = current.some((item) => item.id === report.id);
@@ -460,6 +477,7 @@ if (adminTargetMatch) {
           emergencyId={adminEmergencyMatch[1]}
           data={data}
           actions={actions}
+          currentUser={user}
           navigate={navigate}
         />
       );

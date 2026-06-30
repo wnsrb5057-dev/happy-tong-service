@@ -178,6 +178,54 @@ function getIssueLevel(report) {
   return report.issueLevel || (report.urgency === "high" ? "urgent" : "need_check");
 }
 
+function getEmergencyStatusValue(status) {
+  const statusMap = {
+    received: "received",
+    "접수됨": "received",
+    in_progress: "checking",
+    "처리중": "checking",
+    checking: "checking",
+    contacted: "contacted",
+    visiting: "visiting",
+    completed: "completed",
+    resolved: "completed",
+    "완료": "completed",
+  };
+
+  return statusMap[status] || status || "received";
+}
+
+function getEmergencyStatusMeta(status) {
+  const normalizedStatus = getEmergencyStatusValue(status);
+
+  if (normalizedStatus === "checking") {
+    return { value: normalizedStatus, label: "확인중", tone: "warning" };
+  }
+
+  if (normalizedStatus === "contacted") {
+    return { value: normalizedStatus, label: "보호자 연락", tone: "info" };
+  }
+
+  if (normalizedStatus === "visiting") {
+    return { value: normalizedStatus, label: "방문 필요", tone: "danger" };
+  }
+
+  if (normalizedStatus === "completed") {
+    return { value: normalizedStatus, label: "완료", tone: "success" };
+  }
+
+  return { value: "received", label: "접수됨", tone: "warning" };
+}
+
+function isEmergencyCompleted(status) {
+  return getEmergencyStatusValue(status) === "completed";
+}
+
+function EmergencyStatusBadge({ status }) {
+  const meta = getEmergencyStatusMeta(status);
+  return <span className={`badge badge-${meta.tone}`}>{meta.label}</span>;
+}
+
 function compareDatesAscending(aDate, bDate) {
   const aTime = aDate ? new Date(aDate).getTime() : Number.MAX_SAFE_INTEGER;
   const bTime = bDate ? new Date(bDate).getTime() : Number.MAX_SAFE_INTEGER;
@@ -219,7 +267,7 @@ function countPending(records, checkerId) {
 function getCheckerStatus(checker, data) {
   const hasPending = countPending(data.activityRecords, checker.id) > 0;
   const hasOpenEmergency = data.emergencyReports.some(
-    (report) => report.checkerId === checker.id && report.status !== "completed"
+    (report) => report.checkerId === checker.id && !isEmergencyCompleted(report.status)
   );
 
   if (checker.status === "needs_attention" || hasPending || hasOpenEmergency) {
@@ -249,8 +297,8 @@ export function AdminDashboard({ data, navigate }) {
   const stats = getDashboardStats({ ...data, targets: activeTargets });
   const todayScheduled = activeTargets.filter(isTodayScheduled).length;
   const completedToday = activityRecords.filter((record) => record.date === today && record.status === "completed").length;
-  const urgentReports = emergencyReports.filter((report) => getIssueLevel(report) === "urgent" && report.status !== "completed");
-  const unresolvedReports = emergencyReports.filter((report) => report.status !== "completed");
+  const urgentReports = emergencyReports.filter((report) => getIssueLevel(report) === "urgent" && !isEmergencyCompleted(report.status));
+  const unresolvedReports = emergencyReports.filter((report) => !isEmergencyCompleted(report.status));
   const weekPlan = getWeekPlan(activeTargets);
   const [selectedPlanDay, setSelectedPlanDay] = useState(todayPlanDay);
   const selectedPlan = weekPlan.find((item) => item.day === selectedPlanDay) || weekPlan[0];
@@ -258,7 +306,7 @@ export function AdminDashboard({ data, navigate }) {
     .sort((a, b) => {
       const urgentDiff = Number(getIssueLevel(b) === "urgent") - Number(getIssueLevel(a) === "urgent");
       if (urgentDiff) return urgentDiff;
-      const statusDiff = Number(a.status === "completed") - Number(b.status === "completed");
+      const statusDiff = Number(isEmergencyCompleted(a.status)) - Number(isEmergencyCompleted(b.status));
       if (statusDiff) return statusDiff;
       return byLatestDate(a, b);
     })
@@ -285,7 +333,7 @@ export function AdminDashboard({ data, navigate }) {
   ];
   const emergencyStatusSummary = emergencyReports.reduce(
     (summary, report) => {
-      const status = report.status || "received";
+      const status = getEmergencyStatusValue(report.status);
       if (status === "completed") summary.completed += 1;
       else if (status === "received" || status === "pending") summary.received += 1;
       else summary.inProgress += 1;
@@ -316,7 +364,7 @@ export function AdminDashboard({ data, navigate }) {
 
   const riskPriority = { danger: 0, caution: 1, normal: 2 };
   const urgencyPriority = { high: 0, medium: 1, low: 2 };
-  const statusPriority = { pending: 0, received: 1, in_progress: 2, processing: 2, completed: 3 };
+  const statusPriority = { pending: 0, received: 1, in_progress: 2, processing: 2, checking: 2, contacted: 2, visiting: 2, completed: 3 };
 
   const sortedSelectedPlanTargets = [...selectedPlan.targets].sort((a, b) => (riskPriority[a.riskLevel] ?? 99) - (riskPriority[b.riskLevel] ?? 99));
   const sortedRecentEmergencyReports = [...recentEmergencyReports].sort((a, b) => {
@@ -406,7 +454,7 @@ export function AdminDashboard({ data, navigate }) {
                         </div>
                         <div className="badge-row compact-badges">
                           <StatusBadge type="urgency" value={report.urgency} />
-                          <StatusBadge type="emergency" value={report.status} />
+                          <EmergencyStatusBadge status={report.status} />
                         </div>
                       </div>
                       <p className="muted">{truncateText(report.description)}</p>
@@ -551,7 +599,7 @@ export function AdminCheckers({ data, actions, currentUser, navigate }) {
       const assignedCount = data.targets.filter((target) => target.assignedCheckerId === checker.id).length;
       const pendingCount = countPending(data.activityRecords, checker.id);
       const emergencyCount = data.emergencyReports.filter(
-        (report) => report.checkerId === checker.id && report.status !== "completed"
+        (report) => report.checkerId === checker.id && !isEmergencyCompleted(report.status)
       ).length;
       const status = getCheckerStatus(checker, data);
 
@@ -840,7 +888,7 @@ export function AdminCheckerDetail({ checkerId, data, actions, navigate }) {
       completedCount: countCompleted(data.activityRecords, checker.id),
       pendingCount: countPending(data.activityRecords, checker.id),
       emergencyCount: data.emergencyReports.filter(
-        (report) => report.checkerId === checker.id && report.status !== "completed"
+        (report) => report.checkerId === checker.id && !isEmergencyCompleted(report.status)
       ).length,
       status: getCheckerStatus(checker, data),
     };
@@ -1399,7 +1447,7 @@ export function AdminTargetDetail({ targetId, data, actions, navigate }) {
                   </div>
                   <div className="badge-row compact-badges">
                     <StatusBadge type="issueLevel" value={getIssueLevel(report)} />
-                    <StatusBadge type="emergency" value={report.status} />
+                    <EmergencyStatusBadge status={report.status} />
                   </div>
                 </div>
                 <p className="muted">{truncateText(report.description)}</p>
@@ -1506,21 +1554,21 @@ export function AdminEmergencies({ data, navigate }) {
   const reports = [...data.emergencyReports].sort((a, b) => {
     const urgentDiff = Number(getIssueLevel(b) === "urgent") - Number(getIssueLevel(a) === "urgent");
     if (urgentDiff) return urgentDiff;
-    const receivedDiff = Number(a.status === "received") - Number(b.status === "received");
+    const receivedDiff = Number(getEmergencyStatusValue(a.status) === "received") - Number(getEmergencyStatusValue(b.status) === "received");
     if (receivedDiff) return receivedDiff;
-    const progressDiff = Number(a.status === "in_progress") - Number(b.status === "in_progress");
+    const progressDiff = Number(getEmergencyStatusValue(a.status) === "checking") - Number(getEmergencyStatusValue(b.status) === "checking");
     if (progressDiff) return progressDiff;
     return byLatestDate(a, b);
   });
   const filteredReports = reports.filter((report) => {
     if (filter === "high") return report.urgency === "high";
-    if (filter === "received") return report.status === "received";
-    if (filter === "in_progress") return report.status === "in_progress";
-    if (filter === "completed") return report.status === "completed";
-    return report.status !== "completed";
+    if (filter === "received") return getEmergencyStatusValue(report.status) === "received";
+    if (filter === "in_progress") return ["checking", "contacted", "visiting"].includes(getEmergencyStatusValue(report.status));
+    if (filter === "completed") return isEmergencyCompleted(report.status);
+    return !isEmergencyCompleted(report.status);
   });
   const urgentCount = reports.filter((report) => report.urgency === "high").length;
-  const unresolvedCount = reports.filter((report) => report.status !== "completed").length;
+  const unresolvedCount = reports.filter((report) => !isEmergencyCompleted(report.status)).length;
 
   return (
     <>
@@ -1551,7 +1599,7 @@ export function AdminEmergencies({ data, navigate }) {
       </div>
 
       <div className="stack">
-        {filteredReports.map((report) => (
+        {filteredReports.length ? filteredReports.map((report) => (
           <Card
   key={report.id}
   className={`admin-emergency-list-card ${report.urgency === 'high' ? 'danger-card' : 'alert-card'}`}
@@ -1564,7 +1612,7 @@ export function AdminEmergencies({ data, navigate }) {
 
     <div className="admin-emergency-list-badges">
       <StatusBadge type="issueLevel" value={getIssueLevel(report)} />
-      <StatusBadge type="emergency" value={report.status} />
+                    <EmergencyStatusBadge status={report.status} />
     </div>
   </div>
 
@@ -1580,17 +1628,25 @@ export function AdminEmergencies({ data, navigate }) {
     상세보기
   </Button>
 </Card>
-        ))}
+        )) : (
+          <EmptyState title="표시할 이상징후가 없습니다" description="선택한 상태에 맞는 보고가 없습니다." />
+        )}
       </div>
     </>
   );
 }
-export function AdminEmergencyDetail({ emergencyId, data, actions, navigate }) {
+export function AdminEmergencyDetail({ emergencyId, data, actions, currentUser, navigate }) {
   const report = data.emergencyReports.find((item) => item.id === emergencyId);
+  const handlingLogs = [...(Array.isArray(report?.handlingLogs) ? report.handlingLogs : [])].sort(
+    (a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || ""))
+  );
   const [notice, setNotice] = useState("");
+  const [error, setError] = useState("");
   const [form, setForm] = useState(() => ({
-    status: report?.status || "received",
-    adminMemo: report?.adminMemo || "",
+    status: getEmergencyStatusValue(report?.status),
+    memo: "",
+    contactedGuardian: false,
+    visitRequired: false,
   }));
 
   if (!report) {
@@ -1599,15 +1655,41 @@ export function AdminEmergencyDetail({ emergencyId, data, actions, navigate }) {
 
   function updateForm(key, value) {
     setForm((current) => ({ ...current, [key]: value }));
+    setError("");
   }
 
   function handleSave() {
-    actions.updateEmergencyReport(report.id, {
-      status: form.status,
-      adminMemo: form.adminMemo,
-      updatedAt: new Date().toISOString(),
+    if (!form.status) {
+      setError("처리 상태를 선택해주세요.");
+      return;
+    }
+
+    if (!form.memo.trim()) {
+      setError("처리 메모를 입력해주세요.");
+      return;
+    }
+
+    const statusMeta = getEmergencyStatusMeta(form.status);
+    const nextLog = {
+      id: `log-${Date.now()}`,
+      status: statusMeta.value,
+      statusLabel: statusMeta.label,
+      memo: form.memo.trim(),
+      contactedGuardian: form.contactedGuardian,
+      visitRequired: form.visitRequired,
+      createdAt: new Date().toISOString(),
+      createdBy: currentUser?.name || "관리자",
+    };
+
+    actions.addEmergencyHandlingLog(report.id, nextLog);
+    setForm({
+      status: statusMeta.value,
+      memo: "",
+      contactedGuardian: false,
+      visitRequired: false,
     });
-    setNotice('처리 정보가 저장되었습니다.');
+    setNotice("처리 기록이 저장되었습니다.");
+    setError("");
   }
 
   return (
@@ -1639,7 +1721,7 @@ export function AdminEmergencyDetail({ emergencyId, data, actions, navigate }) {
 
   <div className="admin-emergency-status-row">
     <StatusBadge type="issueLevel" value={getIssueLevel(report)} />
-    <StatusBadge type="emergency" value={report.status} />
+    <EmergencyStatusBadge status={report.status} />
   </div>
 </Card>
 
@@ -1648,27 +1730,65 @@ export function AdminEmergencyDetail({ emergencyId, data, actions, navigate }) {
         <p>{report.description}</p>
       </Card>
 
-      <Card>
+      <Card className="emergency-handling-form">
+        <h2>처리 기록 추가</h2>
         <SelectInput id="admin-emergency-status" label="처리 상태" value={form.status} onChange={(event) => updateForm('status', event.target.value)}>
           <option value="received">접수됨</option>
-          <option value="in_progress">처리중</option>
+          <option value="checking">확인중</option>
+          <option value="contacted">보호자 연락</option>
+          <option value="visiting">방문 필요</option>
           <option value="completed">완료</option>
         </SelectInput>
         <TextArea
-          id="admin-emergency-memo"
-          label="관리자 메모"
+          id="admin-emergency-handling-memo"
+          label="처리 메모"
           rows="4"
-          value={form.adminMemo}
-          onChange={(event) => updateForm('adminMemo', event.target.value)}
+          value={form.memo}
+          onChange={(event) => updateForm('memo', event.target.value)}
           placeholder="보호자 연락 완료, 추가 확인 예정 등"
         />
+        <div className="emergency-handling-options">
+          <CheckboxField label="보호자 연락 여부" checked={form.contactedGuardian} onChange={(value) => updateForm("contactedGuardian", value)} />
+          <CheckboxField label="방문 필요 여부" checked={form.visitRequired} onChange={(value) => updateForm("visitRequired", value)} />
+        </div>
+        {error ? <p className="form-error">{error}</p> : null}
         {notice ? <p className="notice">{notice}</p> : null}
         <Button className="full-width" onClick={handleSave}>
-          처리 정보 저장
+          처리 기록 저장
         </Button>
         <Button variant="ghost" className="full-width" onClick={() => navigate('/admin/emergencies')}>
           목록으로 이동
         </Button>
+      </Card>
+
+      <Card>
+        <h2>처리 이력</h2>
+        <div className="emergency-handling-log-list">
+          {handlingLogs.length ? (
+            handlingLogs.map((log) => (
+              <div className="emergency-handling-log-item" key={log.id}>
+                <div className="card-row">
+                  <div>
+                    <strong>{log.statusLabel || getEmergencyStatusMeta(log.status).label}</strong>
+                    <p className="muted">{String(log.createdAt || "").replace("T", " ").slice(0, 16)} · {log.createdBy || "관리자"}</p>
+                  </div>
+                  <EmergencyStatusBadge status={log.status} />
+                </div>
+                <p>{log.memo || "메모 없음"}</p>
+                <div className="badge-row compact-badges">
+                  <span className={`badge ${log.contactedGuardian ? "badge-info" : "badge-muted"}`}>
+                    {log.contactedGuardian ? "보호자 연락함" : "보호자 연락 없음"}
+                  </span>
+                  <span className={`badge ${log.visitRequired ? "badge-warning" : "badge-muted"}`}>
+                    {log.visitRequired ? "방문 필요" : "방문 불필요"}
+                  </span>
+                </div>
+              </div>
+            ))
+          ) : (
+            <EmptyState title="아직 등록된 처리 이력이 없습니다." description="처리 기록을 저장하면 이곳에 표시됩니다." />
+          )}
+        </div>
       </Card>
     </>
   );
@@ -2588,9 +2708,9 @@ export function AdminStatistics({ data }) {
     }, {})
   ).map(([label, value]) => ({ label, value, tone: "orange" }));
   const statusRows = [
-    { label: "접수됨", value: emergencyStats.reports.filter((report) => report.status === "received").length, tone: "red" },
-    { label: "처리중", value: emergencyStats.reports.filter((report) => report.status === "in_progress").length, tone: "orange" },
-    { label: "완료", value: emergencyStats.reports.filter((report) => report.status === "completed").length, tone: "green" },
+    { label: "접수됨", value: emergencyStats.reports.filter((report) => getEmergencyStatusValue(report.status) === "received").length, tone: "red" },
+    { label: "처리중", value: emergencyStats.reports.filter((report) => ["checking", "contacted", "visiting"].includes(getEmergencyStatusValue(report.status))).length, tone: "orange" },
+    { label: "완료", value: emergencyStats.reports.filter((report) => isEmergencyCompleted(report.status)).length, tone: "green" },
   ];
 
   return (

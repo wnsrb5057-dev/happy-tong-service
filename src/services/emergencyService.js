@@ -4,7 +4,14 @@ import { LEGACY_STORAGE_KEYS, STORAGE_KEYS, mergeById, readWithMigration, writeS
 export function normalizeEmergencyReport(report) {
   const statusMap = {
     open: "received",
+    "접수됨": "received",
+    in_progress: "checking",
+    "처리중": "checking",
+    checking: "checking",
+    contacted: "contacted",
+    visiting: "visiting",
     resolved: "completed",
+    "완료": "completed",
   };
   const date = report.date || new Date().toISOString().slice(0, 10);
 
@@ -13,6 +20,12 @@ export function normalizeEmergencyReport(report) {
     createdAt: report.createdAt || date,
     updatedAt: report.updatedAt || report.createdAt || date,
     issueLevel: report.issueLevel || (report.urgency === "high" ? "urgent" : "need_check"),
+    handlingLogs: Array.isArray(report.handlingLogs)
+      ? report.handlingLogs.map((log) => ({
+          ...log,
+          status: statusMap[log?.status] ?? log?.status ?? "received",
+        }))
+      : [],
     ...report,
     status: statusMap[report.status] ?? report.status ?? "received",
   };

@@ -7650,3 +7650,40 @@ button.upload-box {
     grid-template-columns: 1fr;
   }
 }
+
+.emergency-handling-form {
+  display: grid;
+  gap: 12px;
+}
+
+.emergency-handling-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.emergency-handling-log-list {
+  display: grid;
+  gap: 12px;
+}
+
+.emergency-handling-log-item {
+  display: grid;
+  gap: 8px;
+  padding: 12px 0;
+  border-top: 1px solid var(--line);
+}
+
+.emergency-handling-log-item:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.emergency-handling-log-item p {
+  margin: 0;
+}
+
+.emergency-handling-form .btn,
+.emergency-handling-log-item .badge {
+  white-space: nowrap;
+}
