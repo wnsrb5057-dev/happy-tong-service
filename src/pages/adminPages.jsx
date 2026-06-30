@@ -29,14 +29,12 @@ import {
   getDashboardStats,
   getEmergencyStats,
   getRecentDailyActivityStats,
-  getReportStats,
   getTargetRiskStats,
   getToday as getTodayFromStats,
 } from "../services/statisticsService.js";
 import {
   formatReportPeriod,
   generateReportDraft,
-  generateReportSummary,
   readReportDraft,
   saveReportDraft,
 } from "../services/reportService.js";
@@ -224,6 +222,109 @@ function isEmergencyCompleted(status) {
 function EmergencyStatusBadge({ status }) {
   const meta = getEmergencyStatusMeta(status);
   return <span className={`badge badge-${meta.tone}`}>{meta.label}</span>;
+}
+
+function isWithinReportRange(dateText, startDate, endDate) {
+  if (!dateText) return false;
+  if (startDate && dateText < startDate) return false;
+  if (endDate && dateText > endDate) return false;
+  return true;
+}
+
+function getLatestEmergencyHandlingStatus(report) {
+  const logs = Array.isArray(report?.handlingLogs) ? [...report.handlingLogs] : [];
+  if (logs.length) {
+    const latestLog = logs.sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")))[0];
+    return getEmergencyStatusValue(latestLog?.status);
+  }
+
+  return getEmergencyStatusValue(report?.status);
+}
+
+function buildReportInsights(data, startDate, endDate) {
+  const targets = Array.isArray(data.targets) ? data.targets : [];
+  const users = Array.isArray(data.users) ? data.users : [];
+  const activityRecords = Array.isArray(data.activityRecords) ? data.activityRecords : [];
+  const emergencyReports = Array.isArray(data.emergencyReports) ? data.emergencyReports : [];
+  const activeTargets = targets.filter(isActiveLifecycleTarget);
+  const checkers = users.filter((user) => user.role === "checker");
+  const rangedActivities = activityRecords.filter((record) => isWithinReportRange(record.date, startDate, endDate));
+  const rangedEmergencies = emergencyReports.filter((report) => isWithinReportRange(report.date, startDate, endDate));
+  const unresolvedEmergencies = rangedEmergencies.filter((report) => !isEmergencyCompleted(report.status));
+  const reassignmentNeededTargets = activeTargets
+    .filter((target) => isReassignmentNeededTarget(target, users))
+    .map((target) => {
+      const checker = checkerById(users, target.assignedCheckerId);
+      const checkerAlert = getTargetCheckerAlert(checker);
+      return {
+        id: target.id,
+        name: target.name,
+        checkerName: target.assignedCheckerId ? checkerName(users, target.assignedCheckerId) : "담당 체커 미배정",
+        reason: checkerAlert?.badge || "담당 체커 미배정",
+      };
+    });
+
+  const handlingSummary = rangedEmergencies.reduce(
+    (summary, report) => {
+      const status = getLatestEmergencyHandlingStatus(report);
+      summary[status] = (summary[status] || 0) + 1;
+      if (!isEmergencyCompleted(status)) {
+        summary.unresolved += 1;
+      }
+      return summary;
+    },
+    { received: 0, checking: 0, contacted: 0, visiting: 0, completed: 0, unresolved: 0 }
+  );
+
+  const operatingTargetCount = activeTargets.length;
+  const dangerTargetCount = activeTargets.filter((target) => target.riskLevel === "danger").length;
+
+  return {
+    operatingTargetCount,
+    totalCheckers: checkers.length,
+    totalActivities: rangedActivities.length,
+    externalCount: rangedActivities.filter((record) => getCheckType(record) === "external").length,
+    visitCount: rangedActivities.filter((record) => getCheckType(record) === "visit").length,
+    callCount: rangedActivities.filter((record) => getCheckType(record) === "call").length,
+    intensiveCount: rangedActivities.filter((record) => getCheckType(record) === "intensive").length,
+    emergencyCount: rangedEmergencies.length,
+    unresolvedEmergencyCount: unresolvedEmergencies.length,
+    dangerTargetCount,
+    issueCount: rangedActivities.filter((record) => record.hasIssue || record.issueLevel === "need_check" || record.issueLevel === "urgent").length,
+    handlingSummary,
+    reassignmentNeededCount: reassignmentNeededTargets.length,
+    reassignmentNeededTargets,
+    recentEmergencies: [...rangedEmergencies]
+      .sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")))
+      .slice(0, 5),
+  };
+}
+
+function buildReportNarrative(insights) {
+  const outstandingText = insights.unresolvedEmergencyCount
+    ? `${insights.unresolvedEmergencyCount}건은 추가 확인이 필요한 상태입니다.`
+    : "모든 이상징후는 완료 또는 후속 조치가 반영된 상태입니다.";
+  const reassignmentText = insights.reassignmentNeededCount
+    ? `담당 체커 상태 변경 또는 미배정으로 인해 ${insights.reassignmentNeededCount}명의 대상자에 대해 재배정 검토가 필요합니다.`
+    : "재배정이 필요한 대상자는 없습니다.";
+
+  return {
+    overview:
+      `해당 기간 동안 생활 확인 기록과 이상징후 보고 내역을 기준으로 운영 현황을 정리했습니다. ` +
+      `운영 대상자는 ${insights.operatingTargetCount}명이며, 확인 기록은 총 ${insights.totalActivities}건입니다.`,
+    keyIssues:
+      `해당 기간 동안 외부 확인 ${insights.externalCount}건, 전화 확인 ${insights.callCount}건, 방문 확인 ${insights.visitCount}건, 집중 모니터링 ${insights.intensiveCount}건이 기록되었습니다. ` +
+      `확인 기록과 이상징후 데이터를 기반으로 운영 현황을 정리했으며 관리자 검토가 필요합니다.`,
+    emergencySummary:
+      `해당 기간 동안 총 ${insights.emergencyCount}건의 이상징후가 보고되었으며, 완료 ${insights.handlingSummary.completed}건, 확인중 ${insights.handlingSummary.checking}건, ` +
+      `보호자 연락 ${insights.handlingSummary.contacted}건, 방문 필요 ${insights.handlingSummary.visiting}건으로 집계되었습니다. ${outstandingText}`,
+    reassignmentSummary: reassignmentText,
+    actionTaken:
+      `미처리 이상징후 ${insights.unresolvedEmergencyCount}건과 위험 대상자 ${insights.dangerTargetCount}명에 대한 후속 확인이 필요합니다. ` +
+      `본 보고서는 관리자 검토 후 제출용으로 활용할 수 있습니다.`,
+    adminOpinion:
+      `본 보고서는 관리자 검토 후 제출용으로 활용할 수 있습니다. 기관 운영 상황에 따라 보호자 연락, 방문 확인, 대상자 재배정 여부를 추가 검토해주세요.`,
+  };
 }
 
 function compareDatesAscending(aDate, bDate) {
@@ -1916,6 +2017,23 @@ function ReportDocument({ report, currentUser }) {
   const supportTargets = Array.isArray(report.additionalSupportTargets)
     ? report.additionalSupportTargets.join(", ")
     : report.additionalSupportTargets;
+  const reassignmentTargets = Array.isArray(report.reassignmentNeededTargets) ? report.reassignmentNeededTargets : [];
+  const recentEmergencies = Array.isArray(report.recentEmergencies) ? report.recentEmergencies : [];
+  const handlingSummary = report.handlingSummary || {
+    received: 0,
+    checking: 0,
+    contacted: 0,
+    visiting: 0,
+    completed: 0,
+    unresolved: report.unresolvedEmergencyCount || 0,
+  };
+  const reportKpis = [
+    { label: "운영 대상자", value: `${report.totalTargets}명` },
+    { label: "확인 기록", value: `${report.totalActivities}건` },
+    { label: "이상징후 보고", value: `${report.emergencyCount}건` },
+    { label: "미처리 이상징후", value: `${report.unresolvedEmergencyCount}건` },
+    { label: "재배정 필요", value: `${report.reassignmentNeededCount || 0}명` },
+  ];
 
   return (
     <article className="report-document" id="report-preview">
@@ -1924,6 +2042,19 @@ function ReportDocument({ report, currentUser }) {
         <h2>{report.title}</h2>
         <span>{period}</span>
       </header>
+
+      <p className="report-document-intro">
+        {report.overview || "해당 기간 동안 생활 확인 기록과 이상징후 보고 내역을 기준으로 운영 현황을 정리했습니다."}
+      </p>
+
+      <div className="report-kpi-grid">
+        {reportKpis.map((item) => (
+          <div className="report-kpi-card" key={item.label}>
+            <span>{item.label}</span>
+            <strong>{item.value}</strong>
+          </div>
+        ))}
+      </div>
 
       <table className="report-table">
         <tbody>
@@ -1934,7 +2065,7 @@ function ReportDocument({ report, currentUser }) {
             <td>{currentUser?.name || "관리자"}</td>
           </tr>
           <tr>
-            <th>총 대상자</th>
+            <th>운영 대상자</th>
             <td>{report.totalTargets}명</td>
             <th>총 체커</th>
             <td>{report.totalCheckers}명</td>
@@ -1953,30 +2084,94 @@ function ReportDocument({ report, currentUser }) {
           </tr>
           <tr>
             <th>위험 대상자</th>
-            <td colSpan="3">{report.dangerTargetCount}명</td>
+            <td>{report.dangerTargetCount}명</td>
+            <th>재배정 필요</th>
+            <td>{report.reassignmentNeededCount || 0}명</td>
           </tr>
         </tbody>
       </table>
 
       <section>
-        <h3>확인 기록 요약</h3>
+        <h3>운영 개요</h3>
+        <p>{report.overview || "해당 기간 동안 생활 확인 기록과 이상징후 보고 내역을 기준으로 운영 현황을 정리했습니다."}</p>
+      </section>
+      <section>
+        <h3>생활 확인 현황</h3>
         <p>{report.keyIssues}</p>
       </section>
       <section>
-        <h3>이상징후 보고 요약</h3>
-        <p>이상징후 보고는 총 {report.emergencyCount}건이며 미처리 건은 {report.unresolvedEmergencyCount}건입니다.</p>
+        <h3>이상징후 보고 및 처리 현황</h3>
+        <p>{report.emergencySummary || `해당 기간 동안 총 ${report.emergencyCount}건의 이상징후가 보고되었습니다.`}</p>
+        <ul className="report-bullet-list">
+          <li>접수됨 {handlingSummary.received}건</li>
+          <li>확인중 {handlingSummary.checking}건</li>
+          <li>보호자 연락 {handlingSummary.contacted}건</li>
+          <li>방문 필요 {handlingSummary.visiting}건</li>
+          <li>완료 {handlingSummary.completed}건</li>
+          <li>미처리 {handlingSummary.unresolved}건</li>
+        </ul>
       </section>
       <section>
-        <h3>위험 대상자 현황</h3>
-        <p>위험 대상자는 {report.dangerTargetCount}명입니다. 추가 지원 필요 대상자: {supportTargets || "없음"}</p>
+        <h3>재배정 필요 대상자</h3>
+        <p>{report.reassignmentSummary || "재배정이 필요한 대상자가 없습니다."}</p>
+        {reassignmentTargets.length ? (
+          <table className="report-table report-sub-table">
+            <thead>
+              <tr>
+                <th>대상자명</th>
+                <th>현재 담당 체커</th>
+                <th>재배정 필요 사유</th>
+              </tr>
+            </thead>
+            <tbody>
+              {reassignmentTargets.map((target) => (
+                <tr key={target.id}>
+                  <td>{target.name}</td>
+                  <td>{target.checkerName}</td>
+                  <td>{target.reason}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : (
+          <p>재배정이 필요한 대상자가 없습니다.</p>
+        )}
       </section>
       <section>
-        <h3>조치 내용</h3>
+        <h3>관리자 확인 사항</h3>
         <p>{report.actionTaken}</p>
+        <p>{report.adminOpinion || "입력된 의견 없음"}</p>
       </section>
       <section>
-        <h3>관리자 의견</h3>
-        <p>{report.adminOpinion || "입력된 의견 없음"}</p>
+        <h3>최근 이상징후 요약</h3>
+        {recentEmergencies.length ? (
+          <table className="report-table report-sub-table">
+            <thead>
+              <tr>
+                <th>날짜</th>
+                <th>대상자</th>
+                <th>유형</th>
+                <th>상태</th>
+              </tr>
+            </thead>
+            <tbody>
+              {recentEmergencies.map((reportItem) => (
+                <tr key={reportItem.id}>
+                  <td>{reportItem.date || "-"}</td>
+                  <td>{reportItem.targetName || "대상자 정보 없음"}</td>
+                  <td>{reportItem.issueType || "이상징후"}</td>
+                  <td>{getEmergencyStatusMeta(reportItem.status).label}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : (
+          <p>해당 기간의 이상징후 보고가 없습니다.</p>
+        )}
+      </section>
+      <section>
+        <h3>추가 지원 대상</h3>
+        <p>{supportTargets || "재배정 또는 추가 지원이 필요한 대상자가 없습니다."}</p>
       </section>
     </article>
   );
@@ -1987,7 +2182,10 @@ export function AdminReportNew({ data, actions, navigate, currentUser }) {
   const [error, setError] = useState("");
   const [preview, setPreview] = useState(null);
   const [form, setForm] = useState(() => readReportDraft(defaultDraft));
-  const stats = getReportStats(data, form.periodStart, form.periodEnd);
+  const reportInsights = useMemo(
+    () => buildReportInsights(data, form.periodStart, form.periodEnd),
+    [data, form.periodEnd, form.periodStart]
+  );
 
   function updateForm(key, value) {
     setForm((current) => ({ ...current, [key]: value }));
@@ -2007,10 +2205,11 @@ export function AdminReportNew({ data, actions, navigate, currentUser }) {
   }
 
   function toReportPayload(formValue = form) {
-    const reportStats = getReportStats(data, formValue.periodStart, formValue.periodEnd);
+    const reportStats = buildReportInsights(data, formValue.periodStart, formValue.periodEnd);
+    const reportNarrative = buildReportNarrative(reportStats);
     return {
       ...formValue,
-      totalTargets: reportStats.totalTargets,
+      totalTargets: reportStats.operatingTargetCount,
       totalCheckers: reportStats.totalCheckers,
       totalActivities: reportStats.totalActivities,
       externalCount: reportStats.externalCount,
@@ -2020,9 +2219,22 @@ export function AdminReportNew({ data, actions, navigate, currentUser }) {
       emergencyCount: reportStats.emergencyCount,
       unresolvedEmergencyCount: reportStats.unresolvedEmergencyCount,
       dangerTargetCount: reportStats.dangerTargetCount,
+      reassignmentNeededCount: reportStats.reassignmentNeededCount,
+      reassignmentNeededTargets: reportStats.reassignmentNeededTargets,
+      handlingSummary: reportStats.handlingSummary,
+      recentEmergencies: reportStats.recentEmergencies.map((report) => ({
+        ...report,
+        targetName: targetName(data.targets, report.targetId),
+      })),
       additionalSupportTargets: Array.isArray(formValue.additionalSupportTargets)
         ? formValue.additionalSupportTargets
         : String(formValue.additionalSupportTargets || '').split(',').map((item) => item.trim()).filter(Boolean),
+      overview: reportNarrative.overview,
+      emergencySummary: reportNarrative.emergencySummary,
+      reassignmentSummary: reportNarrative.reassignmentSummary,
+      keyIssues: String(formValue.keyIssues || "").trim() || reportNarrative.keyIssues,
+      actionTaken: String(formValue.actionTaken || "").trim() || reportNarrative.actionTaken,
+      adminOpinion: String(formValue.adminOpinion || "").trim() || reportNarrative.adminOpinion,
       updatedAt: getTodayFromStats(),
       createdAt: formValue.createdAt || getTodayFromStats(),
     };
@@ -2047,7 +2259,7 @@ export function AdminReportNew({ data, actions, navigate, currentUser }) {
       return;
     }
 
-    const generatedText = generateReportSummary(stats);
+    const generatedText = buildReportNarrative(reportInsights);
     const nextForm = {
       ...form,
       keyIssues: generatedText.keyIssues,
@@ -2071,26 +2283,34 @@ export function AdminReportNew({ data, actions, navigate, currentUser }) {
   }
 
   function handlePrint() {
-  const report = getValidatedReportPayload();
-  if (!report) return;
+    const report = getValidatedReportPayload();
+    if (!report) return;
 
-  saveReportDraft(report);
-  setPreview(report);
-  setNotice('인쇄 화면에서 PDF로 저장할 수 있습니다.');
+    saveReportDraft(report);
+    setPreview(report);
+    setNotice('인쇄 화면에서 PDF로 저장할 수 있습니다.');
 
-  window.setTimeout(() => {
-    window.print();
-  }, 500);
-}
+    window.setTimeout(() => {
+      window.print();
+    }, 500);
+  }
 
   return (
     <>
       <PageHeader
         eyebrow="행정 보고서"
         title="보고서 작성 초안"
-        description="확인 기록과 이상징후 보고를 바탕으로 행정 보고서 초안을 작성합니다."
+        description="해당 기간 동안 생활 확인 기록과 이상징후 보고 내역을 기준으로 운영 현황을 정리합니다."
         action={<Button variant="ghost" onClick={() => navigate('/admin/reports/preview')}>미리보기 화면</Button>}
       />
+
+      <div className="statistics-grid super-kpi-grid report-kpi-summary-grid">
+        <StatCard label="운영 대상자" value={`${reportInsights.operatingTargetCount}명`} tone="blue" helper="관리종료 제외" />
+        <StatCard label="확인 기록" value={`${reportInsights.totalActivities}건`} tone="green" helper="기간 내 집계" />
+        <StatCard label="이상징후 보고" value={`${reportInsights.emergencyCount}건`} tone="orange" helper="기간 내 보고" />
+        <StatCard label="미처리 이상징후" value={`${reportInsights.unresolvedEmergencyCount}건`} tone="red" helper="완료 제외" />
+        <StatCard label="재배정 필요" value={`${reportInsights.reassignmentNeededCount}명`} tone="red" helper="체커 상태 기준" />
+      </div>
 
       <form className="form-stack admin-report-form">
   <Card className="admin-report-form-card">
@@ -2173,22 +2393,35 @@ export function AdminReportNew({ data, actions, navigate, currentUser }) {
 }
 
 export function AdminReportPreview({ data, currentUser }) {
-  const report = readReportDraft(generateReportDraft(data, "2026-06-10", getTodayFromStats()));
-
-  function handlePrint() {
-  if (!preview) {
-    const nextReport = buildReportFromForm();
-    setPreview(nextReport);
-
-    window.setTimeout(() => {
-      window.print();
-    }, 100);
-
-    return;
-  }
-
-  window.print();
-}
+  const savedReport = readReportDraft(generateReportDraft(data, "2026-06-10", getTodayFromStats()));
+  const reportInsights = buildReportInsights(data, savedReport.periodStart, savedReport.periodEnd);
+  const reportNarrative = buildReportNarrative(reportInsights);
+  const report = {
+    ...savedReport,
+    totalTargets: reportInsights.operatingTargetCount,
+    totalCheckers: reportInsights.totalCheckers,
+    totalActivities: reportInsights.totalActivities,
+    externalCount: reportInsights.externalCount,
+    visitCount: reportInsights.visitCount,
+    callCount: reportInsights.callCount,
+    intensiveCount: reportInsights.intensiveCount,
+    emergencyCount: reportInsights.emergencyCount,
+    unresolvedEmergencyCount: reportInsights.unresolvedEmergencyCount,
+    dangerTargetCount: reportInsights.dangerTargetCount,
+    reassignmentNeededCount: reportInsights.reassignmentNeededCount,
+    reassignmentNeededTargets: reportInsights.reassignmentNeededTargets,
+    handlingSummary: reportInsights.handlingSummary,
+    recentEmergencies: reportInsights.recentEmergencies.map((item) => ({
+      ...item,
+      targetName: targetName(data.targets, item.targetId),
+    })),
+    overview: savedReport.overview || reportNarrative.overview,
+    emergencySummary: savedReport.emergencySummary || reportNarrative.emergencySummary,
+    reassignmentSummary: savedReport.reassignmentSummary || reportNarrative.reassignmentSummary,
+    keyIssues: savedReport.keyIssues || reportNarrative.keyIssues,
+    actionTaken: savedReport.actionTaken || reportNarrative.actionTaken,
+    adminOpinion: savedReport.adminOpinion || reportNarrative.adminOpinion,
+  };
 
   return (
     <>

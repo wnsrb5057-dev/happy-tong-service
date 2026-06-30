@@ -483,7 +483,7 @@ if (adminTargetMatch) {
       );
     }
 
-    if (location.pathname === "/admin/reports/new") {
+    if (location.pathname === "/admin/reports" || location.pathname === "/admin/reports/new") {
       return <AdminReportNew data={data} actions={actions} navigate={navigate} currentUser={user} />;
     }
 

@@ -1215,6 +1215,47 @@ button.upload-box {
   font-size: 16px;
 }
 
+.report-document-intro {
+  margin: 0 0 16px;
+  line-height: 1.6;
+}
+
+.report-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.report-kpi-card {
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+}
+
+.report-kpi-card span {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.report-kpi-card strong {
+  font-size: 18px;
+}
+
+.report-bullet-list {
+  margin: 10px 0 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 6px;
+}
+
+.report-sub-table {
+  margin-top: 12px;
+}
+
 .report-table {
   width: 100%;
   border-collapse: collapse;
@@ -1408,6 +1449,10 @@ button.upload-box {
     overflow-x: auto;
   }
 
+  .report-kpi-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .card,
   .target-card,
   .stat-card {
@@ -1460,6 +1505,18 @@ button.upload-box {
     box-shadow: none !important;
   }
 
+  .report-kpi-grid {
+    grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+    margin-bottom: 14px !important;
+  }
+
+  .report-kpi-card {
+    border: 1px solid #000000 !important;
+    background: #ffffff !important;
+    break-inside: avoid !important;
+  }
+
   .report-document * {
     visibility: visible !important;
     color: #000000 !important;
@@ -1482,6 +1539,10 @@ button.upload-box {
   .notice,
   .report-actions,
   .btn {
+    display: none !important;
+  }
+
+  .print-area .section-title {
     display: none !important;
   }
 }
@@ -6043,6 +6104,8 @@ button.upload-box {
   font-weight: 600;
   line-height: 48px;
   text-align: left;
+  overflow: hidden;
+  color-scheme: light;
 }
 
 .app-shell-admin .report-date-input::-webkit-date-and-time-value {
@@ -6081,6 +6144,10 @@ button.upload-box {
   min-height: 44px;
   padding: 0 16px;
   white-space: nowrap;
+}
+
+.app-shell-admin .report-kpi-summary-grid {
+  margin-bottom: 16px;
 }
 
 @media (max-width: 640px) {
