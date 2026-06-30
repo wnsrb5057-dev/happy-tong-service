@@ -7137,20 +7137,34 @@ button.upload-box {
   }
 
   .app-shell-admin .admin-content {
-    padding-top: 12px;
+    padding-top: 8px;
   }
 
   .app-shell-admin .app-main {
-    padding: 24px 24px 30px 20px;
+    padding: 18px 24px 28px 20px;
+  }
+
+  .app-shell-admin .page-header {
+    margin-bottom: 14px;
+    padding-top: 0;
+  }
+
+  .app-shell-admin .page-header h1 {
+    margin-bottom: 4px;
+  }
+
+  .app-shell-admin .page-header .muted {
+    margin: 0;
+    line-height: 1.4;
   }
 
   .app-shell-admin .admin-dashboard-shell {
-    gap: 8px;
+    gap: 6px;
   }
 
   .app-shell-admin .admin-dashboard-kpi-grid {
     grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 8px;
+    gap: 10px;
   }
 
   .app-shell-admin .admin-dashboard-columns {
@@ -7169,7 +7183,7 @@ button.upload-box {
 
   .app-shell-admin .admin-dashboard-list-card .card,
   .app-shell-admin .admin-dashboard-support-card .card {
-    padding: 10px 12px;
+    padding: 9px 11px;
   }
 }
 
@@ -7231,4 +7245,148 @@ button.upload-box {
   .app-shell-admin .admin-dashboard-columns {
     grid-template-columns: 1fr;
   }
+}
+
+.app-shell-admin .admin-dashboard-kpi-grid .stat-card {
+  padding: 9px 12px;
+}
+
+.app-shell-admin .admin-dashboard-kpi-grid .stat-card strong {
+  margin-top: 3px;
+  font-size: 21px;
+}
+
+.app-shell-admin .admin-dashboard-kpi-grid .stat-card span,
+.app-shell-admin .admin-dashboard-kpi-grid .stat-card small {
+  font-size: 11px;
+  line-height: 1.2;
+}
+
+.app-shell-admin .admin-dashboard-column {
+  gap: 10px;
+}
+
+.app-shell-admin .admin-dashboard-chart-card {
+  gap: 8px;
+  padding: 13px 13px 11px;
+}
+
+.app-shell-admin .admin-dashboard-chart-card .section-title,
+.app-shell-admin .admin-dashboard-list-card .section-title,
+.app-shell-admin .admin-dashboard-support-card .section-title {
+  margin-bottom: 4px;
+}
+
+.app-shell-admin .admin-dashboard-chart-card .section-title .muted,
+.app-shell-admin .admin-dashboard-list-card .section-title .muted,
+.app-shell-admin .admin-dashboard-support-card .section-title .muted {
+  line-height: 1.3;
+}
+
+.app-shell-admin .dashboard-donut-layout {
+  gap: 8px;
+}
+
+.app-shell-admin .dashboard-donut-chart {
+  width: 136px;
+  height: 136px;
+}
+
+.app-shell-admin .dashboard-donut-hole {
+  inset: 16px;
+}
+
+.app-shell-admin .dashboard-donut-hole strong {
+  font-size: 20px;
+}
+
+.app-shell-admin .dashboard-donut-legend {
+  gap: 6px;
+}
+
+.app-shell-admin .dashboard-donut-legend-item {
+  gap: 6px;
+}
+
+.app-shell-admin .dashboard-trend-bars {
+  min-height: 128px;
+  gap: 3px;
+}
+
+.app-shell-admin .dashboard-trend-bar-item {
+  gap: 3px;
+}
+
+.app-shell-admin .dashboard-trend-bar-track {
+  height: 74px;
+  padding: 0 1px;
+}
+
+.app-shell-admin .dashboard-trend-bar-fill {
+  max-width: 16px;
+}
+
+.app-shell-admin .dashboard-status-grid {
+  gap: 6px;
+}
+
+.app-shell-admin .dashboard-status-card {
+  padding: 9px 10px;
+}
+
+.app-shell-admin .dashboard-status-summary {
+  padding: 9px 10px;
+}
+
+.app-shell-admin .admin-dashboard-list-card .card,
+.app-shell-admin .admin-dashboard-support-card .card,
+.app-shell-admin .admin-dashboard-reassignment-card {
+  padding: 9px 10px;
+}
+
+.app-shell-admin .admin-dashboard-card-copy strong,
+.app-shell-admin .admin-dashboard-reassignment-item strong {
+  line-height: 1.25;
+}
+
+.app-shell-admin .admin-dashboard-card-copy p,
+.app-shell-admin .admin-dashboard-card-description,
+.app-shell-admin .admin-dashboard-reassignment-item .muted,
+.app-shell-admin .admin-dashboard-support-card .muted {
+  font-size: 11px;
+  line-height: 1.3;
+}
+
+.app-shell-admin .admin-dashboard-card-badges {
+  gap: 4px;
+}
+
+.app-shell-admin .admin-dashboard-panel .stack {
+  gap: 8px;
+}
+
+.app-shell-admin .admin-dashboard-reassignment-card {
+  gap: 6px;
+}
+
+.app-shell-admin .admin-dashboard-reassignment-head strong {
+  font-size: 18px;
+}
+
+.app-shell-admin .admin-dashboard-reassignment-item {
+  gap: 6px;
+  padding: 6px 0;
+}
+
+.app-shell-admin .dashboard-card-actions {
+  margin-top: 8px;
+}
+
+.app-shell-admin .dashboard-small-button,
+.app-shell-admin .admin-dashboard-list-card .btn,
+.app-shell-admin .admin-dashboard-support-card .btn {
+  min-width: 84px;
+  min-height: 32px;
+  padding: 0 10px;
+  white-space: nowrap;
 }
