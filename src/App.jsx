@@ -19,6 +19,7 @@ import {
   AdminCheckerEdit,
   AdminCheckerDetail,
   AdminCheckers,
+  AdminCheckerNew,
   AdminDashboard,
   AdminEmergencies,
   AdminEmergencyDetail,
@@ -205,6 +206,9 @@ export default function App() {
           ];
         });
       },
+      addUser(user) {
+        setRegisteredUsers((current) => [user, ...current]);
+      },
       addTarget(target) {
         setTargets((current) => [target, ...current]);
       },
@@ -295,6 +299,7 @@ function renderPage({ location, user, data, actions, navigate }) {
   const adminTargetNewMatch = location.pathname === "/admin/targets/new";
   const adminTargetMatch = location.pathname.match(/^\/admin\/targets\/([^/]+)$/);
   const adminTargetEditMatch = location.pathname.match(/^\/admin\/targets\/([^/]+)\/edit$/);
+  const adminCheckerNewMatch = location.pathname === "/admin/checkers/new";
   const adminCheckerEditMatch = location.pathname.match(/^\/admin\/checkers\/([^/]+)\/edit$/);
   const adminCheckerMatch = location.pathname.match(/^\/admin\/checkers\/([^/]+)$/);
   const adminEmergencyMatch = location.pathname.match(/^\/admin\/emergencies\/([^/]+)$/);
@@ -358,6 +363,10 @@ function renderPage({ location, user, data, actions, navigate }) {
 
     if (location.pathname === "/admin/checkers") {
       return <AdminCheckers data={data} actions={actions} currentUser={user} navigate={navigate} />;
+    }
+
+    if (adminCheckerNewMatch) {
+      return <AdminCheckerNew data={data} actions={actions} navigate={navigate} />;
     }
 
     if (adminCheckerEditMatch) {

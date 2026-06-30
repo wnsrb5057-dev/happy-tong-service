@@ -584,7 +584,12 @@ export function AdminCheckers({ data, actions, currentUser, navigate }) {
 
   return (
     <>
-      <PageHeader eyebrow="체커 관리" title="체커 운영 지원" description="담당 대상자와 확인 기록 보완 필요 여부를 확인합니다." />
+      <PageHeader
+        eyebrow="체커 관리"
+        title="체커 운영 지원"
+        description="담당 대상자와 확인 기록 보완 필요 여부를 확인합니다."
+        action={<Button onClick={() => navigate("/admin/checkers/new")}>체커 등록</Button>}
+      />
 
       <section className="section-block">
         <div className="section-title">
@@ -677,6 +682,141 @@ export function AdminCheckers({ data, actions, currentUser, navigate }) {
           </Card>
         ))}
       </div>
+    </>
+  );
+}
+
+export function AdminCheckerNew({ data, actions, navigate }) {
+  const [form, setForm] = useState({
+    name: "",
+    username: "",
+    password: "",
+    phone: "",
+    region: "",
+    activityStatus: "active",
+  });
+  const [error, setError] = useState("");
+
+  function updateForm(key, value) {
+    setForm((current) => ({ ...current, [key]: value }));
+    setError("");
+  }
+
+  function handleSubmit(event) {
+    event.preventDefault();
+
+    const trimmedName = form.name.trim();
+    const trimmedUsername = form.username.trim();
+    const trimmedPassword = form.password;
+    const trimmedPhone = form.phone.trim();
+    const trimmedRegion = form.region.trim();
+    const normalizedUsername = trimmedUsername.toLowerCase();
+
+    if (!trimmedName || !trimmedUsername || !trimmedPassword) {
+      setError("이름, 로그인 아이디, 비밀번호는 필수 입력입니다.");
+      return;
+    }
+
+    const existingUser = (Array.isArray(data.users) ? data.users : []).some((user) => {
+      const userLoginId = String(user.username || user.loginId || user.id || "").trim().toLowerCase();
+      return userLoginId === normalizedUsername;
+    });
+
+    if (existingUser) {
+      setError("이미 사용 중인 로그인 아이디입니다.");
+      return;
+    }
+
+    const timestamp = new Date().toISOString();
+    const newChecker = {
+      id: `checker-${Date.now()}`,
+      role: "checker",
+      type: "checker",
+      username: trimmedUsername,
+      loginId: trimmedUsername,
+      password: trimmedPassword,
+      name: trimmedName,
+      phone: trimmedPhone,
+      phoneNumber: trimmedPhone,
+      region: trimmedRegion,
+      area: trimmedRegion,
+      status: form.activityStatus,
+      activityStatus: form.activityStatus,
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    };
+
+    actions.addUser(newChecker);
+    navigate("/admin/checkers");
+  }
+
+  return (
+    <>
+      <PageHeader
+        eyebrow="체커 등록"
+        title="신규 체커 등록"
+        description="기관에서 사용할 체커 계정을 등록합니다."
+      />
+
+      <form className="form-stack" onSubmit={handleSubmit}>
+        <Card>
+          <TextInput
+            id="checker-new-name"
+            label="이름"
+            value={form.name}
+            onChange={(event) => updateForm("name", event.target.value)}
+            placeholder="체커 이름"
+          />
+          <TextInput
+            id="checker-new-username"
+            label="로그인 아이디"
+            value={form.username}
+            onChange={(event) => updateForm("username", event.target.value)}
+            placeholder="예: checker02"
+          />
+          <TextInput
+            id="checker-new-password"
+            label="비밀번호"
+            type="password"
+            value={form.password}
+            onChange={(event) => updateForm("password", event.target.value)}
+            placeholder="비밀번호 입력"
+          />
+          <TextInput
+            id="checker-new-phone"
+            label="연락처"
+            value={form.phone}
+            onChange={(event) => updateForm("phone", event.target.value)}
+            placeholder="010-0000-0000"
+          />
+          <TextInput
+            id="checker-new-region"
+            label="담당 지역"
+            value={form.region}
+            onChange={(event) => updateForm("region", event.target.value)}
+            placeholder="예: 은평구 갈현동"
+          />
+          <SelectInput
+            id="checker-new-status"
+            label="활동 상태"
+            value={form.activityStatus}
+            onChange={(event) => updateForm("activityStatus", event.target.value)}
+          >
+            <option value="active">활동중</option>
+            <option value="paused">일시중지</option>
+            <option value="left">활동종료</option>
+          </SelectInput>
+        </Card>
+
+        {error ? <p className="form-error">{error}</p> : null}
+
+        <div className="action-grid">
+          <Button type="submit">저장</Button>
+          <Button type="button" variant="secondary" onClick={() => navigate("/admin/checkers")}>
+            취소
+          </Button>
+        </div>
+      </form>
     </>
   );
 }
