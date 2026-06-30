@@ -32,6 +32,11 @@ import {
   AdminTargetDetail,
   AdminTargets,
 } from "./pages/adminPages.jsx";
+import {
+  SuperAdminDashboard,
+  SuperOrganizations,
+  SuperStatusPlaceholder,
+} from "./pages/superAdminPages.jsx";
 import { readActivityRecords, writeActivityRecords } from "./services/activityService.js";
 import { readAdminReports, writeAdminReports } from "./services/adminReportDataService.js";
 import {
@@ -99,7 +104,10 @@ export default function App() {
   function handleLogin(user) {
     saveCurrentUser(user);
     setCurrentUser(user);
-    navigate(user.role === "admin" ? "/admin/dashboard" : "/checker/home", { replace: true });
+    navigate(
+      user.role === "super_admin" ? "/super/dashboard" : user.role === "admin" ? "/admin/dashboard" : "/checker/home",
+      { replace: true }
+    );
   }
 
   function handleLogout() {
@@ -250,7 +258,15 @@ export default function App() {
 
   useEffect(() => {
     if (location.pathname === "/" || location.pathname === "") {
-      navigate(currentUser ? (currentUser.role === "admin" ? "/admin/dashboard" : "/checker/home") : "/login", {
+      navigate(
+        currentUser
+          ? currentUser.role === "super_admin"
+            ? "/super/dashboard"
+            : currentUser.role === "admin"
+              ? "/admin/dashboard"
+              : "/checker/home"
+          : "/login",
+        {
         replace: true,
       });
       return;
@@ -262,7 +278,10 @@ export default function App() {
     }
 
     if (currentUser && location.pathname === "/login") {
-      navigate(currentUser.role === "admin" ? "/admin/dashboard" : "/checker/home", { replace: true });
+      navigate(
+        currentUser.role === "super_admin" ? "/super/dashboard" : currentUser.role === "admin" ? "/admin/dashboard" : "/checker/home",
+        { replace: true }
+      );
     }
   }, [currentUser, location.pathname]);
 
@@ -304,8 +323,28 @@ function renderPage({ location, user, data, actions, navigate }) {
   const adminCheckerMatch = location.pathname.match(/^\/admin\/checkers\/([^/]+)$/);
   const adminEmergencyMatch = location.pathname.match(/^\/admin\/emergencies\/([^/]+)$/);
 
+  if (user.role === "super_admin") {
+    if (location.pathname.startsWith("/admin") || location.pathname.startsWith("/checker")) {
+      return <RoleBlocked navigate={() => navigate("/super/dashboard")} />;
+    }
+
+    if (location.pathname === "/super" || location.pathname === "/super/dashboard") {
+      return <SuperAdminDashboard data={data} navigate={navigate} />;
+    }
+
+    if (location.pathname === "/super/organizations") {
+      return <SuperOrganizations data={data} navigate={navigate} />;
+    }
+
+    if (location.pathname === "/super/status") {
+      return <SuperStatusPlaceholder />;
+    }
+
+    return <NotFound navigate={() => navigate("/super/dashboard")} />;
+  }
+
   if (user.role === "checker") {
-    if (location.pathname.startsWith("/admin")) {
+    if (location.pathname.startsWith("/admin") || location.pathname.startsWith("/super")) {
       return <RoleBlocked navigate={() => navigate("/checker/home")} />;
     }
 
@@ -353,7 +392,7 @@ function renderPage({ location, user, data, actions, navigate }) {
   }
 
   if (user.role === "admin") {
-    if (location.pathname.startsWith("/checker")) {
+    if (location.pathname.startsWith("/checker") || location.pathname.startsWith("/super")) {
       return <RoleBlocked navigate={() => navigate("/admin/dashboard")} />;
     }
 

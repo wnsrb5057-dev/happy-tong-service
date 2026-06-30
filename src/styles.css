@@ -7578,3 +7578,75 @@ button.upload-box {
     padding: 10px 11px;
   }
 }
+
+.super-kpi-grid {
+  margin-bottom: 16px;
+}
+
+.super-dashboard {
+  display: grid;
+  gap: 16px;
+}
+
+.super-section-card {
+  display: grid;
+  gap: 12px;
+}
+
+.super-organization-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+}
+
+.super-organization-card {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+}
+
+.super-organization-meta {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.super-organization-meta div {
+  display: grid;
+  gap: 2px;
+}
+
+.super-organization-meta span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.super-organization-meta strong {
+  font-size: 14px;
+}
+
+.super-organization-note {
+  margin: 0;
+  line-height: 1.45;
+}
+
+.super-emergency-card {
+  padding: 12px 14px;
+}
+
+.super-disabled-button {
+  white-space: nowrap;
+}
+
+@media (min-width: 900px) {
+  .super-dashboard {
+    grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.9fr);
+    align-items: start;
+  }
+}
+
+@media (max-width: 640px) {
+  .super-organization-meta {
+    grid-template-columns: 1fr;
+  }
+}

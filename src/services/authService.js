@@ -8,6 +8,17 @@ import {
   writeStorage,
 } from "../utils/storage.js";
 
+const superAdminUser = {
+  id: "super_admin",
+  username: "super_admin",
+  loginId: "super_admin",
+  password: "1234",
+  role: "super_admin",
+  name: "해피통 총관리자",
+  organizationId: "",
+  organizationName: "",
+};
+
 function enrichBaseUser(user) {
   const organizationId = user.organizationId || defaultUserOrganizations[user.id] || defaultUserOrganizations[user.username];
   const organization = getOrganizationById(organizationId);
@@ -30,7 +41,7 @@ export function writeRegisteredUsers(users) {
 }
 
 export function readAllUsers() {
-  return [...baseUsers.map(enrichBaseUser), ...readRegisteredUsers()];
+  return [superAdminUser, ...baseUsers.map(enrichBaseUser), ...readRegisteredUsers()];
 }
 
 export function readUsers() {
