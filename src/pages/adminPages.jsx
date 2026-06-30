@@ -79,6 +79,23 @@ function getAssignedCheckerState(checker) {
   return checker?.status || checker?.activityStatus || "active";
 }
 
+function isActiveLifecycleTarget(target) {
+  return (target?.lifecycleStatus || "active") !== "ended";
+}
+
+function isReassignmentNeededTarget(target, users) {
+  if (!isActiveLifecycleTarget(target)) return false;
+
+  const assignedCheckerId = target?.assignedCheckerId;
+  const checker = checkerById(users, assignedCheckerId);
+
+  if (!assignedCheckerId || !checker) {
+    return true;
+  }
+
+  return getAssignedCheckerState(checker) !== "active";
+}
+
 function getTargetCheckerAlert(checker) {
   if (!checker) {
     return {
@@ -226,7 +243,7 @@ export function AdminDashboard({ data, navigate }) {
   const users = Array.isArray(data.users) ? data.users : [];
   const activityRecords = Array.isArray(data.activityRecords) ? data.activityRecords : [];
   const emergencyReports = Array.isArray(data.emergencyReports) ? data.emergencyReports : [];
-  const activeTargets = targets.filter((target) => (target.lifecycleStatus || "active") !== "ended");
+  const activeTargets = targets.filter(isActiveLifecycleTarget);
   const today = getTodayFromStats();
   const todayPlanDay = ["일", "월", "화", "수", "목", "금", "토"][new Date().getDay()];
   const stats = getDashboardStats({ ...data, targets: activeTargets });
@@ -247,13 +264,7 @@ export function AdminDashboard({ data, navigate }) {
     })
     .slice(0, 5);
   const recentActivities = [...activityRecords].sort(byLatestDate).slice(0, 4);
-  const reassignmentNeededTargets = activeTargets
-    .filter((target) => {
-      const assignedChecker = checkerById(users, target.assignedCheckerId);
-      const checkerState = getAssignedCheckerState(assignedChecker);
-      return !assignedChecker || checkerState === "paused" || checkerState === "left";
-    })
-    .sort(sortTargetsForAdmin);
+  const reassignmentNeededTargets = activeTargets.filter((target) => isReassignmentNeededTarget(target, users)).sort(sortTargetsForAdmin);
   const riskRows = [
     { label: "정상", value: activeTargets.filter((target) => target.riskLevel === "normal").length, tone: "green" },
     { label: "주의", value: activeTargets.filter((target) => target.riskLevel === "caution").length, tone: "orange" },
@@ -972,12 +983,14 @@ export function AdminCheckerEdit({ checkerId, data, actions, navigate }) {
 
 export function AdminTargets({ data, navigate }) {
   const [filter, setFilter] = useState("all");
+  const targets = Array.isArray(data.targets) ? data.targets : [];
+  const users = Array.isArray(data.users) ? data.users : [];
+  const activeTargets = targets.filter(isActiveLifecycleTarget);
+  const reassignmentNeededTargets = activeTargets.filter((target) => isReassignmentNeededTarget(target, users));
 
-const isActiveTarget = (target) => (target.lifecycleStatus || "active") !== "ended";
-
-const filteredTargets = data.targets
+const filteredTargets = targets
   .filter((target) => {
-    const targetIsActive = isActiveTarget(target);
+    const targetIsActive = isActiveLifecycleTarget(target);
 
     if (filter === "ended") {
       return !targetIsActive;
@@ -988,6 +1001,9 @@ const filteredTargets = data.targets
     }
 
     if (filter === "all") return true;
+    if (filter === "reassignment") {
+      return isReassignmentNeededTarget(target, users);
+    }
     if (filter === "today") {
   const todayLabel = ["일", "월", "화", "수", "목", "금", "토"][new Date().getDay()];
   const checkDays = target.checkDays || target.checkDay || target.days || target.checkDayLabels || [];
@@ -1017,9 +1033,9 @@ const filteredTargets = data.targets
 
       <Card className="summary-card">
         <p className="eyebrow">대상자 현황</p>
-        <strong>전체 {data.targets.length}명 · 오늘 확인 {data.targets.filter(isTodayScheduled).length}명</strong>
+        <strong>전체 {activeTargets.length}명 · 오늘 확인 {activeTargets.filter(isTodayScheduled).length}명</strong>
         <span>
-          정상 {data.targets.filter((target) => target.riskLevel === "normal").length}명 · 주의 {data.targets.filter((target) => target.riskLevel === "caution").length}명 · 위험 {data.targets.filter((target) => target.riskLevel === "danger").length}명
+          정상 {activeTargets.filter((target) => target.riskLevel === "normal").length}명 · 주의 {activeTargets.filter((target) => target.riskLevel === "caution").length}명 · 위험 {activeTargets.filter((target) => target.riskLevel === "danger").length}명
         </span>
       </Card>
 
@@ -1030,6 +1046,7 @@ const filteredTargets = data.targets
           { value: "caution", label: "주의" },
           { value: "danger", label: "위험" },
           { value: "today", label: "오늘 확인" },
+          { value: "reassignment", label: "재배정 필요" },
           { value: "ended", label: "관리종료" },
         ].map((item) => (
           <button
@@ -1044,15 +1061,15 @@ const filteredTargets = data.targets
       </div>
 
       <div className="stack">
-        {filteredTargets.map((target) => (
+        {filteredTargets.length ? filteredTargets.map((target) => (
           <article className={`target-card admin-target-card risk-card-${target.riskLevel}`} key={target.id}>
             {(() => {
-              const assignedChecker = checkerById(data.users, target.assignedCheckerId);
+              const assignedChecker = checkerById(users, target.assignedCheckerId);
               const checkerAlert = getTargetCheckerAlert(assignedChecker);
 
               return checkerAlert ? (
                 <div className={`admin-target-alert admin-target-alert-${checkerAlert.tone}`}>
-                  <span className="badge badge-muted">{checkerAlert.badge}</span>
+                  <span className={`badge ${checkerAlert.tone === "danger" ? "badge-danger" : "badge-warning"} admin-target-reassignment-badge`}>재배정 필요</span>
                   <strong>{checkerAlert.message}</strong>
                 </div>
               ) : null;
@@ -1067,7 +1084,7 @@ const filteredTargets = data.targets
             <div className="admin-target-meta">
   <div className="admin-target-meta-item">
     <span>담당 체커</span>
-    <strong>{checkerName(data.users, target.assignedCheckerId)}</strong>
+    <strong>{target.assignedCheckerId ? checkerName(users, target.assignedCheckerId) : "담당 체커 미배정"}</strong>
   </div>
   <div className="admin-target-meta-item">
     <span>기본 확인 유형</span>
@@ -1091,7 +1108,12 @@ const filteredTargets = data.targets
               상세보기
             </Button>
           </article>
-        ))}
+        )) : (
+          <EmptyState
+            title={filter === "reassignment" ? "재배정이 필요한 대상자가 없습니다." : "조건에 맞는 대상자가 없습니다."}
+            description={filter === "reassignment" ? "담당 체커 미배정 또는 체커 상태 변경 대상이 없습니다." : "필터를 변경해 다시 확인해주세요."}
+          />
+        )}
       </div>
     </>
   );

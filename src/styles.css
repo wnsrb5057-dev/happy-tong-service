@@ -6418,6 +6418,11 @@ button.upload-box {
   gap: 8px;
 }
 
+.app-shell-admin .admin-target-reassignment-badge {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
 .app-shell-admin .admin-target-alert strong {
   font-size: 13px;
   line-height: 1.45;
