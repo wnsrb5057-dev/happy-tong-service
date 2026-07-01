@@ -5,4 +5,5 @@ dist
 
 .deploy
 .deploy/
-AI_backup*
+AI_backup*.env.local
+.env.local
