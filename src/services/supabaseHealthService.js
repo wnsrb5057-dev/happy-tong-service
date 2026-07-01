@@ -26,6 +26,10 @@ async function getTableCount(tableName) {
   return count || 0;
 }
 
+function isRestrictedCountResult({ organizationCount, userCount, targetCount }) {
+  return [organizationCount, userCount, targetCount].every((count) => Number(count || 0) === 0);
+}
+
 export async function getSupabaseConnectionStatus() {
   if (!isSupabaseConfigured || !supabase) {
     return createStatusResult();
@@ -38,8 +42,11 @@ export async function getSupabaseConnectionStatus() {
       getTableCount("targets"),
     ]);
 
-    const counts = [organizationCount, userCount, targetCount];
-    const isRestricted = counts.every((count) => count === 0);
+    const isRestricted = isRestrictedCountResult({
+      organizationCount,
+      userCount,
+      targetCount,
+    });
 
     if (isRestricted) {
       return createStatusResult({

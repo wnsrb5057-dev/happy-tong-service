@@ -184,19 +184,27 @@ function SuperSupabaseStatusCard() {
     handleCheck();
   }, []);
 
-  let statusLabel = "미설정";
-  let statusClassName = "supabase-status-muted";
+  const statusPresentation = {
+    not_configured: {
+      label: "미설정",
+      className: "supabase-status-muted",
+    },
+    connected: {
+      label: "정상",
+      className: "supabase-status-ok",
+    },
+    connected_but_restricted: {
+      label: "연결됨 / 접근 제한",
+      className: "supabase-status-warn",
+    },
+    error: {
+      label: "오류",
+      className: "supabase-status-error",
+    },
+  };
 
-  if (status.status === "connected") {
-    statusLabel = "정상";
-    statusClassName = "supabase-status-ok";
-  } else if (status.status === "connected_but_restricted") {
-    statusLabel = "연결됨 / 접근 제한";
-    statusClassName = "supabase-status-warn";
-  } else if (status.status === "error") {
-    statusLabel = "오류";
-    statusClassName = "supabase-status-error";
-  }
+  const currentStatusPresentation =
+    statusPresentation[status.status] || statusPresentation.not_configured;
 
   return (
     <Card className="super-supabase-status-card">
@@ -205,7 +213,9 @@ function SuperSupabaseStatusCard() {
           <strong>Supabase 연결 상태</strong>
           <p className="muted">{status.message}</p>
         </div>
-        <span className={`badge supabase-status-badge ${statusClassName}`}>{statusLabel}</span>
+        <span className={`badge supabase-status-badge ${currentStatusPresentation.className}`}>
+          {currentStatusPresentation.label}
+        </span>
       </div>
 
       <div className="super-organization-metrics super-supabase-status-metrics">
@@ -317,7 +327,8 @@ export function SuperAdminDashboard({ data }) {
                       <div>
                         <strong>{target?.name || "대상자 정보 없음"}</strong>
                         <p className="muted">
-                          {organization?.name || "기관 정보 없음"} · {report.date || report.reportedAt || "날짜 정보 없음"}
+                          {organization?.name || "기관 정보 없음"} ·{" "}
+                          {report.date || report.reportedAt || "날짜 정보 없음"}
                         </p>
                       </div>
                       <SuperEmergencyStatusBadge status={report.status} />
@@ -343,7 +354,11 @@ export function SuperOrganizations({ data }) {
 
   return (
     <>
-      <PageHeader eyebrow="기관 관리" title="기관 목록" description="기관별 운영 현황을 간단히 확인합니다." />
+      <PageHeader
+        eyebrow="기관 관리"
+        title="기관 목록"
+        description="기관별 운영 현황을 간단히 확인합니다."
+      />
 
       {organizationSummaries.length ? (
         <div className="super-organization-grid">
