@@ -99,3 +99,9 @@
 5. Supabase Auth 또는 `users.id` 매핑 구조 확인
 6. 읽기 전용 조회부터 연결
 7. 쓰기 기능 연결
+
+## 10. Health Check RPC 메모
+
+- Supabase 연결 상태 카드는 테이블 row를 직접 공개하지 않기 위해 `docs/supabase-health-rpc.sql`의 `get_public_health_counts()` RPC를 우선 사용합니다.
+- 이 RPC는 `organizations`, `users`, `targets`의 count만 반환합니다.
+- RPC가 아직 적용되지 않았거나 실행 오류가 나면 앱은 기존 direct count 방식으로 fallback합니다.
