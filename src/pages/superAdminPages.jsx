@@ -160,6 +160,7 @@ function SuperSupabaseStatusCard() {
   const [status, setStatus] = useState({
     configured: false,
     ok: false,
+    status: "not_configured",
     message: "Supabase 연결 상태를 아직 확인하지 않았습니다.",
     organizationCount: 0,
     userCount: 0,
@@ -186,10 +187,13 @@ function SuperSupabaseStatusCard() {
   let statusLabel = "미설정";
   let statusClassName = "supabase-status-muted";
 
-  if (status.configured && status.ok) {
+  if (status.status === "connected") {
     statusLabel = "정상";
     statusClassName = "supabase-status-ok";
-  } else if (status.configured && !status.ok) {
+  } else if (status.status === "connected_but_restricted") {
+    statusLabel = "연결됨 / 접근 제한";
+    statusClassName = "supabase-status-warn";
+  } else if (status.status === "error") {
     statusLabel = "오류";
     statusClassName = "supabase-status-error";
   }
@@ -218,6 +222,11 @@ function SuperSupabaseStatusCard() {
           <strong>{status.targetCount}</strong>
         </div>
       </div>
+
+      <p className="muted super-supabase-status-note">
+        SQL Editor에서 seed 데이터가 확인되더라도, RLS 정책이 적용되지 않았거나 anon 접근이 제한되면 앱에서는
+        0건으로 보일 수 있습니다.
+      </p>
 
       <div className="super-supabase-status-footer">
         <span className="muted">마지막 확인: {formatCheckedAt(status.checkedAt)}</span>

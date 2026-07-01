@@ -7726,6 +7726,11 @@ button.upload-box {
   color: #166534;
 }
 
+.supabase-status-warn {
+  background: #fff7e0;
+  color: var(--orange-ink);
+}
+
 .supabase-status-error {
   background: var(--red-soft);
   color: var(--red);
@@ -7738,6 +7743,11 @@ button.upload-box {
 
 .super-supabase-status-metrics {
   margin-top: -2px;
+}
+
+.super-supabase-status-note {
+  margin: -2px 0 0;
+  line-height: 1.45;
 }
 
 .super-supabase-status-footer {
