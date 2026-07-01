@@ -83,4 +83,5 @@
 ## 8. 참고 문서
 
 - 스키마 설계: `docs/supabase-schema.md`
+- 데모 seed 데이터: `docs/supabase-seed.sql`
 - 수동 QA 체크리스트: `docs/manual-test-checklist.md`
