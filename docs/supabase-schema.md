@@ -295,3 +295,5 @@ Row Level Security는 다음 방향을 기준으로 설계합니다.
 13. 쓰기 기능 전환
 14. Supabase Auth 또는 안전한 인증 구조 검토
 15. RLS 정책 적용
+
+실행 가능한 초기 SQL은 `docs/supabase-schema.sql` 파일을 기준으로 작성합니다.
