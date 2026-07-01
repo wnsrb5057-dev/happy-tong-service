@@ -7754,3 +7754,71 @@ button.upload-box {
 .emergency-handling-log-item .badge {
   white-space: nowrap;
 }
+
+@media (max-width: 768px) {
+  .app-shell-admin .admin-dashboard-kpi-grid,
+  .app-shell-admin .stats-grid.statistics-grid,
+  .app-shell-admin .report-kpi-summary-grid,
+  .app-shell-admin .statistics-grid.super-kpi-grid {
+    display: flex;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    gap: 12px;
+    padding-bottom: 8px;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .app-shell-admin .admin-dashboard-kpi-grid::-webkit-scrollbar,
+  .app-shell-admin .stats-grid.statistics-grid::-webkit-scrollbar,
+  .app-shell-admin .report-kpi-summary-grid::-webkit-scrollbar,
+  .app-shell-admin .statistics-grid.super-kpi-grid::-webkit-scrollbar {
+    display: none;
+  }
+
+  .app-shell-admin .admin-dashboard-kpi-grid > *,
+  .app-shell-admin .stats-grid.statistics-grid > *,
+  .app-shell-admin .report-kpi-summary-grid > *,
+  .app-shell-admin .statistics-grid.super-kpi-grid > * {
+    flex: 0 0 142px;
+    min-width: 142px;
+    scroll-snap-align: start;
+  }
+
+  .app-shell-admin .dashboard-donut-layout {
+    grid-template-columns: 1fr;
+    justify-items: center;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .app-shell-admin .dashboard-donut-wrap,
+  .app-shell-admin .dashboard-donut-legend {
+    justify-self: center;
+  }
+
+  .app-shell-admin .dashboard-donut-legend {
+    width: min(100%, 220px);
+  }
+
+  .app-shell-admin .statistics-period-tabs {
+    justify-content: flex-start;
+    flex-wrap: nowrap;
+    gap: 8px;
+    overflow-x: auto;
+    padding-bottom: 6px;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .app-shell-admin .statistics-period-tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  .app-shell-admin .statistics-period-tabs button {
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+}
