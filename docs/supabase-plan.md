@@ -85,6 +85,7 @@
 - 스키마 설계: `docs/supabase-schema.md`
 - 데모 seed 데이터: `docs/supabase-seed.sql`
 - RLS 정책 초안: `docs/supabase-rls-policies.sql`
+- 프로젝트 생성 / 환경변수 설정 가이드: `docs/supabase-setup-guide.md`
 - 수동 QA 체크리스트: `docs/manual-test-checklist.md`
 
 ## 9. RLS 적용 순서
