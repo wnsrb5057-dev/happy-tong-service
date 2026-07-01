@@ -84,4 +84,15 @@
 
 - 스키마 설계: `docs/supabase-schema.md`
 - 데모 seed 데이터: `docs/supabase-seed.sql`
+- RLS 정책 초안: `docs/supabase-rls-policies.sql`
 - 수동 QA 체크리스트: `docs/manual-test-checklist.md`
+
+## 9. RLS 적용 순서
+
+1. `docs/supabase-schema.sql` 실행
+2. `docs/supabase-seed.sql` 실행
+3. `docs/supabase-rls-policies.sql` 검토
+4. `docs/supabase-rls-policies.sql` 적용
+5. Supabase Auth 또는 `users.id` 매핑 구조 확인
+6. 읽기 전용 조회부터 연결
+7. 쓰기 기능 연결
