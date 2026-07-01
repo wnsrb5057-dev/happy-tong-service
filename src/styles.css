@@ -7712,6 +7712,46 @@ button.upload-box {
   white-space: nowrap;
 }
 
+.super-supabase-status-card {
+  display: grid;
+  gap: 12px;
+}
+
+.supabase-status-badge {
+  white-space: nowrap;
+}
+
+.supabase-status-ok {
+  background: var(--green-soft);
+  color: #166534;
+}
+
+.supabase-status-error {
+  background: var(--red-soft);
+  color: var(--red);
+}
+
+.supabase-status-muted {
+  background: var(--surface-blue);
+  color: var(--muted);
+}
+
+.super-supabase-status-metrics {
+  margin-top: -2px;
+}
+
+.super-supabase-status-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.super-supabase-status-footer .btn {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
 .super-organization-note {
   margin: 0;
   line-height: 1.45;
@@ -7770,6 +7810,11 @@ button.upload-box {
   .super-emergency-card .card-row {
     align-items: flex-start;
     gap: 10px;
+  }
+
+  .super-supabase-status-footer {
+    flex-direction: column;
+    align-items: stretch;
   }
 
   .super-emergency-badge {

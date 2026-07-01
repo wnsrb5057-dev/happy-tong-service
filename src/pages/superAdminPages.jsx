@@ -1,4 +1,6 @@
+import { useEffect, useState } from "react";
 import { Button, Card, EmptyState, PageHeader, SectionTitle, StatCard } from "../components/UI.jsx";
+import { getSupabaseConnectionStatus } from "../services/supabaseHealthService.js";
 
 const DEFAULT_ORGANIZATION_ID = "org-eunpyeong-care";
 
@@ -80,6 +82,21 @@ function buildOrganizationSummaries(data) {
   });
 }
 
+function formatCheckedAt(checkedAt) {
+  if (!checkedAt) return "-";
+
+  const date = new Date(checkedAt);
+  if (Number.isNaN(date.getTime())) return checkedAt;
+
+  return date.toLocaleString("ko-KR", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
 function SuperEmergencyStatusBadge({ status }) {
   const statusKey = getEmergencyStatusKey(status);
   const statusLabel = getEmergencyStatusLabel(status);
@@ -139,6 +156,79 @@ function SuperOrganizationCard({ organization, showAction = false }) {
   );
 }
 
+function SuperSupabaseStatusCard() {
+  const [status, setStatus] = useState({
+    configured: false,
+    ok: false,
+    message: "Supabase 연결 상태를 아직 확인하지 않았습니다.",
+    organizationCount: 0,
+    userCount: 0,
+    targetCount: 0,
+    checkedAt: null,
+  });
+  const [loading, setLoading] = useState(false);
+
+  const handleCheck = async () => {
+    setLoading(true);
+
+    try {
+      const result = await getSupabaseConnectionStatus();
+      setStatus(result);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    handleCheck();
+  }, []);
+
+  let statusLabel = "미설정";
+  let statusClassName = "supabase-status-muted";
+
+  if (status.configured && status.ok) {
+    statusLabel = "정상";
+    statusClassName = "supabase-status-ok";
+  } else if (status.configured && !status.ok) {
+    statusLabel = "오류";
+    statusClassName = "supabase-status-error";
+  }
+
+  return (
+    <Card className="super-supabase-status-card">
+      <div className="card-row">
+        <div>
+          <strong>Supabase 연결 상태</strong>
+          <p className="muted">{status.message}</p>
+        </div>
+        <span className={`badge supabase-status-badge ${statusClassName}`}>{statusLabel}</span>
+      </div>
+
+      <div className="super-organization-metrics super-supabase-status-metrics">
+        <div className="super-organization-metric">
+          <span>organizations</span>
+          <strong>{status.organizationCount}</strong>
+        </div>
+        <div className="super-organization-metric">
+          <span>users</span>
+          <strong>{status.userCount}</strong>
+        </div>
+        <div className="super-organization-metric">
+          <span>targets</span>
+          <strong>{status.targetCount}</strong>
+        </div>
+      </div>
+
+      <div className="super-supabase-status-footer">
+        <span className="muted">마지막 확인: {formatCheckedAt(status.checkedAt)}</span>
+        <Button type="button" variant="ghost" onClick={handleCheck} disabled={loading}>
+          {loading ? "확인 중..." : "연결 확인"}
+        </Button>
+      </div>
+    </Card>
+  );
+}
+
 export function SuperAdminDashboard({ data }) {
   const organizations = Array.isArray(data.organizations) ? data.organizations : [];
   const targets = Array.isArray(data.targets) ? data.targets : [];
@@ -148,7 +238,7 @@ export function SuperAdminDashboard({ data }) {
   const checkerUsers = users.filter((user) => user.role === "checker");
   const unresolvedEmergencyReports = emergencyReports.filter(isUnresolvedEmergency);
   const recentEmergencyReports = [...emergencyReports]
-    .sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")))
+    .sort((a, b) => String(b.date || b.reportedAt || "").localeCompare(String(a.date || a.reportedAt || "")))
     .slice(0, 5);
 
   return (
@@ -163,12 +253,7 @@ export function SuperAdminDashboard({ data }) {
         <StatCard label="전체 기관" value={`${organizations.length}개`} tone="blue" helper="등록 기관 기준" />
         <StatCard label="전체 대상자" value={`${targets.length}명`} tone="green" helper="운영 데이터 기준" />
         <StatCard label="전체 체커" value={`${checkerUsers.length}명`} tone="orange" helper="체커 계정 기준" />
-        <StatCard
-          label="전체 이상징후"
-          value={`${emergencyReports.length}건`}
-          tone="red"
-          helper="누적 보고 기준"
-        />
+        <StatCard label="전체 이상징후" value={`${emergencyReports.length}건`} tone="red" helper="누적 보고 기준" />
         <StatCard
           label="미처리 이상징후"
           value={`${unresolvedEmergencyReports.length}건`}
@@ -178,6 +263,14 @@ export function SuperAdminDashboard({ data }) {
       </div>
 
       <div className="super-dashboard">
+        <section className="section-block super-section-card">
+          <SectionTitle
+            title="Supabase 연결 확인"
+            description="기존 localStorage 흐름은 유지한 채 읽기 전용 연결 상태만 확인합니다."
+          />
+          <SuperSupabaseStatusCard />
+        </section>
+
         <section className="section-block super-section-card">
           <SectionTitle
             title="기관별 운영 요약"
@@ -215,7 +308,7 @@ export function SuperAdminDashboard({ data }) {
                       <div>
                         <strong>{target?.name || "대상자 정보 없음"}</strong>
                         <p className="muted">
-                          {organization?.name || "기관 정보 없음"} · {report.date || "날짜 정보 없음"}
+                          {organization?.name || "기관 정보 없음"} · {report.date || report.reportedAt || "날짜 정보 없음"}
                         </p>
                       </div>
                       <SuperEmergencyStatusBadge status={report.status} />
@@ -241,11 +334,7 @@ export function SuperOrganizations({ data }) {
 
   return (
     <>
-      <PageHeader
-        eyebrow="기관 관리"
-        title="기관 목록"
-        description="기관별 운영 현황을 간단히 확인합니다."
-      />
+      <PageHeader eyebrow="기관 관리" title="기관 목록" description="기관별 운영 현황을 간단히 확인합니다." />
 
       {organizationSummaries.length ? (
         <div className="super-organization-grid">
