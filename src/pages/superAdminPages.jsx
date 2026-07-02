@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Button, Card, EmptyState, PageHeader, SectionTitle, StatCard } from "../components/UI.jsx";
 import { getSupabaseConnectionStatus } from "../services/supabaseHealthService.js";
+import { getSupabaseOrganizationSummaries } from "../services/supabaseOrganizationSummaryService.js";
 
 const DEFAULT_ORGANIZATION_ID = "org-eunpyeong-care";
 
@@ -74,6 +75,10 @@ function buildOrganizationSummaries(data) {
 
     return {
       ...organization,
+      adminName: organization?.adminName || organization?.admin_name || "미배정",
+      status: organization?.status || "active",
+      statusLabel: organization?.statusLabel || "운영중",
+      memo: organization?.memo || "",
       targetCount,
       checkerCount,
       emergencyCount: organizationEmergencies.length,
@@ -97,11 +102,86 @@ function formatCheckedAt(checkedAt) {
   });
 }
 
+function useOrganizationSummarySource(data) {
+  const localOrganizationSummaries = useMemo(() => buildOrganizationSummaries(data), [data]);
+  const [state, setState] = useState({
+    loading: true,
+    source: "local",
+    noteClassName: "super-source-local",
+    noteLabel: "로컬 데이터 기준",
+    noteMessage: "",
+    organizations: localOrganizationSummaries,
+  });
+
+  useEffect(() => {
+    let mounted = true;
+
+    setState((current) => ({
+      ...current,
+      loading: true,
+      organizations: localOrganizationSummaries,
+    }));
+
+    async function load() {
+      const result = await getSupabaseOrganizationSummaries();
+
+      if (!mounted) return;
+
+      if (result.ok && result.organizations.length) {
+        setState({
+          loading: false,
+          source: "supabase",
+          noteClassName: "super-source-supabase",
+          noteLabel: "Supabase 기준",
+          noteMessage: result.message,
+          organizations: result.organizations,
+        });
+        return;
+      }
+
+      const fallbackMessage =
+        result.source === "error"
+          ? "Supabase 기관 요약을 불러오지 못해 로컬 데이터를 표시합니다."
+          : result.message || "";
+
+      setState({
+        loading: false,
+        source: "local",
+        noteClassName: "super-source-local",
+        noteLabel: "로컬 데이터 기준",
+        noteMessage: fallbackMessage,
+        organizations: localOrganizationSummaries,
+      });
+    }
+
+    load();
+
+    return () => {
+      mounted = false;
+    };
+  }, [localOrganizationSummaries]);
+
+  return state;
+}
+
 function SuperEmergencyStatusBadge({ status }) {
   const statusKey = getEmergencyStatusKey(status);
   const statusLabel = getEmergencyStatusLabel(status);
 
   return <span className={`badge badge-emergency-${statusKey} super-emergency-badge`}>{statusLabel}</span>;
+}
+
+function SuperOrganizationSourceNote({ loading, noteLabel, noteClassName, noteMessage }) {
+  if (loading) {
+    return <p className="muted super-data-source-note">Supabase 기관 요약을 확인 중입니다.</p>;
+  }
+
+  return (
+    <div className="super-data-source-note">
+      <span className={`badge super-data-source-badge ${noteClassName}`}>{noteLabel}</span>
+      {noteMessage ? <span className="muted">{noteMessage}</span> : null}
+    </div>
+  );
 }
 
 function SuperOrganizationCard({ organization, showAction = false }) {
@@ -110,7 +190,7 @@ function SuperOrganizationCard({ organization, showAction = false }) {
       <div className="card-row super-organization-card-header">
         <div>
           <strong>{organization.name}</strong>
-          <p className="muted">{organization.region}</p>
+          <p className="muted">{organization.region || "-"}</p>
         </div>
         <span className="badge badge-info">{organization.statusLabel || organization.status || "운영중"}</span>
       </div>
@@ -253,7 +333,7 @@ export function SuperAdminDashboard({ data }) {
   const targets = Array.isArray(data.targets) ? data.targets : [];
   const users = Array.isArray(data.users) ? data.users : [];
   const emergencyReports = Array.isArray(data.emergencyReports) ? data.emergencyReports : [];
-  const organizationSummaries = buildOrganizationSummaries(data);
+  const organizationSummaryState = useOrganizationSummarySource(data);
   const checkerUsers = users.filter((user) => user.role === "checker");
   const unresolvedEmergencyReports = emergencyReports.filter(isUnresolvedEmergency);
   const recentEmergencyReports = [...emergencyReports]
@@ -295,9 +375,15 @@ export function SuperAdminDashboard({ data }) {
             title="기관별 운영 요약"
             description="기관별 대상자, 체커, 미처리 이상징후를 확인합니다."
           />
-          {organizationSummaries.length ? (
+          <SuperOrganizationSourceNote
+            loading={organizationSummaryState.loading}
+            noteLabel={organizationSummaryState.noteLabel}
+            noteClassName={organizationSummaryState.noteClassName}
+            noteMessage={organizationSummaryState.noteMessage}
+          />
+          {organizationSummaryState.organizations.length ? (
             <div className="super-organization-grid">
-              {organizationSummaries.map((organization) => (
+              {organizationSummaryState.organizations.map((organization) => (
                 <SuperOrganizationCard key={organization.id} organization={organization} />
               ))}
             </div>
@@ -350,7 +436,7 @@ export function SuperAdminDashboard({ data }) {
 }
 
 export function SuperOrganizations({ data }) {
-  const organizationSummaries = buildOrganizationSummaries(data);
+  const organizationSummaryState = useOrganizationSummarySource(data);
 
   return (
     <>
@@ -360,9 +446,16 @@ export function SuperOrganizations({ data }) {
         description="기관별 운영 현황을 간단히 확인합니다."
       />
 
-      {organizationSummaries.length ? (
+      <SuperOrganizationSourceNote
+        loading={organizationSummaryState.loading}
+        noteLabel={organizationSummaryState.noteLabel}
+        noteClassName={organizationSummaryState.noteClassName}
+        noteMessage={organizationSummaryState.noteMessage}
+      />
+
+      {organizationSummaryState.organizations.length ? (
         <div className="super-organization-grid">
-          {organizationSummaries.map((organization) => (
+          {organizationSummaryState.organizations.map((organization) => (
             <SuperOrganizationCard key={organization.id} organization={organization} showAction />
           ))}
         </div>

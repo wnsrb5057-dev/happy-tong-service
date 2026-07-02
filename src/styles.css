@@ -7767,6 +7767,28 @@ button.upload-box {
   line-height: 1.45;
 }
 
+.super-data-source-note {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: -2px 0 2px;
+}
+
+.super-data-source-badge {
+  white-space: nowrap;
+}
+
+.super-source-supabase {
+  background: var(--green-soft);
+  color: #166534;
+}
+
+.super-source-local {
+  background: var(--surface-blue);
+  color: var(--muted);
+}
+
 .super-emergency-card {
   padding: 12px 14px;
 }
@@ -7806,6 +7828,10 @@ button.upload-box {
 
   .super-organization-summary {
     gap: 8px;
+  }
+
+  .super-data-source-note {
+    align-items: flex-start;
   }
 
   .super-organization-metrics {

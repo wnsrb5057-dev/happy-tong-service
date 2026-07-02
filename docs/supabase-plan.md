@@ -105,3 +105,8 @@
 - Supabase 연결 상태 카드는 테이블 row를 직접 공개하지 않기 위해 `docs/supabase-health-rpc.sql`의 `get_public_health_counts()` RPC를 우선 사용합니다.
 - 이 RPC는 `organizations`, `users`, `targets`의 count만 반환합니다.
 - RPC가 아직 적용되지 않았거나 실행 오류가 나면 앱은 기존 direct count 방식으로 fallback합니다.
+
+## 11. 기관 요약 읽기 전용 전환 메모
+
+- 읽기 전용 전환 1단계에서는 총관리자 기관 요약 화면만 `docs/supabase-organization-summary-rpc.sql`의 `get_public_organization_summaries()` RPC를 우선 사용합니다.
+- RPC 호출이 실패하면 기존 localStorage/mock 데이터로 fallback합니다.
