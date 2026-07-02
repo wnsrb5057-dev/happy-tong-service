@@ -3,6 +3,7 @@ import { Button, Card, EmptyState, PageHeader, SectionTitle, StatCard } from "..
 import { getSupabaseConnectionStatus } from "../services/supabaseHealthService.js";
 import { getSupabaseOrganizationSummaries } from "../services/supabaseOrganizationSummaryService.js";
 import { getSupabaseRecentEmergencySummaries } from "../services/supabaseRecentEmergencyService.js";
+import { getSupabaseSuperDashboardKpis } from "../services/supabaseSuperDashboardKpiService.js";
 
 const DEFAULT_ORGANIZATION_ID = "org-eunpyeong-care";
 
@@ -285,6 +286,80 @@ function useRecentEmergencySummarySource(data) {
   return state;
 }
 
+function useSuperDashboardKpiSource(data) {
+  const localKpis = useMemo(
+    () => ({
+      organizationCount: Array.isArray(data.organizations) ? data.organizations.length : 0,
+      activeTargetCount: Array.isArray(data.targets) ? data.targets.length : 0,
+      checkerCount: Array.isArray(data.users) ? data.users.filter((user) => user.role === "checker").length : 0,
+      emergencyCount: Array.isArray(data.emergencyReports) ? data.emergencyReports.length : 0,
+      unresolvedEmergencyCount: Array.isArray(data.emergencyReports)
+        ? data.emergencyReports.filter(isUnresolvedEmergency).length
+        : 0,
+    }),
+    [data]
+  );
+
+  const [state, setState] = useState({
+    loading: true,
+    source: "local",
+    noteClassName: "super-source-local",
+    noteLabel: "로컬 데이터 기준",
+    noteMessage: "",
+    kpis: localKpis,
+  });
+
+  useEffect(() => {
+    let mounted = true;
+
+    setState((current) => ({
+      ...current,
+      loading: true,
+      kpis: localKpis,
+    }));
+
+    async function load() {
+      const result = await getSupabaseSuperDashboardKpis();
+
+      if (!mounted) return;
+
+      if (result.ok && result.kpis) {
+        setState({
+          loading: false,
+          source: "supabase",
+          noteClassName: "super-source-supabase",
+          noteLabel: "Supabase 기준",
+          noteMessage: result.message,
+          kpis: result.kpis,
+        });
+        return;
+      }
+
+      const fallbackMessage =
+        result.source === "error"
+          ? "Supabase KPI를 불러오지 못해 로컬 데이터를 표시합니다."
+          : result.message || "";
+
+      setState({
+        loading: false,
+        source: "local",
+        noteClassName: "super-source-local",
+        noteLabel: "로컬 데이터 기준",
+        noteMessage: fallbackMessage,
+        kpis: localKpis,
+      });
+    }
+
+    load();
+
+    return () => {
+      mounted = false;
+    };
+  }, [localKpis]);
+
+  return state;
+}
+
 function SuperEmergencyStatusBadge({ status }) {
   const statusKey = getEmergencyStatusKey(status);
   const statusLabel = getEmergencyStatusLabel(status);
@@ -471,13 +546,9 @@ function SuperSupabaseStatusCard() {
 
 export function SuperAdminDashboard({ data }) {
   const organizations = Array.isArray(data.organizations) ? data.organizations : [];
-  const targets = Array.isArray(data.targets) ? data.targets : [];
-  const users = Array.isArray(data.users) ? data.users : [];
-  const emergencyReports = Array.isArray(data.emergencyReports) ? data.emergencyReports : [];
+  const kpiState = useSuperDashboardKpiSource(data);
   const organizationSummaryState = useOrganizationSummarySource(data);
   const recentEmergencyState = useRecentEmergencySummarySource(data);
-  const checkerUsers = users.filter((user) => user.role === "checker");
-  const unresolvedEmergencyReports = emergencyReports.filter(isUnresolvedEmergency);
 
   return (
     <>
@@ -487,14 +558,21 @@ export function SuperAdminDashboard({ data }) {
         description="기관별 운영 현황과 최근 이상징후를 한눈에 확인합니다."
       />
 
+      <SuperOrganizationSourceNote
+        loading={kpiState.loading}
+        loadingMessage="Supabase KPI를 확인 중입니다."
+        noteLabel={kpiState.noteLabel}
+        noteClassName={kpiState.noteClassName}
+        noteMessage={kpiState.noteMessage}
+      />
       <div className="statistics-grid super-kpi-grid">
-        <StatCard label="전체 기관" value={`${organizations.length}개`} tone="blue" helper="등록 기관 기준" />
-        <StatCard label="전체 대상자" value={`${targets.length}명`} tone="green" helper="운영 데이터 기준" />
-        <StatCard label="전체 체커" value={`${checkerUsers.length}명`} tone="orange" helper="체커 계정 기준" />
-        <StatCard label="전체 이상징후" value={`${emergencyReports.length}건`} tone="red" helper="누적 보고 기준" />
+        <StatCard label="전체 기관" value={`${kpiState.kpis.organizationCount}개`} tone="blue" helper="등록 기관 기준" />
+        <StatCard label="전체 대상자" value={`${kpiState.kpis.activeTargetCount}명`} tone="green" helper="운영 대상자 기준" />
+        <StatCard label="전체 체커" value={`${kpiState.kpis.checkerCount}명`} tone="orange" helper="체커 계정 기준" />
+        <StatCard label="전체 이상징후" value={`${kpiState.kpis.emergencyCount}건`} tone="red" helper="누적 보고 기준" />
         <StatCard
           label="미처리 이상징후"
-          value={`${unresolvedEmergencyReports.length}건`}
+          value={`${kpiState.kpis.unresolvedEmergencyCount}건`}
           tone="red"
           helper="완료 제외"
         />

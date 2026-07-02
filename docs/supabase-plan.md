@@ -115,3 +115,8 @@
 
 - 읽기 전용 전환 2단계에서는 총관리자 최근 이상징후 요약만 `docs/supabase-recent-emergencies-rpc.sql`의 `get_public_recent_emergency_summaries()` RPC를 우선 사용합니다.
 - RPC 호출이 실패하면 기존 localStorage/mock 데이터로 fallback합니다.
+
+## 13. 총관리자 KPI 읽기 전용 전환 메모
+
+- 읽기 전용 전환 3단계에서는 총관리자 대시보드 상단 KPI가 `docs/supabase-super-dashboard-kpi-rpc.sql`의 `get_public_super_dashboard_kpis()` RPC를 우선 사용합니다.
+- RPC 호출이 실패하면 기존 localStorage/mock 데이터로 fallback합니다.
