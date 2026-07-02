@@ -120,3 +120,8 @@
 
 - 읽기 전용 전환 3단계에서는 총관리자 대시보드 상단 KPI가 `docs/supabase-super-dashboard-kpi-rpc.sql`의 `get_public_super_dashboard_kpis()` RPC를 우선 사용합니다.
 - RPC 호출이 실패하면 기존 localStorage/mock 데이터로 fallback합니다.
+
+## 14. 총관리자 기관 관리 화면 읽기 전용 전환 메모
+
+- 읽기 전용 전환 4단계에서는 총관리자 기관 관리 화면(`/super/organizations`)이 기존 `get_public_organization_summaries()` RPC 결과를 우선 사용합니다.
+- RPC 호출이 실패하면 기존 localStorage/mock 데이터로 fallback합니다.

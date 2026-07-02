@@ -73,6 +73,22 @@ function isUnresolvedEmergency(report) {
   return status !== "completed" && status !== "resolved";
 }
 
+function getOrganizationStatusLabel(status) {
+  const normalized = String(status || "active").trim();
+  const labelMap = {
+    active: "운영중",
+    pilot: "파일럿",
+    paused: "일시중지",
+    ended: "운영종료",
+    운영중: "운영중",
+    파일럿: "파일럿",
+    일시중지: "일시중지",
+    운영종료: "운영종료",
+  };
+
+  return labelMap[normalized] || normalized;
+}
+
 function buildOrganizationSummaries(data) {
   const organizations = Array.isArray(data.organizations) ? data.organizations : [];
   const targets = Array.isArray(data.targets) ? data.targets : [];
@@ -93,7 +109,7 @@ function buildOrganizationSummaries(data) {
       ...organization,
       adminName: organization?.adminName || organization?.admin_name || "미배정",
       status: organization?.status || "active",
-      statusLabel: organization?.statusLabel || "운영중",
+      statusLabel: getOrganizationStatusLabel(organization?.status || "active"),
       memo: organization?.memo || "",
       targetCount,
       checkerCount,
@@ -367,7 +383,7 @@ function SuperEmergencyStatusBadge({ status }) {
   return <span className={`badge badge-emergency-${statusKey} super-emergency-badge`}>{statusLabel}</span>;
 }
 
-function SuperOrganizationSourceNote({ loading, loadingMessage, noteLabel, noteClassName, noteMessage }) {
+function SuperDataSourceNote({ loading, loadingMessage, noteLabel, noteClassName, noteMessage }) {
   if (loading) {
     return <p className="muted super-data-source-note">{loadingMessage}</p>;
   }
@@ -545,7 +561,6 @@ function SuperSupabaseStatusCard() {
 }
 
 export function SuperAdminDashboard({ data }) {
-  const organizations = Array.isArray(data.organizations) ? data.organizations : [];
   const kpiState = useSuperDashboardKpiSource(data);
   const organizationSummaryState = useOrganizationSummarySource(data);
   const recentEmergencyState = useRecentEmergencySummarySource(data);
@@ -558,13 +573,14 @@ export function SuperAdminDashboard({ data }) {
         description="기관별 운영 현황과 최근 이상징후를 한눈에 확인합니다."
       />
 
-      <SuperOrganizationSourceNote
+      <SuperDataSourceNote
         loading={kpiState.loading}
         loadingMessage="Supabase KPI를 확인 중입니다."
         noteLabel={kpiState.noteLabel}
         noteClassName={kpiState.noteClassName}
         noteMessage={kpiState.noteMessage}
       />
+
       <div className="statistics-grid super-kpi-grid">
         <StatCard label="전체 기관" value={`${kpiState.kpis.organizationCount}개`} tone="blue" helper="등록 기관 기준" />
         <StatCard label="전체 대상자" value={`${kpiState.kpis.activeTargetCount}명`} tone="green" helper="운영 대상자 기준" />
@@ -592,7 +608,7 @@ export function SuperAdminDashboard({ data }) {
             title="기관별 운영 요약"
             description="기관별 대상자, 체커, 미처리 이상징후를 확인합니다."
           />
-          <SuperOrganizationSourceNote
+          <SuperDataSourceNote
             loading={organizationSummaryState.loading}
             loadingMessage="Supabase 기관 요약을 확인 중입니다."
             noteLabel={organizationSummaryState.noteLabel}
@@ -607,8 +623,8 @@ export function SuperAdminDashboard({ data }) {
             </div>
           ) : (
             <EmptyState
-              title="표시할 데이터가 없습니다."
-              description="기관 데이터가 준비되면 이 영역에 표시됩니다."
+              title="등록된 기관이 없습니다."
+              description="표시할 기관 요약 데이터가 없습니다."
             />
           )}
         </section>
@@ -618,7 +634,7 @@ export function SuperAdminDashboard({ data }) {
             title="최근 이상징후 요약"
             description="최근 등록된 이상징후와 현재 처리 상태를 확인합니다."
           />
-          <SuperOrganizationSourceNote
+          <SuperDataSourceNote
             loading={recentEmergencyState.loading}
             loadingMessage="Supabase 최근 이상징후 요약을 확인 중입니다."
             noteLabel={recentEmergencyState.noteLabel}
@@ -654,7 +670,7 @@ export function SuperOrganizations({ data }) {
         description="기관별 운영 현황을 간단히 확인합니다."
       />
 
-      <SuperOrganizationSourceNote
+      <SuperDataSourceNote
         loading={organizationSummaryState.loading}
         loadingMessage="Supabase 기관 요약을 확인 중입니다."
         noteLabel={organizationSummaryState.noteLabel}
@@ -670,8 +686,8 @@ export function SuperOrganizations({ data }) {
         </div>
       ) : (
         <EmptyState
-          title="표시할 데이터가 없습니다."
-          description="기관 데이터가 준비되면 목록에서 확인할 수 있습니다."
+          title="등록된 기관이 없습니다."
+          description="표시할 기관 요약 데이터가 없습니다."
         />
       )}
     </>
