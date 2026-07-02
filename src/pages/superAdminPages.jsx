@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Button, Card, EmptyState, PageHeader, SectionTitle, StatCard } from "../components/UI.jsx";
 import { getSupabaseConnectionStatus } from "../services/supabaseHealthService.js";
 import { getSupabaseOrganizationSummaries } from "../services/supabaseOrganizationSummaryService.js";
+import { getSupabaseRecentEmergencySummaries } from "../services/supabaseRecentEmergencyService.js";
 
 const DEFAULT_ORGANIZATION_ID = "org-eunpyeong-care";
 
@@ -52,6 +53,20 @@ function getEmergencyStatusLabel(status) {
   return labelMap[statusKey] || status || "접수됨";
 }
 
+function getEmergencySeverityLabel(severity) {
+  const normalized = String(severity || "normal").trim();
+  const severityMap = {
+    normal: "일반",
+    caution: "주의",
+    urgent: "긴급",
+    일반: "일반",
+    주의: "주의",
+    긴급: "긴급",
+  };
+
+  return severityMap[normalized] || normalized;
+}
+
 function isUnresolvedEmergency(report) {
   const status = getEmergencyStatusKey(report?.status).toLowerCase();
   return status !== "completed" && status !== "resolved";
@@ -87,6 +102,37 @@ function buildOrganizationSummaries(data) {
   });
 }
 
+function buildRecentEmergencySummaries(data) {
+  const organizations = Array.isArray(data.organizations) ? data.organizations : [];
+  const targets = Array.isArray(data.targets) ? data.targets : [];
+  const emergencyReports = Array.isArray(data.emergencyReports) ? data.emergencyReports : [];
+
+  return [...emergencyReports]
+    .sort((a, b) =>
+      String(b.reportedAt || b.date || "").localeCompare(String(a.reportedAt || a.date || ""))
+    )
+    .slice(0, 5)
+    .map((report) => {
+      const target = targets.find((item) => item.id === report.targetId);
+      const organizationId = getOrganizationIdFromEmergency(report, targets);
+      const organization = organizations.find((item) => item.id === organizationId);
+
+      return {
+        id: report.id,
+        organizationId,
+        organizationName: organization?.name || "기관 정보 없음",
+        targetId: report.targetId || null,
+        targetName: target?.name || "대상자 정보 없음",
+        title: report.title || "이상징후 보고",
+        severity: report.severity || report.issueLevel || "normal",
+        severityLabel: getEmergencySeverityLabel(report.severity || report.issueLevel || "normal"),
+        status: report.status || "received",
+        statusLabel: getEmergencyStatusLabel(report.status || "received"),
+        reportedAt: report.reportedAt || report.date || null,
+      };
+    });
+}
+
 function formatCheckedAt(checkedAt) {
   if (!checkedAt) return "-";
 
@@ -99,6 +145,19 @@ function formatCheckedAt(checkedAt) {
     day: "2-digit",
     hour: "2-digit",
     minute: "2-digit",
+  });
+}
+
+function formatReportedAt(reportedAt) {
+  if (!reportedAt) return "날짜 정보 없음";
+
+  const date = new Date(reportedAt);
+  if (Number.isNaN(date.getTime())) return reportedAt;
+
+  return date.toLocaleDateString("ko-KR", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
   });
 }
 
@@ -164,6 +223,68 @@ function useOrganizationSummarySource(data) {
   return state;
 }
 
+function useRecentEmergencySummarySource(data) {
+  const localEmergencies = useMemo(() => buildRecentEmergencySummaries(data), [data]);
+  const [state, setState] = useState({
+    loading: true,
+    source: "local",
+    noteClassName: "super-source-local",
+    noteLabel: "로컬 데이터 기준",
+    noteMessage: "",
+    emergencies: localEmergencies,
+  });
+
+  useEffect(() => {
+    let mounted = true;
+
+    setState((current) => ({
+      ...current,
+      loading: true,
+      emergencies: localEmergencies,
+    }));
+
+    async function load() {
+      const result = await getSupabaseRecentEmergencySummaries();
+
+      if (!mounted) return;
+
+      if (result.ok && result.emergencies.length) {
+        setState({
+          loading: false,
+          source: "supabase",
+          noteClassName: "super-source-supabase",
+          noteLabel: "Supabase 기준",
+          noteMessage: result.message,
+          emergencies: result.emergencies,
+        });
+        return;
+      }
+
+      const fallbackMessage =
+        result.source === "error"
+          ? "Supabase 최근 이상징후 요약을 불러오지 못해 로컬 데이터를 표시합니다."
+          : result.message || "";
+
+      setState({
+        loading: false,
+        source: "local",
+        noteClassName: "super-source-local",
+        noteLabel: "로컬 데이터 기준",
+        noteMessage: fallbackMessage,
+        emergencies: localEmergencies,
+      });
+    }
+
+    load();
+
+    return () => {
+      mounted = false;
+    };
+  }, [localEmergencies]);
+
+  return state;
+}
+
 function SuperEmergencyStatusBadge({ status }) {
   const statusKey = getEmergencyStatusKey(status);
   const statusLabel = getEmergencyStatusLabel(status);
@@ -171,9 +292,9 @@ function SuperEmergencyStatusBadge({ status }) {
   return <span className={`badge badge-emergency-${statusKey} super-emergency-badge`}>{statusLabel}</span>;
 }
 
-function SuperOrganizationSourceNote({ loading, noteLabel, noteClassName, noteMessage }) {
+function SuperOrganizationSourceNote({ loading, loadingMessage, noteLabel, noteClassName, noteMessage }) {
   if (loading) {
-    return <p className="muted super-data-source-note">Supabase 기관 요약을 확인 중입니다.</p>;
+    return <p className="muted super-data-source-note">{loadingMessage}</p>;
   }
 
   return (
@@ -232,6 +353,26 @@ function SuperOrganizationCard({ organization, showAction = false }) {
           </Button>
         </>
       ) : null}
+    </Card>
+  );
+}
+
+function SuperRecentEmergencyCard({ emergency }) {
+  return (
+    <Card className="super-emergency-card">
+      <div className="card-row">
+        <div>
+          <strong>{emergency.targetName}</strong>
+          <p className="muted">
+            {emergency.organizationName} · {formatReportedAt(emergency.reportedAt)}
+          </p>
+        </div>
+        <SuperEmergencyStatusBadge status={emergency.status} />
+      </div>
+      <div className="card-row">
+        <p className="muted">{emergency.title}</p>
+        <span className="badge badge-urgency-medium super-emergency-badge">{emergency.severityLabel}</span>
+      </div>
     </Card>
   );
 }
@@ -334,11 +475,9 @@ export function SuperAdminDashboard({ data }) {
   const users = Array.isArray(data.users) ? data.users : [];
   const emergencyReports = Array.isArray(data.emergencyReports) ? data.emergencyReports : [];
   const organizationSummaryState = useOrganizationSummarySource(data);
+  const recentEmergencyState = useRecentEmergencySummarySource(data);
   const checkerUsers = users.filter((user) => user.role === "checker");
   const unresolvedEmergencyReports = emergencyReports.filter(isUnresolvedEmergency);
-  const recentEmergencyReports = [...emergencyReports]
-    .sort((a, b) => String(b.date || b.reportedAt || "").localeCompare(String(a.date || a.reportedAt || "")))
-    .slice(0, 5);
 
   return (
     <>
@@ -377,6 +516,7 @@ export function SuperAdminDashboard({ data }) {
           />
           <SuperOrganizationSourceNote
             loading={organizationSummaryState.loading}
+            loadingMessage="Supabase 기관 요약을 확인 중입니다."
             noteLabel={organizationSummaryState.noteLabel}
             noteClassName={organizationSummaryState.noteClassName}
             noteMessage={organizationSummaryState.noteMessage}
@@ -400,28 +540,18 @@ export function SuperAdminDashboard({ data }) {
             title="최근 이상징후 요약"
             description="최근 등록된 이상징후와 현재 처리 상태를 확인합니다."
           />
-          {recentEmergencyReports.length ? (
+          <SuperOrganizationSourceNote
+            loading={recentEmergencyState.loading}
+            loadingMessage="Supabase 최근 이상징후 요약을 확인 중입니다."
+            noteLabel={recentEmergencyState.noteLabel}
+            noteClassName={recentEmergencyState.noteClassName}
+            noteMessage={recentEmergencyState.noteMessage}
+          />
+          {recentEmergencyState.emergencies.length ? (
             <div className="stack compact-stack">
-              {recentEmergencyReports.map((report) => {
-                const target = targets.find((item) => item.id === report.targetId);
-                const organizationId = getOrganizationIdFromEmergency(report, targets);
-                const organization = organizations.find((item) => item.id === organizationId);
-
-                return (
-                  <Card key={report.id} className="super-emergency-card">
-                    <div className="card-row">
-                      <div>
-                        <strong>{target?.name || "대상자 정보 없음"}</strong>
-                        <p className="muted">
-                          {organization?.name || "기관 정보 없음"} ·{" "}
-                          {report.date || report.reportedAt || "날짜 정보 없음"}
-                        </p>
-                      </div>
-                      <SuperEmergencyStatusBadge status={report.status} />
-                    </div>
-                  </Card>
-                );
-              })}
+              {recentEmergencyState.emergencies.map((emergency) => (
+                <SuperRecentEmergencyCard key={emergency.id} emergency={emergency} />
+              ))}
             </div>
           ) : (
             <EmptyState
@@ -448,6 +578,7 @@ export function SuperOrganizations({ data }) {
 
       <SuperOrganizationSourceNote
         loading={organizationSummaryState.loading}
+        loadingMessage="Supabase 기관 요약을 확인 중입니다."
         noteLabel={organizationSummaryState.noteLabel}
         noteClassName={organizationSummaryState.noteClassName}
         noteMessage={organizationSummaryState.noteMessage}

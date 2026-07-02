@@ -110,3 +110,8 @@
 
 - 읽기 전용 전환 1단계에서는 총관리자 기관 요약 화면만 `docs/supabase-organization-summary-rpc.sql`의 `get_public_organization_summaries()` RPC를 우선 사용합니다.
 - RPC 호출이 실패하면 기존 localStorage/mock 데이터로 fallback합니다.
+
+## 12. 최근 이상징후 요약 읽기 전용 전환 메모
+
+- 읽기 전용 전환 2단계에서는 총관리자 최근 이상징후 요약만 `docs/supabase-recent-emergencies-rpc.sql`의 `get_public_recent_emergency_summaries()` RPC를 우선 사용합니다.
+- RPC 호출이 실패하면 기존 localStorage/mock 데이터로 fallback합니다.
