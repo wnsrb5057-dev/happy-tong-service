@@ -4,8 +4,80 @@ import { getSupabaseConnectionStatus } from "../services/supabaseHealthService.j
 import { getSupabaseOrganizationSummaries } from "../services/supabaseOrganizationSummaryService.js";
 import { getSupabaseRecentEmergencySummaries } from "../services/supabaseRecentEmergencyService.js";
 import { getSupabaseSuperDashboardKpis } from "../services/supabaseSuperDashboardKpiService.js";
+import { getSupabaseOrganizationDetail } from "../services/supabaseOrganizationDetailService.js";
 
 const DEFAULT_ORGANIZATION_ID = "org-eunpyeong-care";
+
+const ORGANIZATION_STATUS_LABELS = {
+  active: "운영중",
+  pilot: "파일럿",
+  paused: "일시중지",
+  ended: "운영종료",
+  운영중: "운영중",
+  파일럿: "파일럿",
+  일시중지: "일시중지",
+  운영종료: "운영종료",
+};
+
+const EMERGENCY_STATUS_MAP = {
+  received: "received",
+  checking: "checking",
+  contacted: "contacted",
+  visiting: "visiting",
+  completed: "completed",
+  resolved: "completed",
+  접수됨: "received",
+  확인중: "checking",
+  처리중: "checking",
+  "보호자 연락": "contacted",
+  "방문 필요": "visiting",
+  완료: "completed",
+};
+
+const EMERGENCY_STATUS_LABELS = {
+  received: "접수됨",
+  checking: "확인중",
+  contacted: "보호자 연락",
+  visiting: "방문 필요",
+  completed: "완료",
+};
+
+const SEVERITY_LABELS = {
+  normal: "일반",
+  caution: "주의",
+  urgent: "긴급",
+  일반: "일반",
+  주의: "주의",
+  긴급: "긴급",
+};
+
+const ACTIVITY_RESULT_LABELS = {
+  normal: "이상 없음",
+  caution: "관심 필요",
+  emergency: "이상징후",
+  no_answer: "미응답",
+  none: "이상 없음",
+  need_check: "관심 필요",
+  urgent: "이상징후",
+  "이상 없음": "이상 없음",
+  "관심 필요": "관심 필요",
+  이상징후: "이상징후",
+  미응답: "미응답",
+};
+
+const CHECK_TYPE_LABELS = {
+  external: "외부 확인",
+  call: "전화",
+  visit: "방문",
+  intensive: "집중 모니터링",
+  phone: "전화",
+  message: "메시지",
+  "외부 확인": "외부 확인",
+  전화: "전화",
+  방문: "방문",
+  메시지: "메시지",
+  "집중 모니터링": "집중 모니터링",
+};
 
 function getOrganizationIdFromTarget(target) {
   return target?.organizationId || DEFAULT_ORGANIZATION_ID;
@@ -21,51 +93,29 @@ function getOrganizationIdFromEmergency(report, targets) {
   return getOrganizationIdFromTarget(target);
 }
 
-function getEmergencyStatusKey(status) {
-  const normalized = String(status || "received").trim();
-  const statusMap = {
-    received: "received",
-    checking: "checking",
-    contacted: "contacted",
-    visiting: "visiting",
-    completed: "completed",
-    resolved: "completed",
-    접수됨: "received",
-    확인중: "checking",
-    처리중: "checking",
-    "보호자 연락": "contacted",
-    "방문 필요": "visiting",
-    완료: "completed",
-  };
+function getOrganizationStatusLabel(status) {
+  return ORGANIZATION_STATUS_LABELS[String(status || "active").trim()] || status || "운영중";
+}
 
-  return statusMap[normalized] || normalized;
+function getEmergencyStatusKey(status) {
+  return EMERGENCY_STATUS_MAP[String(status || "received").trim()] || String(status || "received").trim();
 }
 
 function getEmergencyStatusLabel(status) {
   const statusKey = getEmergencyStatusKey(status);
-  const labelMap = {
-    received: "접수됨",
-    checking: "확인중",
-    contacted: "보호자 연락",
-    visiting: "방문 필요",
-    completed: "완료",
-  };
-
-  return labelMap[statusKey] || status || "접수됨";
+  return EMERGENCY_STATUS_LABELS[statusKey] || status || "접수됨";
 }
 
 function getEmergencySeverityLabel(severity) {
-  const normalized = String(severity || "normal").trim();
-  const severityMap = {
-    normal: "일반",
-    caution: "주의",
-    urgent: "긴급",
-    일반: "일반",
-    주의: "주의",
-    긴급: "긴급",
-  };
+  return SEVERITY_LABELS[String(severity || "normal").trim()] || severity || "일반";
+}
 
-  return severityMap[normalized] || normalized;
+function getActivityResultStatusLabel(resultStatus) {
+  return ACTIVITY_RESULT_LABELS[String(resultStatus || "normal").trim()] || resultStatus || "이상 없음";
+}
+
+function getCheckTypeLabel(checkType) {
+  return CHECK_TYPE_LABELS[String(checkType || "visit").trim()] || checkType || "방문";
 }
 
 function isUnresolvedEmergency(report) {
@@ -73,20 +123,25 @@ function isUnresolvedEmergency(report) {
   return status !== "completed" && status !== "resolved";
 }
 
-function getOrganizationStatusLabel(status) {
-  const normalized = String(status || "active").trim();
-  const labelMap = {
-    active: "운영중",
-    pilot: "파일럿",
-    paused: "일시중지",
-    ended: "운영종료",
-    운영중: "운영중",
-    파일럿: "파일럿",
-    일시중지: "일시중지",
-    운영종료: "운영종료",
-  };
+function sortByLatestTimestamp(a, b) {
+  const aValue = String(a || "");
+  const bValue = String(b || "");
+  return bValue.localeCompare(aValue);
+}
 
-  return labelMap[normalized] || normalized;
+function formatDateTime(value) {
+  if (!value) return "날짜 정보 없음";
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+
+  return date.toLocaleString("ko-KR", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
 function buildOrganizationSummaries(data) {
@@ -96,14 +151,17 @@ function buildOrganizationSummaries(data) {
   const emergencyReports = Array.isArray(data.emergencyReports) ? data.emergencyReports : [];
 
   return organizations.map((organization) => {
-    const targetCount = targets.filter((target) => getOrganizationIdFromTarget(target) === organization.id).length;
+    const targetCount = targets.filter(
+      (target) =>
+        getOrganizationIdFromTarget(target) === organization.id &&
+        String(target.lifecycleStatus || "active") !== "ended"
+    ).length;
     const checkerCount = users.filter(
       (user) => user.role === "checker" && getOrganizationIdFromUser(user) === organization.id
     ).length;
     const organizationEmergencies = emergencyReports.filter(
       (report) => getOrganizationIdFromEmergency(report, targets) === organization.id
     );
-    const unresolvedEmergencyCount = organizationEmergencies.filter(isUnresolvedEmergency).length;
 
     return {
       ...organization,
@@ -114,7 +172,7 @@ function buildOrganizationSummaries(data) {
       targetCount,
       checkerCount,
       emergencyCount: organizationEmergencies.length,
-      unresolvedEmergencyCount,
+      unresolvedEmergencyCount: organizationEmergencies.filter(isUnresolvedEmergency).length,
     };
   });
 }
@@ -125,9 +183,7 @@ function buildRecentEmergencySummaries(data) {
   const emergencyReports = Array.isArray(data.emergencyReports) ? data.emergencyReports : [];
 
   return [...emergencyReports]
-    .sort((a, b) =>
-      String(b.reportedAt || b.date || "").localeCompare(String(a.reportedAt || a.date || ""))
-    )
+    .sort((a, b) => sortByLatestTimestamp(a.reportedAt || a.date, b.reportedAt || b.date))
     .slice(0, 5)
     .map((report) => {
       const target = targets.find((item) => item.id === report.targetId);
@@ -140,7 +196,7 @@ function buildRecentEmergencySummaries(data) {
         organizationName: organization?.name || "기관 정보 없음",
         targetId: report.targetId || null,
         targetName: target?.name || "대상자 정보 없음",
-        title: report.title || "이상징후 보고",
+        title: report.title || report.issueType || "이상징후 보고",
         severity: report.severity || report.issueLevel || "normal",
         severityLabel: getEmergencySeverityLabel(report.severity || report.issueLevel || "normal"),
         status: report.status || "received",
@@ -150,32 +206,108 @@ function buildRecentEmergencySummaries(data) {
     });
 }
 
-function formatCheckedAt(checkedAt) {
-  if (!checkedAt) return "-";
+function buildLocalOrganizationDetail(data, organizationId) {
+  const organizations = Array.isArray(data.organizations) ? data.organizations : [];
+  const organization = organizations.find((item) => item.id === organizationId);
 
-  const date = new Date(checkedAt);
-  if (Number.isNaN(date.getTime())) return checkedAt;
+  if (!organization) {
+    return null;
+  }
 
-  return date.toLocaleString("ko-KR", {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
+  const targets = Array.isArray(data.targets) ? data.targets : [];
+  const users = Array.isArray(data.users) ? data.users : [];
+  const emergencyReports = Array.isArray(data.emergencyReports) ? data.emergencyReports : [];
+  const activityRecords = Array.isArray(data.activityRecords) ? data.activityRecords : [];
 
-function formatReportedAt(reportedAt) {
-  if (!reportedAt) return "날짜 정보 없음";
+  const organizationTargets = targets.filter(
+    (target) =>
+      getOrganizationIdFromTarget(target) === organizationId &&
+      String(target.lifecycleStatus || "active") !== "ended"
+  );
+  const targetIds = new Set(organizationTargets.map((target) => target.id));
+  const organizationCheckers = users.filter(
+    (user) => user.role === "checker" && getOrganizationIdFromUser(user) === organizationId
+  );
+  const organizationEmergencies = emergencyReports.filter(
+    (report) => getOrganizationIdFromEmergency(report, targets) === organizationId
+  );
+  const recentEmergencies = [...organizationEmergencies]
+    .sort((a, b) => sortByLatestTimestamp(a.reportedAt || a.date, b.reportedAt || b.date))
+    .slice(0, 5)
+    .map((report) => {
+      const target = targets.find((item) => item.id === report.targetId);
+      return {
+        id: report.id,
+        targetId: report.targetId || null,
+        targetName: target?.name || "대상자 정보 없음",
+        title: report.title || report.issueType || "이상징후 보고",
+        severity: report.severity || report.issueLevel || "normal",
+        severityLabel: getEmergencySeverityLabel(report.severity || report.issueLevel || "normal"),
+        status: report.status || "received",
+        statusLabel: getEmergencyStatusLabel(report.status || "received"),
+        reportedAt: report.reportedAt || report.date || null,
+      };
+    });
 
-  const date = new Date(reportedAt);
-  if (Number.isNaN(date.getTime())) return reportedAt;
+  const recentActivityRecords = activityRecords
+    .filter((record) => targetIds.has(record.targetId))
+    .sort((a, b) => sortByLatestTimestamp(a.checkedAt || a.createdAt || a.date, b.checkedAt || b.createdAt || b.date))
+    .slice(0, 5)
+    .map((record) => {
+      const target = targets.find((item) => item.id === record.targetId);
+      const checker = users.find((item) => item.id === record.checkerId);
+      const resultStatus =
+        record.resultStatus ||
+        (record.issueLevel === "urgent"
+          ? "emergency"
+          : record.issueLevel === "need_check"
+            ? "caution"
+            : record.issueLevel === "none"
+              ? "normal"
+              : "normal");
 
-  return date.toLocaleDateString("ko-KR", {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  });
+      return {
+        id: record.id,
+        targetId: record.targetId || null,
+        targetName: target?.name || "대상자 정보 없음",
+        checkerId: record.checkerId || null,
+        checkerName: checker?.name || "체커 정보 없음",
+        checkType: record.checkType || record.type || "visit",
+        checkTypeLabel: getCheckTypeLabel(record.checkType || record.type || "visit"),
+        resultStatus,
+        resultStatusLabel: getActivityResultStatusLabel(resultStatus),
+        checkedAt: record.checkedAt || record.createdAt || record.date || null,
+      };
+    });
+
+  const checkerRows = organizationCheckers
+    .slice()
+    .sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""), "ko"))
+    .slice(0, 10)
+    .map((checker) => ({
+      id: checker.id,
+      name: checker.name || "체커 정보 없음",
+      status: checker.status || checker.activityStatus || "active",
+      statusLabel: getOrganizationStatusLabel(checker.status || checker.activityStatus || "active"),
+      phone: checker.phone || checker.phoneNumber || checker.contactPhone || "연락처 없음",
+    }));
+
+  return {
+    id: organization.id,
+    name: organization.name || "기관명 없음",
+    region: organization.region || "-",
+    adminName: organization.adminName || organization.admin_name || "미배정",
+    status: organization.status || "active",
+    statusLabel: getOrganizationStatusLabel(organization.status || "active"),
+    memo: organization.memo || "",
+    targetCount: organizationTargets.length,
+    checkerCount: organizationCheckers.length,
+    emergencyCount: organizationEmergencies.length,
+    unresolvedEmergencyCount: organizationEmergencies.filter(isUnresolvedEmergency).length,
+    recentEmergencies,
+    recentActivityRecords,
+    checkers: checkerRows,
+  };
 }
 
 function useOrganizationSummarySource(data) {
@@ -306,7 +438,9 @@ function useSuperDashboardKpiSource(data) {
   const localKpis = useMemo(
     () => ({
       organizationCount: Array.isArray(data.organizations) ? data.organizations.length : 0,
-      activeTargetCount: Array.isArray(data.targets) ? data.targets.length : 0,
+      activeTargetCount: Array.isArray(data.targets)
+        ? data.targets.filter((target) => String(target.lifecycleStatus || "active") !== "ended").length
+        : 0,
       checkerCount: Array.isArray(data.users) ? data.users.filter((user) => user.role === "checker").length : 0,
       emergencyCount: Array.isArray(data.emergencyReports) ? data.emergencyReports.length : 0,
       unresolvedEmergencyCount: Array.isArray(data.emergencyReports)
@@ -376,6 +510,103 @@ function useSuperDashboardKpiSource(data) {
   return state;
 }
 
+function useOrganizationDetailSource(data, organizationId) {
+  const fallbackOrganization = useMemo(
+    () => (organizationId ? buildLocalOrganizationDetail(data, organizationId) : null),
+    [data, organizationId]
+  );
+
+  const [state, setState] = useState({
+    loading: true,
+    source: fallbackOrganization ? "local" : "not_found",
+    noteClassName: fallbackOrganization ? "super-source-local" : "super-source-local",
+    noteLabel: fallbackOrganization ? "로컬 데이터 기준" : "",
+    noteMessage: "",
+    organization: fallbackOrganization,
+    notFound: !fallbackOrganization,
+  });
+
+  useEffect(() => {
+    let mounted = true;
+
+    setState((current) => ({
+      ...current,
+      loading: true,
+      organization: fallbackOrganization,
+      notFound: !fallbackOrganization,
+    }));
+
+    async function load() {
+      if (!organizationId) {
+        if (!mounted) return;
+        setState({
+          loading: false,
+          source: "not_found",
+          noteClassName: "super-source-local",
+          noteLabel: "",
+          noteMessage: "",
+          organization: null,
+          notFound: true,
+        });
+        return;
+      }
+
+      const result = await getSupabaseOrganizationDetail(organizationId);
+
+      if (!mounted) return;
+
+      if (result.ok && result.organization) {
+        setState({
+          loading: false,
+          source: "supabase",
+          noteClassName: "super-source-supabase",
+          noteLabel: "Supabase 기준",
+          noteMessage: result.message,
+          organization: result.organization,
+          notFound: false,
+        });
+        return;
+      }
+
+      if (fallbackOrganization) {
+        const fallbackMessage =
+          result.source === "error"
+            ? "Supabase 기관 상세 정보를 불러오지 못해 로컬 데이터를 표시합니다."
+            : result.message || "";
+
+        setState({
+          loading: false,
+          source: "local",
+          noteClassName: "super-source-local",
+          noteLabel: "로컬 데이터 기준",
+          noteMessage: fallbackMessage,
+          organization: fallbackOrganization,
+          notFound: false,
+        });
+        return;
+      }
+
+      setState({
+        loading: false,
+        source: result.source || "not_found",
+        noteClassName: "super-source-local",
+        noteLabel: "",
+        noteMessage: result.message || "",
+        organization: null,
+        notFound: true,
+      });
+    }
+
+    load();
+
+    return () => {
+      mounted = false;
+    };
+  }, [fallbackOrganization, organizationId]);
+
+  return state;
+}
+
 function SuperEmergencyStatusBadge({ status }) {
   const statusKey = getEmergencyStatusKey(status);
   const statusLabel = getEmergencyStatusLabel(status);
@@ -388,15 +619,19 @@ function SuperDataSourceNote({ loading, loadingMessage, noteLabel, noteClassName
     return <p className="muted super-data-source-note">{loadingMessage}</p>;
   }
 
+  if (!noteLabel && !noteMessage) {
+    return null;
+  }
+
   return (
     <div className="super-data-source-note">
-      <span className={`badge super-data-source-badge ${noteClassName}`}>{noteLabel}</span>
+      {noteLabel ? <span className={`badge super-data-source-badge ${noteClassName}`}>{noteLabel}</span> : null}
       {noteMessage ? <span className="muted">{noteMessage}</span> : null}
     </div>
   );
 }
 
-function SuperOrganizationCard({ organization, showAction = false }) {
+function SuperOrganizationCard({ organization, showAction = false, navigate }) {
   return (
     <Card className="super-organization-card">
       <div className="card-row super-organization-card-header">
@@ -438,7 +673,7 @@ function SuperOrganizationCard({ organization, showAction = false }) {
             type="button"
             variant="ghost"
             className="super-disabled-button"
-            onClick={() => window.alert("기관 상세 기능은 준비 중입니다.")}
+            onClick={() => navigate(`/super/organizations/${organization.id}`)}
           >
             상세보기
           </Button>
@@ -455,7 +690,7 @@ function SuperRecentEmergencyCard({ emergency }) {
         <div>
           <strong>{emergency.targetName}</strong>
           <p className="muted">
-            {emergency.organizationName} · {formatReportedAt(emergency.reportedAt)}
+            {emergency.organizationName} · {formatDateTime(emergency.reportedAt)}
           </p>
         </div>
         <SuperEmergencyStatusBadge status={emergency.status} />
@@ -560,6 +795,59 @@ function SuperSupabaseStatusCard() {
   );
 }
 
+function SuperOrganizationDetailCard({ organization }) {
+  return (
+    <Card className="super-organization-card">
+      <SectionTitle title="기관 정보" />
+      <div className="super-detail-meta-grid">
+        <div className="super-detail-meta-item">
+          <span>기관 관리자</span>
+          <strong>{organization.adminName || "미배정"}</strong>
+        </div>
+        <div className="super-detail-meta-item">
+          <span>운영 상태</span>
+          <strong>{organization.statusLabel}</strong>
+        </div>
+        <div className="super-detail-meta-item super-detail-meta-item-wide">
+          <span>메모</span>
+          <strong>{organization.memo || "등록된 메모가 없습니다."}</strong>
+        </div>
+      </div>
+    </Card>
+  );
+}
+
+function SuperOrganizationActivityRecordCard({ record }) {
+  return (
+    <Card className="super-emergency-card">
+      <div className="card-row">
+        <div>
+          <strong>{record.targetName}</strong>
+          <p className="muted">
+            {record.checkerName} · {record.checkTypeLabel}
+          </p>
+        </div>
+        <span className="badge badge-info super-emergency-badge">{record.resultStatusLabel}</span>
+      </div>
+      <p className="muted">{formatDateTime(record.checkedAt)}</p>
+    </Card>
+  );
+}
+
+function SuperOrganizationCheckerCard({ checker }) {
+  return (
+    <Card className="super-emergency-card">
+      <div className="card-row">
+        <div>
+          <strong>{checker.name}</strong>
+          <p className="muted">{checker.phone || "연락처 없음"}</p>
+        </div>
+        <span className="badge badge-info super-emergency-badge">{checker.statusLabel}</span>
+      </div>
+    </Card>
+  );
+}
+
 export function SuperAdminDashboard({ data }) {
   const kpiState = useSuperDashboardKpiSource(data);
   const organizationSummaryState = useOrganizationSummarySource(data);
@@ -659,7 +947,7 @@ export function SuperAdminDashboard({ data }) {
   );
 }
 
-export function SuperOrganizations({ data }) {
+export function SuperOrganizations({ data, navigate }) {
   const organizationSummaryState = useOrganizationSummarySource(data);
 
   return (
@@ -681,7 +969,12 @@ export function SuperOrganizations({ data }) {
       {organizationSummaryState.organizations.length ? (
         <div className="super-organization-grid">
           {organizationSummaryState.organizations.map((organization) => (
-            <SuperOrganizationCard key={organization.id} organization={organization} showAction />
+            <SuperOrganizationCard
+              key={organization.id}
+              organization={organization}
+              showAction
+              navigate={navigate}
+            />
           ))}
         </div>
       ) : (
@@ -690,6 +983,124 @@ export function SuperOrganizations({ data }) {
           description="표시할 기관 요약 데이터가 없습니다."
         />
       )}
+    </>
+  );
+}
+
+export function SuperOrganizationDetailPage({ organizationId, data, navigate }) {
+  const detailState = useOrganizationDetailSource(data, organizationId);
+  const organization = detailState.organization;
+
+  if (detailState.notFound || !organization) {
+    return (
+      <>
+        <PageHeader
+          eyebrow="기관 상세"
+          title="기관 정보를 찾을 수 없습니다."
+          description="기관 목록으로 돌아가 다시 선택해주세요."
+          action={
+            <Button variant="ghost" onClick={() => navigate("/super/organizations")}>
+              기관 목록으로 돌아가기
+            </Button>
+          }
+        />
+        <EmptyState
+          title="기관 정보를 찾을 수 없습니다."
+          description={detailState.noteMessage || "선택한 기관 정보가 존재하지 않습니다."}
+        />
+      </>
+    );
+  }
+
+  return (
+    <>
+      <PageHeader
+        eyebrow="기관 상세"
+        title={organization.name}
+        description={organization.region || "-"}
+        action={
+          <Button variant="ghost" onClick={() => navigate("/super/organizations")}>
+            목록으로 돌아가기
+          </Button>
+        }
+      />
+
+      <div className="super-detail-header-row">
+        <span className="badge badge-info">{organization.statusLabel}</span>
+        <SuperDataSourceNote
+          loading={detailState.loading}
+          loadingMessage="Supabase 기관 상세 정보를 확인 중입니다."
+          noteLabel={detailState.noteLabel}
+          noteClassName={detailState.noteClassName}
+          noteMessage={detailState.noteMessage}
+        />
+      </div>
+
+      <div className="statistics-grid super-kpi-grid">
+        <StatCard label="대상자 수" value={`${organization.targetCount}명`} tone="green" helper="운영 대상자 기준" />
+        <StatCard label="체커 수" value={`${organization.checkerCount}명`} tone="orange" helper="소속 체커 기준" />
+        <StatCard label="전체 이상징후" value={`${organization.emergencyCount}건`} tone="red" helper="누적 보고 기준" />
+        <StatCard
+          label="미처리 이상징후"
+          value={`${organization.unresolvedEmergencyCount}건`}
+          tone="red"
+          helper="완료 제외"
+        />
+      </div>
+
+      <div className="super-detail-grid">
+        <section className="section-block super-section-card">
+          <SuperOrganizationDetailCard organization={organization} />
+        </section>
+
+        <section className="section-block super-section-card">
+          <SectionTitle title="최근 이상징후" description="최신 5건까지 표시합니다." />
+          {organization.recentEmergencies.length ? (
+            <div className="stack compact-stack">
+              {organization.recentEmergencies.map((emergency) => (
+                <SuperRecentEmergencyCard key={emergency.id} emergency={{ ...emergency, organizationName: organization.name }} />
+              ))}
+            </div>
+          ) : (
+            <EmptyState
+              title="최근 이상징후가 없습니다."
+              description="표시할 최근 이상징후 요약이 없습니다."
+            />
+          )}
+        </section>
+
+        <section className="section-block super-section-card">
+          <SectionTitle title="최근 생활 확인 기록" description="최신 5건까지 표시합니다." />
+          {organization.recentActivityRecords.length ? (
+            <div className="stack compact-stack">
+              {organization.recentActivityRecords.map((record) => (
+                <SuperOrganizationActivityRecordCard key={record.id} record={record} />
+              ))}
+            </div>
+          ) : (
+            <EmptyState
+              title="최근 생활 확인 기록이 없습니다."
+              description="표시할 최근 생활 확인 기록이 없습니다."
+            />
+          )}
+        </section>
+
+        <section className="section-block super-section-card">
+          <SectionTitle title="소속 체커" description="최대 10명까지 표시합니다." />
+          {organization.checkers.length ? (
+            <div className="stack compact-stack">
+              {organization.checkers.map((checker) => (
+                <SuperOrganizationCheckerCard key={checker.id} checker={checker} />
+              ))}
+            </div>
+          ) : (
+            <EmptyState
+              title="등록된 체커가 없습니다."
+              description="표시할 체커 정보가 없습니다."
+            />
+          )}
+        </section>
+      </div>
     </>
   );
 }

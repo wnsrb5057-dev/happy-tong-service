@@ -125,3 +125,9 @@
 
 - 읽기 전용 전환 4단계에서는 총관리자 기관 관리 화면(`/super/organizations`)이 기존 `get_public_organization_summaries()` RPC 결과를 우선 사용합니다.
 - RPC 호출이 실패하면 기존 localStorage/mock 데이터로 fallback합니다.
+
+## 15. Super organization detail read-only step
+
+- Read-only transition step 5 uses docs/supabase-organization-detail-rpc.sql and the get_public_organization_detail(p_organization_id uuid) RPC for /super/organizations/:id.
+- If the RPC is unavailable, fails, or Supabase is not configured, the screen falls back to the existing localStorage/mock organization detail summary.
+

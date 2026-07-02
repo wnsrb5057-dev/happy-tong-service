@@ -34,6 +34,7 @@ import {
 } from "./pages/adminPages.jsx";
 import {
   SuperAdminDashboard,
+  SuperOrganizationDetailPage,
   SuperOrganizations,
   SuperStatusPlaceholder,
 } from "./pages/superAdminPages.jsx";
@@ -339,6 +340,7 @@ function renderPage({ location, user, data, actions, navigate }) {
   const adminCheckerEditMatch = location.pathname.match(/^\/admin\/checkers\/([^/]+)\/edit$/);
   const adminCheckerMatch = location.pathname.match(/^\/admin\/checkers\/([^/]+)$/);
   const adminEmergencyMatch = location.pathname.match(/^\/admin\/emergencies\/([^/]+)$/);
+  const superOrganizationDetailMatch = location.pathname.match(/^\/super\/organizations\/([^/]+)$/);
 
   if (user.role === "super_admin") {
     if (location.pathname.startsWith("/admin") || location.pathname.startsWith("/checker")) {
@@ -351,6 +353,16 @@ function renderPage({ location, user, data, actions, navigate }) {
 
     if (location.pathname === "/super/organizations") {
       return <SuperOrganizations data={data} navigate={navigate} />;
+    }
+
+    if (superOrganizationDetailMatch) {
+      return (
+        <SuperOrganizationDetailPage
+          organizationId={superOrganizationDetailMatch[1]}
+          data={data}
+          navigate={navigate}
+        />
+      );
     }
 
     if (location.pathname === "/super/status") {
