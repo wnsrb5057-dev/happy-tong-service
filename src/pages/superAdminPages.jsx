@@ -144,6 +144,22 @@ function formatDateTime(value) {
   });
 }
 
+function formatCheckedAt(value) {
+  if (!value) return "-";
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return String(value);
+  }
+
+  return date.toLocaleDateString("ko-KR", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+}
+
 function buildOrganizationSummaries(data) {
   const organizations = Array.isArray(data.organizations) ? data.organizations : [];
   const targets = Array.isArray(data.targets) ? data.targets : [];
