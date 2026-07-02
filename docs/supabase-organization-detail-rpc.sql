@@ -90,8 +90,19 @@ as $$
             'target_name', t.name,
             'checker_id', ar.checker_id,
             'checker_name', u.name,
-            'check_type', ar.check_type,
-            'result_status', ar.result_status,
+            'check_type', coalesce(
+              to_jsonb(ar)->>'check_type',
+              to_jsonb(ar)->>'type',
+              to_jsonb(ar)->>'method',
+              'phone'
+            ),
+            'result_status', coalesce(
+              to_jsonb(ar)->>'result_status',
+              to_jsonb(ar)->>'status',
+              to_jsonb(ar)->>'result',
+              to_jsonb(ar)->>'condition_status',
+              'normal'
+            ),
             'checked_at', ar.checked_at
           )
           order by ar.checked_at desc
@@ -115,8 +126,15 @@ as $$
           jsonb_build_object(
             'id', u.id,
             'name', u.name,
-            'status', coalesce(u.status, 'active'),
-            'phone', coalesce(u.phone, u.phone_number)
+            'status', coalesce(
+              to_jsonb(u)->>'status',
+              'active'
+            ),
+            'phone', coalesce(
+              to_jsonb(u)->>'phone',
+              to_jsonb(u)->>'phone_number',
+              ''
+            )
           )
           order by u.name asc
         )
