@@ -143,3 +143,10 @@
 - Read-only transition step 7 uses docs/supabase-admin-dashboard-rpc.sql and the get_public_admin_dashboard(p_organization_id uuid) RPC for /admin/dashboard.
 - In the current MVP stage, a temporary mapping connects local admin organizations to Supabase seed organization ids. If the mapping or RPC fails, the dashboard falls back to the existing localStorage/mock data.
 
+## 18. Admin targets read-only step
+
+- Read-only transition step 8 uses docs/supabase-admin-targets-rpc.sql and the get_public_admin_targets(p_organization_id uuid) RPC for /admin/targets.
+- In the current MVP stage, local admin organizations are temporarily mapped to Supabase seed organization ids.
+- If the mapping or RPC fails, the target list falls back to the existing localStorage/mock data.
+- Target registration, editing, and lifecycle updates still use the existing localStorage flow in this stage.
+

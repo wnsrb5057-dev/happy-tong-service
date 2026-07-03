@@ -46,6 +46,7 @@ import {
   downloadCsv,
 } from "../utils/exportCsv.js";
 import { getSupabaseAdminDashboard } from "../services/supabaseAdminDashboardService.js";
+import { getSupabaseAdminTargets } from "../services/supabaseAdminTargetsService.js";
 
 function getToday() {
   const now = new Date();
@@ -86,7 +87,7 @@ function isReassignmentNeededTarget(target, users) {
   if (!isActiveLifecycleTarget(target)) return false;
 
   const assignedCheckerId = target?.assignedCheckerId;
-  const checker = checkerById(users, assignedCheckerId);
+  const checker = getAssignedCheckerForTarget(target, users);
 
   if (!assignedCheckerId || !checker) {
     return true;
@@ -135,6 +136,14 @@ function checkerName(users, checkerId) {
 
 function checkerPhone(users, checkerId) {
   return checkerById(users, checkerId)?.phone ?? "연락처 없음";
+}
+
+function getAssignedCheckerForTarget(target, users) {
+  return (
+    checkerById(users, target?.assignedCheckerId) ||
+    users.find((user) => user.role === "checker" && user.name === target?.checkerName) ||
+    null
+  );
 }
 
 const SUPABASE_ADMIN_ORGANIZATION_ID_MAP = {
@@ -198,6 +207,115 @@ function formatDashboardDate(value) {
     month: "2-digit",
     day: "2-digit",
   });
+}
+
+function getTargetCheckDaysValue(target) {
+  return target?.checkDays || target?.checkDay || target?.days || target?.checkDayLabels || [];
+}
+
+function isTodayTarget(target) {
+  const todayLabel = ["일", "월", "화", "수", "목", "금", "토"][new Date().getDay()];
+  const checkDays = getTargetCheckDaysValue(target);
+
+  if (Array.isArray(checkDays)) {
+    return checkDays.includes(todayLabel);
+  }
+
+  if (typeof checkDays === "string") {
+    return checkDays.includes(todayLabel);
+  }
+
+  return false;
+}
+
+function formatTargetAgeLabel(target) {
+  if (target?.age) return `${target.age}세`;
+  if (target?.birthYear) return `${target.birthYear}년생`;
+  return "연령 정보 없음";
+}
+
+function formatTargetCheckDaysLabel(target) {
+  const checkDays = getTargetCheckDaysValue(target);
+
+  if (Array.isArray(checkDays) && checkDays.length) {
+    return checkDays.join(", ");
+  }
+
+  if (typeof checkDays === "string" && checkDays.trim()) {
+    return checkDays;
+  }
+
+  return "요일 미정";
+}
+
+function buildLatestActivityByTarget(activityRecords) {
+  return activityRecords.reduce((accumulator, record) => {
+    const targetId = record?.targetId;
+    if (!targetId) return accumulator;
+
+    const currentDate = record?.checkedAt || record?.date || record?.createdAt || "";
+    const existingDate =
+      accumulator[targetId]?.checkedAt ||
+      accumulator[targetId]?.date ||
+      accumulator[targetId]?.createdAt ||
+      "";
+
+    if (!accumulator[targetId] || currentDate > existingDate) {
+      accumulator[targetId] = record;
+    }
+
+    return accumulator;
+  }, {});
+}
+
+function buildUnresolvedEmergencyCountByTarget(emergencyReports) {
+  return emergencyReports.reduce((accumulator, report) => {
+    const targetId = report?.targetId;
+    if (!targetId || isEmergencyCompleted(report?.status)) return accumulator;
+
+    accumulator[targetId] = (accumulator[targetId] || 0) + 1;
+    return accumulator;
+  }, {});
+}
+
+function normalizeLocalAdminTarget(target, users, latestActivityByTarget, unresolvedEmergencyCountByTarget) {
+  const latestActivity = latestActivityByTarget[target.id];
+
+  return {
+    ...target,
+    organizationId: target.organizationId || "",
+    birthYear: target.birthYear || null,
+    phone: target.phone || "",
+    guardianName: target.guardianName || "",
+    guardianPhone: target.guardianPhone || "",
+    assignedCheckerId: target.assignedCheckerId || null,
+    checkerName: target.assignedCheckerId ? checkerName(users, target.assignedCheckerId) : "담당 체커 미배정",
+    riskLevel: target.riskLevel || "normal",
+    lifecycleStatus: target.lifecycleStatus || "active",
+    memo: target.memo || "",
+    defaultCheckType: getTargetCheckType(target),
+    checkDays: getTargetCheckDaysValue(target),
+    lastActivityAt: latestActivity?.checkedAt || latestActivity?.date || latestActivity?.createdAt || null,
+    lastActivityStatus: latestActivity?.resultStatus || latestActivity?.status || null,
+    lastActivityStatusLabel:
+      recordStatusLabels[latestActivity?.resultStatus || latestActivity?.status] ||
+      latestActivity?.resultStatus ||
+      latestActivity?.status ||
+      null,
+    unresolvedEmergencyCount: unresolvedEmergencyCountByTarget[target.id] || 0,
+  };
+}
+
+function findLocalTargetMatchId(target, localTargets) {
+  const directMatch = localTargets.find((item) => item.id === target.id);
+  if (directMatch) return directMatch.id;
+
+  const area = getTargetArea(target);
+  const fuzzyMatch = localTargets.find(
+    (item) => item.name === target.name && getTargetArea(item) === area
+  );
+
+  return fuzzyMatch?.id || null;
 }
 
 function getCheckerAreaValue(checker) {
@@ -402,7 +520,7 @@ function getRiskPriority(riskLevel) {
 function sortTargetsForAdmin(a, b) {
   const riskDiff = getRiskPriority(a.riskLevel) - getRiskPriority(b.riskLevel);
   if (riskDiff) return riskDiff;
-  const todayDiff = Number(isTodayScheduled(b)) - Number(isTodayScheduled(a));
+  const todayDiff = Number(isTodayScheduled(b) || isTodayTarget(b)) - Number(isTodayScheduled(a) || isTodayTarget(a));
   if (todayDiff) return todayDiff;
   const dateDiff = compareDatesAscending(a.lastVisitDate, b.lastVisitDate);
   if (dateDiff) return dateDiff;
@@ -1484,46 +1602,134 @@ export function AdminCheckerEdit({ checkerId, data, actions, navigate }) {
   );
 }
 
-export function AdminTargets({ data, navigate }) {
+export function AdminTargets({ data, navigate, currentUser }) {
   const [filter, setFilter] = useState("all");
+  const adminSupabaseOrganizationId = useMemo(
+    () => resolveAdminSupabaseOrganizationId(currentUser, data),
+    [currentUser, data]
+  );
+  const [supabaseTargetsState, setSupabaseTargetsState] = useState({
+    loading: true,
+    source: "local",
+    noteClassName: "super-source-local",
+    noteLabel: "로컬 데이터 기준",
+    noteMessage: "",
+    targets: [],
+  });
   const targets = Array.isArray(data.targets) ? data.targets : [];
   const users = Array.isArray(data.users) ? data.users : [];
-  const activeTargets = targets.filter(isActiveLifecycleTarget);
-  const reassignmentNeededTargets = activeTargets.filter((target) => isReassignmentNeededTarget(target, users));
+  const activityRecords = Array.isArray(data.activityRecords) ? data.activityRecords : [];
+  const emergencyReports = Array.isArray(data.emergencyReports) ? data.emergencyReports : [];
+  const latestActivityByTarget = useMemo(
+    () => buildLatestActivityByTarget(activityRecords),
+    [activityRecords]
+  );
+  const unresolvedEmergencyCountByTarget = useMemo(
+    () => buildUnresolvedEmergencyCountByTarget(emergencyReports),
+    [emergencyReports]
+  );
+  const localTargets = useMemo(
+    () =>
+      targets.map((target) =>
+        normalizeLocalAdminTarget(target, users, latestActivityByTarget, unresolvedEmergencyCountByTarget)
+      ),
+    [latestActivityByTarget, targets, unresolvedEmergencyCountByTarget, users]
+  );
 
-const filteredTargets = targets
-  .filter((target) => {
-    const targetIsActive = isActiveLifecycleTarget(target);
+  useEffect(() => {
+    let mounted = true;
 
-    if (filter === "ended") {
-      return !targetIsActive;
+    setSupabaseTargetsState((current) => ({
+      ...current,
+      loading: true,
+      targets: localTargets,
+    }));
+
+    async function load() {
+      if (!adminSupabaseOrganizationId) {
+        if (!mounted) return;
+        setSupabaseTargetsState({
+          loading: false,
+          source: "local",
+          noteClassName: "super-source-local",
+          noteLabel: "로컬 데이터 기준",
+          noteMessage: "Supabase 기관 매핑 정보를 찾지 못해 로컬 데이터를 표시합니다.",
+          targets: localTargets,
+        });
+        return;
+      }
+
+      const result = await getSupabaseAdminTargets(adminSupabaseOrganizationId);
+
+      if (!mounted) return;
+
+      if (result.ok) {
+        setSupabaseTargetsState({
+          loading: false,
+          source: "supabase",
+          noteClassName: "super-source-supabase",
+          noteLabel: "Supabase 기준",
+          noteMessage: result.message,
+          targets: result.targets,
+        });
+        return;
+      }
+
+      setSupabaseTargetsState({
+        loading: false,
+        source: "local",
+        noteClassName: "super-source-local",
+        noteLabel: "로컬 데이터 기준",
+        noteMessage: "Supabase 대상자 목록을 불러오지 못해 로컬 데이터를 표시합니다.",
+        targets: localTargets,
+      });
     }
 
-    if (!targetIsActive) {
-      return false;
-    }
+    load();
 
-    if (filter === "all") return true;
-    if (filter === "reassignment") {
-      return isReassignmentNeededTarget(target, users);
-    }
-    if (filter === "today") {
-  const todayLabel = ["일", "월", "화", "수", "목", "금", "토"][new Date().getDay()];
-  const checkDays = target.checkDays || target.checkDay || target.days || target.checkDayLabels || [];
+    return () => {
+      mounted = false;
+    };
+  }, [adminSupabaseOrganizationId, localTargets]);
 
-  if (Array.isArray(checkDays)) {
-    return checkDays.includes(todayLabel);
-  }
+  const resolvedTargets =
+    Array.isArray(supabaseTargetsState.targets) && supabaseTargetsState.targets.length
+      ? supabaseTargetsState.targets
+      : localTargets;
+  const activeTargets = resolvedTargets.filter(isActiveLifecycleTarget);
+  const reassignmentNeededTargets = activeTargets.filter((target) =>
+    isReassignmentNeededTarget(
+      {
+        ...target,
+        assignedCheckerId: target.assignedCheckerId,
+      },
+      users
+    )
+  );
 
-  if (typeof checkDays === "string") {
-    return checkDays.includes(todayLabel);
-  }
+  const filteredTargets = resolvedTargets
+    .filter((target) => {
+      const targetIsActive = isActiveLifecycleTarget(target);
 
-  return false;
-}
-    return target.riskLevel === filter;
-  })
-  .sort(sortTargetsForAdmin);
+      if (filter === "ended") {
+        return !targetIsActive;
+      }
+
+      if (!targetIsActive) {
+        return false;
+      }
+
+      if (filter === "all") return true;
+      if (filter === "reassignment") {
+        return isReassignmentNeededTarget(target, users);
+      }
+      if (filter === "today") {
+        return isTodayTarget(target);
+      }
+
+      return target.riskLevel === filter;
+    })
+    .sort(sortTargetsForAdmin);
 
   return (
     <>
@@ -1534,9 +1740,20 @@ const filteredTargets = targets
         action={<Button onClick={() => navigate("/admin/targets/new")}>대상자 등록</Button>}
       />
 
+      <div className="admin-dashboard-source-note">
+        {supabaseTargetsState.loading ? (
+          <span className="muted">Supabase 대상자 목록을 확인 중입니다.</span>
+        ) : (
+          <>
+            <span className={`badge ${supabaseTargetsState.noteClassName}`}>{supabaseTargetsState.noteLabel}</span>
+            <span className="muted">{supabaseTargetsState.noteMessage}</span>
+          </>
+        )}
+      </div>
+
       <Card className="summary-card">
         <p className="eyebrow">대상자 현황</p>
-        <strong>전체 {activeTargets.length}명 · 오늘 확인 {activeTargets.filter(isTodayScheduled).length}명</strong>
+        <strong>전체 {activeTargets.length}명 · 오늘 확인 {activeTargets.filter((target) => isTodayScheduled(target) || isTodayTarget(target)).length}명</strong>
         <span>
           정상 {activeTargets.filter((target) => target.riskLevel === "normal").length}명 · 주의 {activeTargets.filter((target) => target.riskLevel === "caution").length}명 · 위험 {activeTargets.filter((target) => target.riskLevel === "danger").length}명
         </span>
@@ -1567,7 +1784,7 @@ const filteredTargets = targets
         {filteredTargets.length ? filteredTargets.map((target) => (
           <article className={`target-card admin-target-card risk-card-${target.riskLevel}`} key={target.id}>
             {(() => {
-              const assignedChecker = checkerById(users, target.assignedCheckerId);
+              const assignedChecker = getAssignedCheckerForTarget(target, users);
               const checkerAlert = getTargetCheckerAlert(assignedChecker);
 
               return checkerAlert ? (
@@ -1580,32 +1797,46 @@ const filteredTargets = targets
             <div className="card-row">
               <div>
                 <strong>{target.name}</strong>
-                <p>{target.age}세 · {target.gender} · {getTargetArea(target)}</p>
+                <p>{formatTargetAgeLabel(target)} · {target.gender || "성별 정보 없음"} · {getTargetArea(target)}</p>
+                <p className="muted">{target.phone || "연락처 없음"} · 보호자 {target.guardianPhone || "연락처 없음"}</p>
               </div>
               <StatusBadge type="risk" value={target.riskLevel} />
             </div>
             <div className="admin-target-meta">
-  <div className="admin-target-meta-item">
-    <span>담당 체커</span>
-    <strong>{target.assignedCheckerId ? checkerName(users, target.assignedCheckerId) : "담당 체커 미배정"}</strong>
-  </div>
-  <div className="admin-target-meta-item">
-    <span>기본 확인 유형</span>
-    <strong>{checkTypeLabels[getTargetCheckType(target)]}</strong>
-  </div>
-  <div className="admin-target-meta-item">
-    <span>확인 요일</span>
-    <strong>{target.checkDays?.join(", ") || "요일 미정"}</strong>
-  </div>
-  <div className="admin-target-meta-item">
-    <span>최근 확인일</span>
-    <strong>{target.lastVisitDate}</strong>
-  </div>
-</div>
+              <div className="admin-target-meta-item">
+                <span>담당 체커</span>
+                <strong>{target.assignedCheckerId ? target.checkerName || checkerName(users, target.assignedCheckerId) : "담당 체커 미배정"}</strong>
+              </div>
+              <div className="admin-target-meta-item">
+                <span>기본 확인 유형</span>
+                <strong>{checkTypeLabels[getTargetCheckType(target)] || checkTypeLabels[target.defaultCheckType] || "외부 확인"}</strong>
+              </div>
+              <div className="admin-target-meta-item">
+                <span>확인 요일</span>
+                <strong>{formatTargetCheckDaysLabel(target)}</strong>
+              </div>
+              <div className="admin-target-meta-item">
+                <span>최근 확인일</span>
+                <strong>{target.lastVisitDate || formatDashboardDate(target.lastActivityAt)}</strong>
+              </div>
+            </div>
+            <div className="badge-row compact-badges">
+              <span className={`badge ${(target.lifecycleStatus || "active") === "ended" ? "badge-muted" : "badge-info"}`}>
+                {(target.lifecycleStatus || "active") === "ended" ? "관리종료" : "관리중"}
+              </span>
+              {Number(target.unresolvedEmergencyCount || 0) > 0 ? (
+                <span className="badge badge-warning">{`미처리 이상징후 ${target.unresolvedEmergencyCount}건`}</span>
+              ) : null}
+            </div>
             <Button
               variant="ghost"
               className="admin-target-detail-action"
-              onClick={() => navigate(`/admin/targets/${target.id}`)}
+              disabled={!findLocalTargetMatchId(target, targets)}
+              onClick={() => {
+                const localDetailTargetId = findLocalTargetMatchId(target, targets);
+                if (!localDetailTargetId) return;
+                navigate(`/admin/targets/${localDetailTargetId}`);
+              }}
               aria-label={`${target.name} 상세보기`}
             >
               상세보기
