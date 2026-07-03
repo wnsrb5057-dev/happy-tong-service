@@ -453,7 +453,7 @@ function renderPage({ location, user, data, actions, navigate }) {
     }
 
     if (location.pathname === "/admin/targets") {
-  return <AdminTargets data={data} actions={actions} navigate={navigate} />;
+  return <AdminTargets data={data} actions={actions} navigate={navigate} currentUser={user} />;
 }
 
 if (adminTargetNewMatch) {
