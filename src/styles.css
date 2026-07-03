@@ -7775,6 +7775,14 @@ button.upload-box {
   margin: -2px 0 2px;
 }
 
+.admin-dashboard-source-note {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: -2px 0 10px;
+}
+
 .super-detail-header-row {
   display: flex;
   align-items: flex-start;
@@ -7811,6 +7819,40 @@ button.upload-box {
 
 .super-detail-meta-item-wide strong {
   font-weight: 600;
+}
+
+.super-status-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.super-status-card {
+  align-content: start;
+}
+
+.super-status-card-head {
+  align-items: flex-start;
+}
+
+.super-status-card-badges {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.super-status-metrics {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.super-status-meta-grid {
+  gap: 8px;
+}
+
+.super-status-risk-reason {
+  margin: 0;
 }
 
 .super-data-source-badge {
@@ -7857,6 +7899,10 @@ button.upload-box {
     align-items: start;
   }
 
+  .super-status-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .super-detail-meta-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -7883,6 +7929,10 @@ button.upload-box {
 
   .super-data-source-note {
     align-items: flex-start;
+  }
+
+  .super-status-card-badges {
+    justify-content: flex-start;
   }
 
   .super-detail-header-row {

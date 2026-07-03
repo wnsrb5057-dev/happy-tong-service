@@ -45,6 +45,7 @@ import {
   buildTargetsCsvRows,
   downloadCsv,
 } from "../utils/exportCsv.js";
+import { getSupabaseAdminDashboard } from "../services/supabaseAdminDashboardService.js";
 
 function getToday() {
   const now = new Date();
@@ -136,8 +137,67 @@ function checkerPhone(users, checkerId) {
   return checkerById(users, checkerId)?.phone ?? "연락처 없음";
 }
 
+const SUPABASE_ADMIN_ORGANIZATION_ID_MAP = {
+  "org-eunpyeong-care": "11111111-1111-1111-1111-111111111111",
+  "org-chungju-pungdong": "22222222-2222-2222-2222-222222222222",
+  "은평구 돌봄센터": "11111111-1111-1111-1111-111111111111",
+  "서울시 은평구": "11111111-1111-1111-1111-111111111111",
+  "충주 풍동 행정복지센터": "22222222-2222-2222-2222-222222222222",
+  충주돌봄센터: "22222222-2222-2222-2222-222222222222",
+};
+
+function resolveAdminSupabaseOrganizationId(currentUser, data) {
+  const directCandidates = [
+    currentUser?.organizationId,
+    currentUser?.organizationName,
+    currentUser?.region,
+  ].filter(Boolean);
+
+  for (const candidate of directCandidates) {
+    if (SUPABASE_ADMIN_ORGANIZATION_ID_MAP[candidate]) {
+      return SUPABASE_ADMIN_ORGANIZATION_ID_MAP[candidate];
+    }
+  }
+
+  const organizations = Array.isArray(data?.organizations) ? data.organizations : [];
+  const localOrganization =
+    organizations.find((organization) => organization.id === currentUser?.organizationId) ||
+    organizations.find((organization) => organization.adminName === currentUser?.name) ||
+    organizations.find((organization) => organization.name === currentUser?.organizationName);
+
+  if (localOrganization) {
+    return (
+      SUPABASE_ADMIN_ORGANIZATION_ID_MAP[localOrganization.id] ||
+      SUPABASE_ADMIN_ORGANIZATION_ID_MAP[localOrganization.name] ||
+      SUPABASE_ADMIN_ORGANIZATION_ID_MAP[localOrganization.region] ||
+      null
+    );
+  }
+
+  if (currentUser?.username === "admin" || currentUser?.id === "admin") {
+    return "11111111-1111-1111-1111-111111111111";
+  }
+
+  return null;
+}
+
 function getCheckerPhoneValue(checker) {
   return checker?.phone || checker?.phoneNumber || checker?.contactPhone || "";
+}
+
+function formatDashboardDate(value) {
+  if (!value) return "-";
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return String(value);
+  }
+
+  return date.toLocaleDateString("ko-KR", {
+    month: "2-digit",
+    day: "2-digit",
+  });
 }
 
 function getCheckerAreaValue(checker) {
@@ -378,7 +438,7 @@ function getCheckerStatus(checker, data) {
   return checker.status || "active";
 }
 
-export function AdminDashboard({ data, navigate }) {
+export function AdminDashboard({ data, navigate, currentUser }) {
   const dashboardSampleTrend = [
     { label: "06-22", value: 2, tone: "blue" },
     { label: "06-23", value: 4, tone: "blue" },
@@ -388,6 +448,18 @@ export function AdminDashboard({ data, navigate }) {
     { label: "06-27", value: 6, tone: "blue" },
     { label: "06-28", value: 5, tone: "blue" },
   ];
+  const adminSupabaseOrganizationId = useMemo(
+    () => resolveAdminSupabaseOrganizationId(currentUser, data),
+    [currentUser, data]
+  );
+  const [supabaseDashboardState, setSupabaseDashboardState] = useState({
+    loading: true,
+    source: "local",
+    noteClassName: "super-source-local",
+    noteLabel: "로컬 데이터 기준",
+    noteMessage: "",
+    dashboard: null,
+  });
   const targets = Array.isArray(data.targets) ? data.targets : [];
   const users = Array.isArray(data.users) ? data.users : [];
   const activityRecords = Array.isArray(data.activityRecords) ? data.activityRecords : [];
@@ -413,6 +485,49 @@ export function AdminDashboard({ data, navigate }) {
     })
     .slice(0, 5);
   const recentActivities = [...activityRecords].sort(byLatestDate).slice(0, 4);
+  const fallbackDashboard = useMemo(
+    () => ({
+      targetCount: activeTargets.length,
+      checkerCount: users.filter((user) => user.role === "checker").length,
+      todayActivityCount: completedToday,
+      recentActivityCount: getRecentDailyActivityStats(activityRecords, 7).reduce((sum, row) => sum + row.count, 0),
+      emergencyCount: emergencyReports.length,
+      unresolvedEmergencyCount: unresolvedReports.length,
+      recentActivities: recentActivities.map((record) => ({
+        id: record.id,
+        targetId: record.targetId,
+        targetName: targetName(targets, record.targetId),
+        checkerId: record.checkerId,
+        checkerName: checkerName(users, record.checkerId),
+        checkType: getCheckType(record),
+        checkTypeLabel: activityTypeLabels[getCheckType(record)] || checkTypeLabels[getCheckType(record)] || getCheckType(record),
+        resultStatus: record.status,
+        resultStatusLabel: recordStatusLabels[record.status] || record.status || "상태 없음",
+        checkedAt: record.checkedAt || record.date || record.createdAt || null,
+      })),
+      recentEmergencies: recentEmergencyReports.map((report) => ({
+        id: report.id,
+        targetId: report.targetId,
+        targetName: targetName(targets, report.targetId),
+        title: report.title || report.issueType || "이상징후 보고",
+        severity: report.severity || report.urgency || "normal",
+        severityLabel: urgencyLabels[report.urgency] || urgencyLabels[report.severity] || report.urgency || "일반",
+        status: report.status,
+        statusLabel: getEmergencyStatusMeta(report.status).label,
+        reportedAt: report.reportedAt || report.date || null,
+      })),
+    }),
+    [
+      activeTargets.length,
+      users,
+      completedToday,
+      emergencyReports.length,
+      unresolvedReports.length,
+      recentActivities,
+      recentEmergencyReports,
+      targets,
+    ]
+  );
   const reassignmentNeededTargets = activeTargets.filter((target) => isReassignmentNeededTarget(target, users)).sort(sortTargetsForAdmin);
   const riskRows = [
     { label: "정상", value: activeTargets.filter((target) => target.riskLevel === "normal").length, tone: "green" },
@@ -476,15 +591,100 @@ export function AdminDashboard({ data, navigate }) {
     return new Date(b.date) - new Date(a.date);
   });
 
+  useEffect(() => {
+    let mounted = true;
+
+    setSupabaseDashboardState((current) => ({
+      ...current,
+      loading: true,
+      dashboard: fallbackDashboard,
+    }));
+
+    async function load() {
+      if (!adminSupabaseOrganizationId) {
+        if (!mounted) return;
+        setSupabaseDashboardState({
+          loading: false,
+          source: "local",
+          noteClassName: "super-source-local",
+          noteLabel: "로컬 데이터 기준",
+          noteMessage: "Supabase 기관 매핑 정보를 찾지 못해 로컬 데이터를 표시합니다.",
+          dashboard: fallbackDashboard,
+        });
+        return;
+      }
+
+      const result = await getSupabaseAdminDashboard(adminSupabaseOrganizationId);
+
+      if (!mounted) return;
+
+      if (result.ok && result.dashboard) {
+        setSupabaseDashboardState({
+          loading: false,
+          source: "supabase",
+          noteClassName: "super-source-supabase",
+          noteLabel: "Supabase 기준",
+          noteMessage: result.message,
+          dashboard: result.dashboard,
+        });
+        return;
+      }
+
+      const fallbackMessage =
+        result.source === "error" || result.source === "not_found"
+          ? "Supabase 관리자 대시보드 요약을 불러오지 못해 로컬 데이터를 표시합니다."
+          : result.message || "Supabase 관리자 대시보드 요약을 확인 중입니다.";
+
+      setSupabaseDashboardState({
+        loading: false,
+        source: "local",
+        noteClassName: "super-source-local",
+        noteLabel: "로컬 데이터 기준",
+        noteMessage: fallbackMessage,
+        dashboard: fallbackDashboard,
+      });
+    }
+
+    load();
+
+    return () => {
+      mounted = false;
+    };
+  }, [adminSupabaseOrganizationId, fallbackDashboard]);
+
+  const dashboardData = supabaseDashboardState.dashboard || fallbackDashboard;
+  const displayedTargetCount = dashboardData.targetCount ?? activeTargets.length;
+  const displayedCheckerCount = dashboardData.checkerCount ?? users.filter((user) => user.role === "checker").length;
+  const displayedTodayActivityCount = dashboardData.todayActivityCount ?? completedToday;
+  const displayedRecentActivities = Array.isArray(dashboardData.recentActivities) && dashboardData.recentActivities.length
+    ? dashboardData.recentActivities
+    : fallbackDashboard.recentActivities;
+  const displayedRecentEmergencies = Array.isArray(dashboardData.recentEmergencies) && dashboardData.recentEmergencies.length
+    ? dashboardData.recentEmergencies
+    : fallbackDashboard.recentEmergencies;
+  const displayedEmergencyCount = dashboardData.emergencyCount ?? emergencyReports.length;
+  const displayedUnresolvedEmergencyCount = dashboardData.unresolvedEmergencyCount ?? unresolvedReports.length;
+
   return (
     <>
       <PageHeader eyebrow="관리자 대시보드" title="운영 현황" description="오늘 운영에 문제가 있는지 먼저 확인합니다." />
 
+      <div className="admin-dashboard-source-note">
+        {supabaseDashboardState.loading ? (
+          <span className="muted">Supabase 관리자 대시보드 요약을 확인 중입니다.</span>
+        ) : (
+          <>
+            <span className={`badge ${supabaseDashboardState.noteClassName}`}>{supabaseDashboardState.noteLabel}</span>
+            <span className="muted">{supabaseDashboardState.noteMessage}</span>
+          </>
+        )}
+      </div>
+
       <div className="admin-dashboard-layout admin-dashboard-shell">
         <div className="statistics-grid admin-dashboard-kpi-grid">
-          <StatCard label="전체 대상자" value={`${activeTargets.length}명`} tone="blue" helper="운영 중 대상자 기준" />
-          <StatCard label="오늘 확인" value={`${completedToday}건`} tone="green" helper={`예정 ${todayScheduled}건`} />
-          <StatCard label="미처리 이상징후" value={`${unresolvedReports.length}건`} tone="orange" helper={`긴급 ${urgentReports.length}건`} />
+          <StatCard label="전체 대상자" value={`${displayedTargetCount}명`} tone="blue" helper="운영 중 대상자 기준" />
+          <StatCard label="오늘 확인" value={`${displayedTodayActivityCount}건`} tone="green" helper={`예정 ${todayScheduled}건`} />
+          <StatCard label="미처리 이상징후" value={`${displayedUnresolvedEmergencyCount}건`} tone="orange" helper={`긴급 ${urgentReports.length}건`} />
           <StatCard label="재배정 필요" value={`${reassignmentNeededTargets.length}명`} tone="red" helper="담당 체커 상태 기준" />
         </div>
 
@@ -539,26 +739,26 @@ export function AdminDashboard({ data, navigate }) {
               title="이상징후 처리 현황"
               description="접수부터 완료까지의 처리 상태를 요약합니다."
               rows={emergencyStatusRows}
-              total={emergencyReports.length}
-              unresolvedCount={unresolvedReports.length}
+              total={displayedEmergencyCount}
+              unresolvedCount={displayedUnresolvedEmergencyCount}
             />
             <section className="section-block admin-dashboard-panel admin-dashboard-support-card">
               <SectionTitle title="최근 이상징후" action={<Button variant="ghost" onClick={() => navigate("/admin/emergencies")}>전체 보기</Button>} />
               <div className="stack">
-                {sortedRecentEmergencyReports.length ? (
-                  sortedRecentEmergencyReports.map((report) => (
-                    <Card key={report.id} className={report.urgency === "high" ? "danger-card" : "alert-card"}>
+                {displayedRecentEmergencies.length ? (
+                  displayedRecentEmergencies.map((report) => (
+                    <Card key={report.id} className={report.severity === "urgent" ? "danger-card" : "alert-card"}>
                       <div className="card-row">
                         <div>
-                          <strong>{targetName(targets, report.targetId)}</strong>
-                          <p className="muted">{report.date} · {report.issueType}</p>
+                          <strong>{report.targetName || targetName(targets, report.targetId)}</strong>
+                          <p className="muted">{formatDashboardDate(report.reportedAt || report.date)} · {report.title || report.issueType}</p>
                         </div>
                         <div className="badge-row compact-badges">
-                          <StatusBadge type="urgency" value={report.urgency} />
+                          <span className="badge badge-info">{report.severityLabel || report.severity || "일반"}</span>
                           <EmergencyStatusBadge status={report.status} />
                         </div>
                       </div>
-                      <p className="muted">{truncateText(report.description)}</p>
+                      <p className="muted">{truncateText(report.title || report.issueType || "이상징후 보고")}</p>
                       <div className="dashboard-card-actions">
                         <Button variant="ghost" className="dashboard-small-button" onClick={() => navigate(`/admin/emergencies/${report.id}`)}>
                           상세보기
@@ -659,16 +859,18 @@ export function AdminDashboard({ data, navigate }) {
             <section className="section-block admin-dashboard-panel admin-dashboard-support-card">
               <SectionTitle title="최근 확인 기록" />
               <div className="stack">
-                {recentActivities.map((record) => (
+                {displayedRecentActivities.map((record) => (
                   <Card key={record.id}>
                     <div className="card-row">
                       <div>
-                        <strong>{targetName(targets, record.targetId)}</strong>
-                        <p className="muted">{record.date} · {checkerName(users, record.checkerId)} · {activityTypeLabels[getCheckType(record)]}</p>
+                        <strong>{record.targetName || targetName(targets, record.targetId)}</strong>
+                        <p className="muted">
+                          {formatDashboardDate(record.checkedAt || record.date)} · {record.checkerName || checkerName(users, record.checkerId)} · {record.checkTypeLabel || activityTypeLabels[getCheckType(record)]}
+                        </p>
                       </div>
-                      <StatusBadge type="record" value={record.status} />
+                      <span className="badge badge-muted">{record.resultStatusLabel || record.status || "상태 없음"}</span>
                     </div>
-                    <p className="muted">{truncateText(record.memo)}</p>
+                    <p className="muted">{truncateText(record.resultStatusLabel || record.memo || "최근 확인 기록")}</p>
                   </Card>
                 ))}
               </div>

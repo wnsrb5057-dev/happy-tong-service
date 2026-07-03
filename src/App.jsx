@@ -366,7 +366,7 @@ function renderPage({ location, user, data, actions, navigate }) {
     }
 
     if (location.pathname === "/super/status") {
-      return <SuperStatusPlaceholder />;
+      return <SuperStatusPlaceholder data={data} navigate={navigate} />;
     }
 
     return <NotFound navigate={() => navigate("/super/dashboard")} />;
@@ -426,7 +426,7 @@ function renderPage({ location, user, data, actions, navigate }) {
     }
 
     if (location.pathname === "/admin/dashboard") {
-      return <AdminDashboard data={data} navigate={navigate} />;
+      return <AdminDashboard data={data} navigate={navigate} currentUser={user} />;
     }
 
     if (location.pathname === "/admin/checkers") {

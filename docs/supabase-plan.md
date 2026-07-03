@@ -137,3 +137,9 @@
 - Read-only transition step 6 uses docs/supabase-super-status-rpc.sql and the get_public_super_status_summaries() RPC for /super/status.
 - If the RPC fails or Supabase is not configured, the screen falls back to the existing localStorage/mock data summary.
 
+
+## 17. Admin dashboard read-only step
+
+- Read-only transition step 7 uses docs/supabase-admin-dashboard-rpc.sql and the get_public_admin_dashboard(p_organization_id uuid) RPC for /admin/dashboard.
+- In the current MVP stage, a temporary mapping connects local admin organizations to Supabase seed organization ids. If the mapping or RPC fails, the dashboard falls back to the existing localStorage/mock data.
+
