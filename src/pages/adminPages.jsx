@@ -149,6 +149,7 @@ function getAssignedCheckerForTarget(target, users) {
 const SUPABASE_ADMIN_ORGANIZATION_ID_MAP = {
   "org-eunpyeong-care": "11111111-1111-1111-1111-111111111111",
   "org-chungju-pungdong": "22222222-2222-2222-2222-222222222222",
+  행복복지관: "11111111-1111-1111-1111-111111111111",
   "은평구 돌봄센터": "11111111-1111-1111-1111-111111111111",
   "서울시 은평구": "11111111-1111-1111-1111-111111111111",
   "충주 풍동 행정복지센터": "22222222-2222-2222-2222-222222222222",
@@ -156,6 +157,37 @@ const SUPABASE_ADMIN_ORGANIZATION_ID_MAP = {
 };
 
 function resolveAdminSupabaseOrganizationId(currentUser, data) {
+  const normalizedValues = [
+    currentUser?.organizationId,
+    currentUser?.organizationName,
+    currentUser?.region,
+    currentUser?.name,
+    currentUser?.displayName,
+    currentUser?.username,
+  ]
+    .filter(Boolean)
+    .map((value) => String(value).trim());
+
+  const includesKeyword = (keyword) =>
+    normalizedValues.some((value) => value.includes(keyword));
+
+  if (includesKeyword("충주") || includesKeyword("chungju")) {
+    return "22222222-2222-2222-2222-222222222222";
+  }
+
+  if (
+    currentUser?.organizationId === "org-eunpyeong-care" ||
+    includesKeyword("행복복지관") ||
+    includesKeyword("은평") ||
+    includesKeyword("eunpyeong") ||
+    includesKeyword("박서연") ||
+    currentUser?.username === "admin" ||
+    currentUser?.id === "admin" ||
+    currentUser?.role === "admin"
+  ) {
+    return "11111111-1111-1111-1111-111111111111";
+  }
+
   const directCandidates = [
     currentUser?.organizationId,
     currentUser?.organizationName,
@@ -172,9 +204,27 @@ function resolveAdminSupabaseOrganizationId(currentUser, data) {
   const localOrganization =
     organizations.find((organization) => organization.id === currentUser?.organizationId) ||
     organizations.find((organization) => organization.adminName === currentUser?.name) ||
+    organizations.find((organization) => organization.adminName === currentUser?.displayName) ||
     organizations.find((organization) => organization.name === currentUser?.organizationName);
 
   if (localOrganization) {
+    const localCandidates = [
+      localOrganization.id,
+      localOrganization.name,
+      localOrganization.region,
+      localOrganization.adminName,
+    ]
+      .filter(Boolean)
+      .map((value) => String(value).trim());
+
+    if (localCandidates.some((value) => value.includes("충주") || value.includes("chungju"))) {
+      return "22222222-2222-2222-2222-222222222222";
+    }
+
+    if (localCandidates.some((value) => value.includes("행복복지관") || value.includes("은평") || value.includes("eunpyeong"))) {
+      return "11111111-1111-1111-1111-111111111111";
+    }
+
     return (
       SUPABASE_ADMIN_ORGANIZATION_ID_MAP[localOrganization.id] ||
       SUPABASE_ADMIN_ORGANIZATION_ID_MAP[localOrganization.name] ||
@@ -1659,9 +1709,12 @@ export function AdminTargets({ data, navigate, currentUser }) {
         return;
       }
 
+      console.debug("[admin-targets] supabase organization id", adminSupabaseOrganizationId);
       const result = await getSupabaseAdminTargets(adminSupabaseOrganizationId);
 
       if (!mounted) return;
+
+      console.debug("[admin-targets] supabase targets result", result.source, result.ok, result.targets?.length ?? 0);
 
       if (result.ok) {
         setSupabaseTargetsState({
