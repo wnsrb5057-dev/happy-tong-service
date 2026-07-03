@@ -131,3 +131,9 @@
 - Read-only transition step 5 uses docs/supabase-organization-detail-rpc.sql and the get_public_organization_detail(p_organization_id uuid) RPC for /super/organizations/:id.
 - If the RPC is unavailable, fails, or Supabase is not configured, the screen falls back to the existing localStorage/mock organization detail summary.
 
+
+## 16. Super status read-only step
+
+- Read-only transition step 6 uses docs/supabase-super-status-rpc.sql and the get_public_super_status_summaries() RPC for /super/status.
+- If the RPC fails or Supabase is not configured, the screen falls back to the existing localStorage/mock data summary.
+

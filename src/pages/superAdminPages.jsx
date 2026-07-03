@@ -5,6 +5,7 @@ import { getSupabaseOrganizationSummaries } from "../services/supabaseOrganizati
 import { getSupabaseRecentEmergencySummaries } from "../services/supabaseRecentEmergencyService.js";
 import { getSupabaseSuperDashboardKpis } from "../services/supabaseSuperDashboardKpiService.js";
 import { getSupabaseOrganizationDetail } from "../services/supabaseOrganizationDetailService.js";
+import { getSupabaseSuperStatusSummaries } from "../services/supabaseSuperStatusService.js";
 
 const DEFAULT_ORGANIZATION_ID = "org-eunpyeong-care";
 
@@ -79,6 +80,15 @@ const CHECK_TYPE_LABELS = {
   "집중 모니터링": "집중 모니터링",
 };
 
+const RISK_LEVEL_LABELS = {
+  high: "높음",
+  medium: "주의",
+  low: "안정",
+  높음: "높음",
+  주의: "주의",
+  안정: "안정",
+};
+
 function getOrganizationIdFromTarget(target) {
   return target?.organizationId || DEFAULT_ORGANIZATION_ID;
 }
@@ -116,6 +126,10 @@ function getActivityResultStatusLabel(resultStatus) {
 
 function getCheckTypeLabel(checkType) {
   return CHECK_TYPE_LABELS[String(checkType || "visit").trim()] || checkType || "방문";
+}
+
+function getRiskLevelLabel(riskLevel) {
+  return RISK_LEVEL_LABELS[String(riskLevel || "low").trim()] || riskLevel || "안정";
 }
 
 function isUnresolvedEmergency(report) {
@@ -324,6 +338,94 @@ function buildLocalOrganizationDetail(data, organizationId) {
     recentActivityRecords,
     checkers: checkerRows,
   };
+}
+
+function buildLocalSuperStatusSummaries(data) {
+  const organizationSummaries = buildOrganizationSummaries(data);
+  const targets = Array.isArray(data.targets) ? data.targets : [];
+  const emergencyReports = Array.isArray(data.emergencyReports) ? data.emergencyReports : [];
+  const activityRecords = Array.isArray(data.activityRecords) ? data.activityRecords : [];
+  const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+
+  return organizationSummaries
+    .map((organization) => {
+      const activeTargets = targets.filter(
+        (target) =>
+          getOrganizationIdFromTarget(target) === organization.id &&
+          String(target.lifecycleStatus || "active") !== "ended"
+      );
+      const targetIds = new Set(activeTargets.map((target) => target.id));
+      const organizationActivities = activityRecords.filter((record) => targetIds.has(record.targetId));
+      const recentActivityRecords = organizationActivities.filter((record) => {
+        const checkedValue = record.checkedAt || record.createdAt || record.date;
+        if (!checkedValue) return false;
+        const checkedDate = new Date(checkedValue);
+        if (Number.isNaN(checkedDate.getTime())) return false;
+        return checkedDate.getTime() >= sevenDaysAgo;
+      });
+      const organizationEmergencies = emergencyReports.filter(
+        (report) => getOrganizationIdFromEmergency(report, targets) === organization.id
+      );
+      const lastActivityRecord = organizationActivities
+        .slice()
+        .sort((a, b) =>
+          sortByLatestTimestamp(a.checkedAt || a.createdAt || a.date, b.checkedAt || b.createdAt || b.date)
+        )[0];
+      const lastEmergencyReport = organizationEmergencies
+        .slice()
+        .sort((a, b) => sortByLatestTimestamp(a.reportedAt || a.date, b.reportedAt || b.date))[0];
+
+      let riskLevel = "low";
+      let riskReason = "운영 상태가 안정적입니다.";
+
+      if (
+        organization.unresolvedEmergencyCount >= 3 ||
+        (recentActivityRecords.length === 0 && activeTargets.length >= 1)
+      ) {
+        riskLevel = "high";
+        riskReason =
+          organization.unresolvedEmergencyCount >= 3
+            ? "미처리 이상징후가 많습니다."
+            : "최근 생활 확인 기록이 없습니다.";
+      } else if (
+        organization.unresolvedEmergencyCount >= 1 ||
+        (activeTargets.length > 0 && recentActivityRecords.length < activeTargets.length)
+      ) {
+        riskLevel = "medium";
+        riskReason =
+          organization.unresolvedEmergencyCount >= 1
+            ? "미처리 이상징후가 남아 있습니다."
+            : "최근 생활 확인 기록이 대상자 수보다 적습니다.";
+      }
+
+      return {
+        organizationId: organization.id,
+        organizationName: organization.name,
+        region: organization.region || "-",
+        status: organization.status || "active",
+        statusLabel: organization.statusLabel || getOrganizationStatusLabel(organization.status || "active"),
+        adminName: organization.adminName || "미배정",
+        targetCount: Number(organization.targetCount || 0),
+        checkerCount: Number(organization.checkerCount || 0),
+        emergencyCount: Number(organization.emergencyCount || 0),
+        unresolvedEmergencyCount: Number(organization.unresolvedEmergencyCount || 0),
+        recentActivityCount: recentActivityRecords.length,
+        lastActivityAt: lastActivityRecord?.checkedAt || lastActivityRecord?.createdAt || lastActivityRecord?.date || null,
+        lastEmergencyAt: lastEmergencyReport?.reportedAt || lastEmergencyReport?.date || null,
+        riskLevel,
+        riskLevelLabel: getRiskLevelLabel(riskLevel),
+        riskReason,
+      };
+    })
+    .sort((a, b) => {
+      const riskOrder = { high: 0, medium: 1, low: 2 };
+      const riskDiff = (riskOrder[a.riskLevel] ?? 9) - (riskOrder[b.riskLevel] ?? 9);
+      if (riskDiff !== 0) return riskDiff;
+      if (b.unresolvedEmergencyCount !== a.unresolvedEmergencyCount) {
+        return b.unresolvedEmergencyCount - a.unresolvedEmergencyCount;
+      }
+      return String(a.organizationName || "").localeCompare(String(b.organizationName || ""), "ko");
+    });
 }
 
 function useOrganizationSummarySource(data) {
@@ -623,6 +725,68 @@ function useOrganizationDetailSource(data, organizationId) {
   return state;
 }
 
+function useSuperStatusSource(data) {
+  const fallbackStatuses = useMemo(() => buildLocalSuperStatusSummaries(data), [data]);
+  const [state, setState] = useState({
+    loading: true,
+    source: "local",
+    noteClassName: "super-source-local",
+    noteLabel: "로컬 데이터 기준",
+    noteMessage: "",
+    statuses: fallbackStatuses,
+  });
+
+  useEffect(() => {
+    let mounted = true;
+
+    setState((current) => ({
+      ...current,
+      loading: true,
+      statuses: fallbackStatuses,
+    }));
+
+    async function load() {
+      const result = await getSupabaseSuperStatusSummaries();
+
+      if (!mounted) return;
+
+      if (result.ok) {
+        setState({
+          loading: false,
+          source: "supabase",
+          noteClassName: "super-source-supabase",
+          noteLabel: "Supabase 기준",
+          noteMessage: result.message,
+          statuses: result.statuses,
+        });
+        return;
+      }
+
+      const fallbackMessage =
+        result.source === "error"
+          ? "Supabase 운영 상태 요약을 불러오지 못해 로컬 데이터를 표시합니다."
+          : result.message || "Supabase 운영 상태 요약을 확인 중입니다.";
+
+      setState({
+        loading: false,
+        source: "local",
+        noteClassName: "super-source-local",
+        noteLabel: "로컬 데이터 기준",
+        noteMessage: fallbackMessage,
+        statuses: fallbackStatuses,
+      });
+    }
+
+    load();
+
+    return () => {
+      mounted = false;
+    };
+  }, [fallbackStatuses]);
+
+  return state;
+}
+
 function SuperEmergencyStatusBadge({ status }) {
   const statusKey = getEmergencyStatusKey(status);
   const statusLabel = getEmergencyStatusLabel(status);
@@ -645,6 +809,17 @@ function SuperDataSourceNote({ loading, loadingMessage, noteLabel, noteClassName
       {noteMessage ? <span className="muted">{noteMessage}</span> : null}
     </div>
   );
+}
+
+function SuperRiskBadge({ riskLevel, riskLevelLabel }) {
+  const badgeClassName =
+    riskLevel === "high"
+      ? "badge-urgency-high"
+      : riskLevel === "medium"
+        ? "badge-urgency-medium"
+        : "badge-urgency-low";
+
+  return <span className={`badge ${badgeClassName} super-emergency-badge`}>{riskLevelLabel}</span>;
 }
 
 function SuperOrganizationCard({ organization, showAction = false, navigate }) {
@@ -695,6 +870,73 @@ function SuperOrganizationCard({ organization, showAction = false, navigate }) {
           </Button>
         </>
       ) : null}
+    </Card>
+  );
+}
+
+function SuperStatusOrganizationCard({ organization, navigate }) {
+  return (
+    <Card className="super-organization-card super-status-card">
+      <div className="card-row super-organization-card-header super-status-card-head">
+        <div>
+          <strong>{organization.organizationName}</strong>
+          <p className="muted">{organization.region || "-"}</p>
+        </div>
+        <div className="super-status-card-badges">
+          <span className="badge badge-info super-emergency-badge">{organization.statusLabel}</span>
+          <SuperRiskBadge riskLevel={organization.riskLevel} riskLevelLabel={organization.riskLevelLabel} />
+        </div>
+      </div>
+
+      <div className="super-organization-summary">
+        <div className="super-organization-admin">
+          <span>기관 관리자</span>
+          <strong>{organization.adminName || "미배정"}</strong>
+        </div>
+
+        <div className="super-status-metrics">
+          <div className="super-organization-metric">
+            <span>대상자</span>
+            <strong>{organization.targetCount}명</strong>
+          </div>
+          <div className="super-organization-metric">
+            <span>체커</span>
+            <strong>{organization.checkerCount}명</strong>
+          </div>
+          <div className="super-organization-metric">
+            <span>미처리 이상징후</span>
+            <strong>{organization.unresolvedEmergencyCount}건</strong>
+          </div>
+          <div className="super-organization-metric">
+            <span>최근 7일 확인</span>
+            <strong>{organization.recentActivityCount}건</strong>
+          </div>
+        </div>
+
+        <div className="super-detail-meta-grid super-status-meta-grid">
+          <div className="super-detail-meta-item">
+            <span>마지막 생활 확인</span>
+            <strong>{formatCheckedAt(organization.lastActivityAt)}</strong>
+          </div>
+          <div className="super-detail-meta-item">
+            <span>마지막 이상징후 보고</span>
+            <strong>{formatCheckedAt(organization.lastEmergencyAt)}</strong>
+          </div>
+        </div>
+
+        <p className="muted super-organization-note super-status-risk-reason">
+          {organization.riskReason || "운영 상태가 안정적입니다."}
+        </p>
+      </div>
+
+      <Button
+        type="button"
+        variant="ghost"
+        className="super-disabled-button"
+        onClick={() => navigate(`/super/organizations/${organization.organizationId}`)}
+      >
+        상세 보기
+      </Button>
     </Card>
   );
 }
@@ -1121,7 +1363,7 @@ export function SuperOrganizationDetailPage({ organizationId, data, navigate }) 
   );
 }
 
-export function SuperStatusPlaceholder() {
+function LegacySuperStatusPlaceholder() {
   return (
     <>
       <PageHeader
@@ -1133,6 +1375,73 @@ export function SuperStatusPlaceholder() {
         title="준비 중입니다."
         description="총관리자 운영 현황 상세 화면은 다음 단계에서 제공합니다."
       />
+    </>
+  );
+}
+
+export function SuperStatusPlaceholder({ data, navigate }) {
+  const statusState = useSuperStatusSource(data);
+
+  const summary = useMemo(() => {
+    const statuses = Array.isArray(statusState.statuses) ? statusState.statuses : [];
+
+    return {
+      organizationCount: statuses.length,
+      stableCount: statuses.filter((item) => item.riskLevel === "low").length,
+      cautionCount: statuses.filter((item) => item.riskLevel === "medium").length,
+      highRiskCount: statuses.filter((item) => item.riskLevel === "high").length,
+      unresolvedEmergencyCount: statuses.reduce(
+        (total, item) => total + Number(item.unresolvedEmergencyCount || 0),
+        0
+      ),
+    };
+  }, [statusState.statuses]);
+
+  return (
+    <>
+      <PageHeader
+        eyebrow="운영 현황"
+        title="운영 상태"
+        description="기관별 운영 상태, 미처리 이상징후, 최근 생활 확인 흐름을 확인합니다."
+      />
+
+      <SuperDataSourceNote
+        loading={statusState.loading}
+        loadingMessage="Supabase 운영 상태 요약을 확인 중입니다."
+        noteLabel={statusState.noteLabel}
+        noteClassName={statusState.noteClassName}
+        noteMessage={statusState.noteMessage}
+      />
+
+      <div className="statistics-grid super-kpi-grid">
+        <StatCard label="전체 기관" value={`${summary.organizationCount}개`} tone="blue" helper="표시 기관 기준" />
+        <StatCard label="안정 기관" value={`${summary.stableCount}개`} tone="green" helper="risk low 기준" />
+        <StatCard label="주의 기관" value={`${summary.cautionCount}개`} tone="orange" helper="risk medium 기준" />
+        <StatCard label="고위험 기관" value={`${summary.highRiskCount}개`} tone="red" helper="risk high 기준" />
+        <StatCard
+          label="전체 미처리 이상징후"
+          value={`${summary.unresolvedEmergencyCount}건`}
+          tone="red"
+          helper="완료 제외"
+        />
+      </div>
+
+      {statusState.statuses.length ? (
+        <div className="super-status-grid">
+          {statusState.statuses.map((organization) => (
+            <SuperStatusOrganizationCard
+              key={organization.organizationId}
+              organization={organization}
+              navigate={navigate}
+            />
+          ))}
+        </div>
+      ) : (
+        <EmptyState
+          title="표시할 운영 상태 데이터가 없습니다."
+          description="기관 운영 상태 요약을 불러오면 이 화면에 표시됩니다."
+        />
+      )}
     </>
   );
 }
