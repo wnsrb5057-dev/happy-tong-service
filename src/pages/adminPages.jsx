@@ -475,16 +475,20 @@ export function AdminDashboard({ data, navigate, currentUser }) {
   const weekPlan = getWeekPlan(activeTargets);
   const [selectedPlanDay, setSelectedPlanDay] = useState(todayPlanDay);
   const selectedPlan = weekPlan.find((item) => item.day === selectedPlanDay) || weekPlan[0];
-  const recentEmergencyReports = [...emergencyReports]
-    .sort((a, b) => {
-      const urgentDiff = Number(getIssueLevel(b) === "urgent") - Number(getIssueLevel(a) === "urgent");
-      if (urgentDiff) return urgentDiff;
-      const statusDiff = Number(isEmergencyCompleted(a.status)) - Number(isEmergencyCompleted(b.status));
-      if (statusDiff) return statusDiff;
-      return byLatestDate(a, b);
-    })
-    .slice(0, 5);
-  const recentActivities = [...activityRecords].sort(byLatestDate).slice(0, 4);
+  const recentEmergencyReports = useMemo(
+    () =>
+      [...emergencyReports]
+        .sort((a, b) => {
+          const urgentDiff = Number(getIssueLevel(b) === "urgent") - Number(getIssueLevel(a) === "urgent");
+          if (urgentDiff) return urgentDiff;
+          const statusDiff = Number(isEmergencyCompleted(a.status)) - Number(isEmergencyCompleted(b.status));
+          if (statusDiff) return statusDiff;
+          return byLatestDate(a, b);
+        })
+        .slice(0, 5),
+    [emergencyReports]
+  );
+  const recentActivities = useMemo(() => [...activityRecords].sort(byLatestDate).slice(0, 4), [activityRecords]);
   const fallbackDashboard = useMemo(
     () => ({
       targetCount: activeTargets.length,
@@ -614,9 +618,17 @@ export function AdminDashboard({ data, navigate, currentUser }) {
         return;
       }
 
+      console.debug("[admin-dashboard] supabase organization id", adminSupabaseOrganizationId);
       const result = await getSupabaseAdminDashboard(adminSupabaseOrganizationId);
 
       if (!mounted) return;
+
+      console.debug("[admin-dashboard] supabase dashboard result", {
+        ok: result.ok,
+        source: result.source,
+        targetCount: result.dashboard?.targetCount ?? null,
+        unresolvedEmergencyCount: result.dashboard?.unresolvedEmergencyCount ?? null,
+      });
 
       if (result.ok && result.dashboard) {
         setSupabaseDashboardState({
