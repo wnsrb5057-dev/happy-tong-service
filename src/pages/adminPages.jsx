@@ -48,6 +48,7 @@ import {
 import { getSupabaseAdminDashboard } from "../services/supabaseAdminDashboardService.js";
 import { getSupabaseAdminTargets } from "../services/supabaseAdminTargetsService.js";
 import { getSupabaseAdminEmergencies } from "../services/supabaseAdminEmergenciesService.js";
+import { getSupabaseAdminActivityRecords } from "../services/supabaseAdminActivityRecordsService.js";
 
 function getToday() {
   const now = new Date();
@@ -474,6 +475,35 @@ function findLocalEmergencyMatchId(report, localReports, targets) {
   });
 
   return fuzzyMatch?.id || null;
+}
+
+function formatRecordDisplayDate(record) {
+  return formatSafeDateLabel(record?.checkedAt || record?.date || record?.createdAt);
+}
+
+function normalizeLocalAdminActivityRecord(record, targets, users) {
+  const resultStatus = record?.resultStatus || record?.status || "normal";
+  const checkType = getCheckType(record);
+
+  return {
+    ...record,
+    organizationId: record.organizationId || "",
+    targetName: targetName(targets, record.targetId),
+    targetAddress: targetById(targets, record.targetId)?.address || "-",
+    checkerName: checkerName(users, record.checkerId),
+    checkType,
+    checkTypeLabel:
+      activityTypeLabels[checkType] || checkTypeLabels[checkType] || checkType,
+    resultStatus,
+    resultStatusLabel: recordStatusLabels[resultStatus] || resultStatus || "이상 없음",
+    checkedAt: record.checkedAt || record.date || record.createdAt || null,
+    createdAt: record.createdAt || record.checkedAt || record.date || null,
+  };
+}
+
+function getRecordIssueState(record) {
+  const resultStatus = record?.resultStatus || record?.status || "normal";
+  return resultStatus === "caution" || resultStatus === "emergency";
 }
 
 function getCheckerAreaValue(checker) {
@@ -2168,19 +2198,105 @@ export function AdminTargetDetail({ targetId, data, actions, navigate }) {
     </>
   );
 }
-export function AdminActivities({ data }) {
+export function AdminActivities({ data, currentUser }) {
   const [filter, setFilter] = useState("all");
   const [openRecordId, setOpenRecordId] = useState("");
+  const adminSupabaseOrganizationId = useMemo(
+    () => resolveAdminSupabaseOrganizationId(currentUser, data),
+    [currentUser, data]
+  );
+  const [supabaseRecordsState, setSupabaseRecordsState] = useState({
+    loading: true,
+    source: "local",
+    noteClassName: "super-source-local",
+    noteLabel: "로컬 데이터 기준",
+    noteMessage: "",
+    records: [],
+  });
   const today = getToday();
-  const records = [...data.activityRecords].sort((a, b) => {
-    const aTime = a?.date ? new Date(a.date).getTime() : 0;
-    const bTime = b?.date ? new Date(b.date).getTime() : 0;
+  const targets = Array.isArray(data.targets) ? data.targets : [];
+  const users = Array.isArray(data.users) ? data.users : [];
+  const rawRecords = Array.isArray(data.activityRecords) ? data.activityRecords : [];
+  const localRecords = useMemo(
+    () => rawRecords.map((record) => normalizeLocalAdminActivityRecord(record, targets, users)),
+    [rawRecords, targets, users]
+  );
+
+  useEffect(() => {
+    let mounted = true;
+
+    setSupabaseRecordsState((current) => ({
+      ...current,
+      loading: true,
+      records: localRecords,
+    }));
+
+    async function load() {
+      if (!adminSupabaseOrganizationId) {
+        if (!mounted) return;
+        setSupabaseRecordsState({
+          loading: false,
+          source: "local",
+          noteClassName: "super-source-local",
+          noteLabel: "로컬 데이터 기준",
+          noteMessage: "Supabase 기관 매핑 정보를 찾지 못해 로컬 데이터를 표시합니다.",
+          records: localRecords,
+        });
+        return;
+      }
+
+      console.debug("[admin-activities] current user", currentUser);
+      console.debug("[admin-activities] supabase organization id", adminSupabaseOrganizationId);
+      const result = await getSupabaseAdminActivityRecords(adminSupabaseOrganizationId);
+
+      if (!mounted) return;
+
+      console.debug("[admin-activities] supabase activity records result", result.source, result.ok, result.records?.length ?? 0);
+
+      if (result.ok) {
+        setSupabaseRecordsState({
+          loading: false,
+          source: "supabase",
+          noteClassName: "super-source-supabase",
+          noteLabel: "Supabase 기준",
+          noteMessage: result.message,
+          records: result.records,
+        });
+        return;
+      }
+
+      setSupabaseRecordsState({
+        loading: false,
+        source: "local",
+        noteClassName: "super-source-local",
+        noteLabel: "로컬 데이터 기준",
+        noteMessage: result.source === "not_configured"
+          ? result.message
+          : "Supabase 확인기록 목록을 불러오지 못해 로컬 데이터를 표시합니다.",
+        records: localRecords,
+      });
+    }
+
+    load();
+
+    return () => {
+      mounted = false;
+    };
+  }, [adminSupabaseOrganizationId, currentUser, localRecords]);
+
+  const resolvedRecords =
+    Array.isArray(supabaseRecordsState.records) && supabaseRecordsState.records.length
+      ? supabaseRecordsState.records
+      : localRecords;
+  const records = [...resolvedRecords].sort((a, b) => {
+    const aTime = a?.checkedAt || a?.date || a?.createdAt ? new Date(a?.checkedAt || a?.date || a?.createdAt).getTime() : 0;
+    const bTime = b?.checkedAt || b?.date || b?.createdAt ? new Date(b?.checkedAt || b?.date || b?.createdAt).getTime() : 0;
     return bTime - aTime;
   });
   const filteredRecords = records.filter((record) => {
-    if (filter === "issue") return record.hasIssue || record.issueLevel === "need_check" || record.issueLevel === "urgent";
-    if (filter === "pending") return record.status !== "completed";
-    if (filter === "today") return record.date === today;
+    if (filter === "issue") return record.hasIssue || record.issueLevel === "need_check" || record.issueLevel === "urgent" || getRecordIssueState(record);
+    if (filter === "pending") return (record.resultStatus || record.status) !== "completed";
+    if (filter === "today") return (record.date || String(record.checkedAt || "").slice(0, 10)) === today;
     return true;
   });
 
@@ -2188,10 +2304,21 @@ export function AdminActivities({ data }) {
     <>
       <PageHeader eyebrow="확인 기록" title="확인 기록 조회" description="체커가 작성한 확인 기록을 검토합니다." />
 
+      <div className="admin-dashboard-source-note">
+        {supabaseRecordsState.loading ? (
+          <span className="muted">Supabase 확인기록 목록을 확인 중입니다.</span>
+        ) : (
+          <>
+            <span className={`badge ${supabaseRecordsState.noteClassName}`}>{supabaseRecordsState.noteLabel}</span>
+            <span className="muted">{supabaseRecordsState.noteMessage}</span>
+          </>
+        )}
+      </div>
+
       <Card className="summary-card">
         <p className="eyebrow">기록 현황</p>
-        <strong>전체 {data.activityRecords.length}건 · 오늘 {data.activityRecords.filter((record) => record.date === today).length}건</strong>
-        <span>이상징후 포함 {data.activityRecords.filter((record) => record.hasIssue || record.issueLevel === "need_check" || record.issueLevel === "urgent").length}건 · 미완료 {data.activityRecords.filter((record) => record.status !== "completed").length}건</span>
+        <strong>전체 {records.length}건 · 오늘 {records.filter((record) => (record.date || String(record.checkedAt || "").slice(0, 10)) === today).length}건</strong>
+        <span>이상징후 포함 {records.filter((record) => record.hasIssue || record.issueLevel === "need_check" || record.issueLevel === "urgent" || getRecordIssueState(record)).length}건 · 미완료 {records.filter((record) => (record.resultStatus || record.status) !== "completed").length}건</span>
       </Card>
 
       <div className="filter-tabs activity-filter-tabs" aria-label="확인 기록 필터">
@@ -2216,22 +2343,22 @@ export function AdminActivities({ data }) {
         {filteredRecords.map((record) => (
           <Card key={record.id} className="admin-activity-card">
           <div className="admin-activity-primary">
-            <strong>{targetName(data.targets, record.targetId)}</strong>
+            <strong>{record.targetName || targetName(targets, record.targetId)}</strong>
             <p className="muted">
-              {record.date || "날짜 정보 없음"} · {checkerName(data.users, record.checkerId)} · {activityTypeLabels[getCheckType(record)]}
+              {formatRecordDisplayDate(record)} · {record.checkerName || checkerName(users, record.checkerId)} · {record.checkTypeLabel || activityTypeLabels[getCheckType(record)]}
             </p>
           </div>
         
           <p className="muted admin-activity-memo">
-            {truncateText(record.memo)}
+            {truncateText(record.targetAddress || record.memo || "상세 메모 없음")}
           </p>
         
           <div className="badge-row compact-badges admin-activity-badges">
-            <StatusBadge type="health" value={record.healthStatus || "good"} />
-            <span className={record.hasIssue || record.issueLevel !== "none" ? "badge badge-risk-danger" : "badge badge-muted"}>
-              {record.hasIssue || record.issueLevel !== "none" ? "이상징후 있음" : "이상징후 없음"}
+            <StatusBadge type="health" value={getRecordIssueState(record) ? "caution" : record.healthStatus || "good"} />
+            <span className={record.hasIssue || record.issueLevel !== "none" || getRecordIssueState(record) ? "badge badge-risk-danger" : "badge badge-muted"}>
+              {record.hasIssue || record.issueLevel !== "none" || getRecordIssueState(record) ? "이상징후 있음" : "이상징후 없음"}
             </span>
-            <StatusBadge type="record" value={record.status} />
+            <StatusBadge type="record" value={record.resultStatus || record.status} />
           </div>
         
           <Button
@@ -2244,9 +2371,11 @@ export function AdminActivities({ data }) {
         
           {openRecordId === record.id ? (
             <div className="detail-box admin-activity-detail-box">
-              <p>체커: {checkerName(data.users, record.checkerId)}</p>
-              <p>체크 유형: {activityTypeLabels[getCheckType(record)]}</p>
-              <p>메모: {record.memo || "메모 없음"}</p>
+              <p>대상자 주소: {record.targetAddress || "-"}</p>
+              <p>체커: {record.checkerName || checkerName(users, record.checkerId)}</p>
+              <p>체크 유형: {record.checkTypeLabel || activityTypeLabels[getCheckType(record)]}</p>
+              <p>결과 상태: {record.resultStatusLabel || record.resultStatus || record.status || "상태 없음"}</p>
+              <p>생성일: {formatSafeDateLabel(record.createdAt)}</p>
               {record.issueSummary ? <p className="danger-text">{record.issueSummary}</p> : null}
             </div>
           ) : null}

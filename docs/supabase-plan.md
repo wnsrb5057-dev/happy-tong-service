@@ -157,3 +157,10 @@
 - If the mapping or RPC fails, the emergency list falls back to the existing localStorage/mock data.
 - Emergency handling status changes, memos, guardian contact checks, and visit-required checks still use the existing localStorage flow in this stage.
 
+## 20. Admin activity records read-only step
+
+- Read-only transition step 10 uses docs/supabase-admin-activity-records-rpc.sql and the get_public_admin_activity_records(p_organization_id uuid) RPC for /admin/activities.
+- In the current MVP stage, local admin organizations are temporarily mapped to Supabase seed organization ids.
+- If the mapping or RPC fails, the activity records list falls back to the existing localStorage/mock data.
+- Activity record detail, update, and delete flows still use the existing localStorage flow in this stage.
+
