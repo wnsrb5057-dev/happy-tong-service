@@ -47,6 +47,7 @@ import {
 } from "../utils/exportCsv.js";
 import { getSupabaseAdminDashboard } from "../services/supabaseAdminDashboardService.js";
 import { getSupabaseAdminTargets } from "../services/supabaseAdminTargetsService.js";
+import { getSupabaseAdminEmergencies } from "../services/supabaseAdminEmergenciesService.js";
 
 function getToday() {
   const now = new Date();
@@ -364,6 +365,83 @@ function findLocalTargetMatchId(target, localTargets) {
   const fuzzyMatch = localTargets.find(
     (item) => item.name === target.name && getTargetArea(item) === area
   );
+
+  return fuzzyMatch?.id || null;
+}
+
+function getEmergencySeverityValue(report) {
+  return report?.severity || report?.urgency || "caution";
+}
+
+function formatSafeDateLabel(value) {
+  if (!value) return "-";
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return typeof value === "string" ? value : "-";
+  }
+
+  return date.toLocaleDateString("ko-KR", {
+    month: "2-digit",
+    day: "2-digit",
+  });
+}
+
+function buildLatestHandlingLogByEmergency(emergencyReports) {
+  return emergencyReports.reduce((accumulator, report) => {
+    const logs = Array.isArray(report?.handlingLogs) ? [...report.handlingLogs] : [];
+    if (!logs.length) return accumulator;
+
+    logs.sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
+    accumulator[report.id] = logs[0];
+    return accumulator;
+  }, {});
+}
+
+function normalizeLocalAdminEmergency(report, targets, users, latestHandlingLogByEmergency) {
+  const latestLog = latestHandlingLogByEmergency[report.id];
+  const target = targetById(targets, report.targetId);
+  const checker = checkerById(users, report.checkerId);
+  const severity = getEmergencySeverityValue(report);
+  const lastHandlingStatus = latestLog?.status || null;
+
+  return {
+    ...report,
+    organizationId: report.organizationId || "",
+    targetName: target?.name || "대상자 없음",
+    targetAddress: target?.address || getTargetArea(target || {}) || "-",
+    checkerName: checker?.name || "체커 없음",
+    title: report.title || report.issueType || "이상징후 보고",
+    severity,
+    severityLabel: urgencyLabels[report.urgency] || urgencyLabels[severity] || severity,
+    status: report.status || "received",
+    statusLabel: getEmergencyStatusMeta(report.status).label,
+    reportedAt: report.reportedAt || report.date || report.createdAt || null,
+    lastHandlingStatus,
+    lastHandlingStatusLabel: lastHandlingStatus ? getEmergencyStatusMeta(lastHandlingStatus).label : null,
+    lastHandlingMemo: latestLog?.memo || "",
+    handledAt: latestLog?.createdAt || null,
+    createdAt: report.createdAt || report.reportedAt || report.date || null,
+  };
+}
+
+function findLocalEmergencyMatchId(report, localReports, targets) {
+  const directMatch = localReports.find((item) => item.id === report.id);
+  if (directMatch) return directMatch.id;
+
+  const target = targetById(targets, report.targetId);
+  const fallbackTargetName = target?.name || report.targetName;
+  const fallbackDate = report.reportedAt || report.date || "";
+  const fallbackTitle = report.title || report.issueType || "";
+
+  const fuzzyMatch = localReports.find((item) => {
+    const itemTarget = targetById(targets, item.targetId);
+    const itemTargetName = itemTarget?.name || "";
+    const itemTitle = item.title || item.issueType || "";
+    const itemDate = item.reportedAt || item.date || "";
+
+    return itemTargetName === fallbackTargetName && itemTitle === fallbackTitle && itemDate === fallbackDate;
+  });
 
   return fuzzyMatch?.id || null;
 }
@@ -2148,30 +2226,130 @@ export function AdminActivities({ data }) {
     </>
   );
 }
-export function AdminEmergencies({ data, navigate }) {
+export function AdminEmergencies({ data, navigate, currentUser }) {
   const [filter, setFilter] = useState("all");
-  const reports = [...data.emergencyReports].sort((a, b) => {
-    const urgentDiff = Number(getIssueLevel(b) === "urgent") - Number(getIssueLevel(a) === "urgent");
+  const adminSupabaseOrganizationId = useMemo(
+    () => resolveAdminSupabaseOrganizationId(currentUser, data),
+    [currentUser, data]
+  );
+  const [supabaseEmergenciesState, setSupabaseEmergenciesState] = useState({
+    loading: true,
+    source: "local",
+    noteClassName: "super-source-local",
+    noteLabel: "로컬 데이터 기준",
+    noteMessage: "",
+    emergencies: [],
+  });
+  const targets = Array.isArray(data.targets) ? data.targets : [];
+  const users = Array.isArray(data.users) ? data.users : [];
+  const rawReports = Array.isArray(data.emergencyReports) ? data.emergencyReports : [];
+  const latestHandlingLogByEmergency = useMemo(
+    () => buildLatestHandlingLogByEmergency(rawReports),
+    [rawReports]
+  );
+  const localReports = useMemo(
+    () => rawReports.map((report) => normalizeLocalAdminEmergency(report, targets, users, latestHandlingLogByEmergency)),
+    [latestHandlingLogByEmergency, rawReports, targets, users]
+  );
+
+  useEffect(() => {
+    let mounted = true;
+
+    setSupabaseEmergenciesState((current) => ({
+      ...current,
+      loading: true,
+      emergencies: localReports,
+    }));
+
+    async function load() {
+      if (!adminSupabaseOrganizationId) {
+        if (!mounted) return;
+        setSupabaseEmergenciesState({
+          loading: false,
+          source: "local",
+          noteClassName: "super-source-local",
+          noteLabel: "로컬 데이터 기준",
+          noteMessage: "Supabase 기관 매핑 정보를 찾지 못해 로컬 데이터를 표시합니다.",
+          emergencies: localReports,
+        });
+        return;
+      }
+
+      console.debug("[admin-emergencies] supabase organization id", adminSupabaseOrganizationId);
+      const result = await getSupabaseAdminEmergencies(adminSupabaseOrganizationId);
+
+      if (!mounted) return;
+
+      console.debug("[admin-emergencies] supabase emergencies result", result.source, result.ok, result.emergencies?.length ?? 0);
+
+      if (result.ok) {
+        setSupabaseEmergenciesState({
+          loading: false,
+          source: "supabase",
+          noteClassName: "super-source-supabase",
+          noteLabel: "Supabase 기준",
+          noteMessage: result.message,
+          emergencies: result.emergencies,
+        });
+        return;
+      }
+
+      setSupabaseEmergenciesState({
+        loading: false,
+        source: "local",
+        noteClassName: "super-source-local",
+        noteLabel: "로컬 데이터 기준",
+        noteMessage: "Supabase 이상징후 목록을 불러오지 못해 로컬 데이터를 표시합니다.",
+        emergencies: localReports,
+      });
+    }
+
+    load();
+
+    return () => {
+      mounted = false;
+    };
+  }, [adminSupabaseOrganizationId, localReports]);
+
+  const resolvedReports =
+    Array.isArray(supabaseEmergenciesState.emergencies) && supabaseEmergenciesState.emergencies.length
+      ? supabaseEmergenciesState.emergencies
+      : localReports;
+  const reports = [...resolvedReports].sort((a, b) => {
+    const urgentDiff =
+      Number(getEmergencySeverityValue(b) === "urgent" || getEmergencySeverityValue(b) === "high") -
+      Number(getEmergencySeverityValue(a) === "urgent" || getEmergencySeverityValue(a) === "high");
     if (urgentDiff) return urgentDiff;
     const receivedDiff = Number(getEmergencyStatusValue(a.status) === "received") - Number(getEmergencyStatusValue(b.status) === "received");
     if (receivedDiff) return receivedDiff;
     const progressDiff = Number(getEmergencyStatusValue(a.status) === "checking") - Number(getEmergencyStatusValue(b.status) === "checking");
     if (progressDiff) return progressDiff;
-    return byLatestDate(a, b);
+    return String(b.reportedAt || b.date || b.createdAt || "").localeCompare(String(a.reportedAt || a.date || a.createdAt || ""));
   });
   const filteredReports = reports.filter((report) => {
-    if (filter === "high") return report.urgency === "high";
+    if (filter === "high") return getEmergencySeverityValue(report) === "urgent" || getEmergencySeverityValue(report) === "high";
     if (filter === "received") return getEmergencyStatusValue(report.status) === "received";
     if (filter === "in_progress") return ["checking", "contacted", "visiting"].includes(getEmergencyStatusValue(report.status));
     if (filter === "completed") return isEmergencyCompleted(report.status);
     return !isEmergencyCompleted(report.status);
   });
-  const urgentCount = reports.filter((report) => report.urgency === "high").length;
+  const urgentCount = reports.filter((report) => getEmergencySeverityValue(report) === "urgent" || getEmergencySeverityValue(report) === "high").length;
   const unresolvedCount = reports.filter((report) => !isEmergencyCompleted(report.status)).length;
 
   return (
     <>
       <PageHeader eyebrow="이상징후 관리" title="이상징후 보고 현황" description="긴급 확인이 필요한 보고부터 우선 확인합니다." />
+
+      <div className="admin-dashboard-source-note">
+        {supabaseEmergenciesState.loading ? (
+          <span className="muted">Supabase 이상징후 목록을 확인 중입니다.</span>
+        ) : (
+          <>
+            <span className={`badge ${supabaseEmergenciesState.noteClassName}`}>{supabaseEmergenciesState.noteLabel}</span>
+            <span className="muted">{supabaseEmergenciesState.noteMessage}</span>
+          </>
+        )}
+      </div>
 
       <Card className="summary-card">
         <p className="eyebrow">우선 확인 필요</p>
@@ -2201,28 +2379,39 @@ export function AdminEmergencies({ data, navigate }) {
         {filteredReports.length ? filteredReports.map((report) => (
           <Card
   key={report.id}
-  className={`admin-emergency-list-card ${report.urgency === 'high' ? 'danger-card' : 'alert-card'}`}
+  className={`admin-emergency-list-card ${(getEmergencySeverityValue(report) === 'urgent' || getEmergencySeverityValue(report) === 'high') ? 'danger-card' : 'alert-card'}`}
 >
   <div className="admin-emergency-list-head">
     <div className="admin-emergency-list-copy">
-      <strong>{targetName(data.targets, report.targetId)}</strong>
-      <p className="muted">{report.date} · {report.issueType}</p>
+      <strong>{report.targetName || targetName(targets, report.targetId)}</strong>
+      <p className="muted">{formatSafeDateLabel(report.reportedAt || report.date)} · {report.title || report.issueType}</p>
+      <p className="muted">{report.targetAddress || "-"}</p>
     </div>
 
     <div className="admin-emergency-list-badges">
-      <StatusBadge type="issueLevel" value={getIssueLevel(report)} />
-                    <EmergencyStatusBadge status={report.status} />
+      <StatusBadge type="issueLevel" value={getEmergencySeverityValue(report) === "urgent" || getEmergencySeverityValue(report) === "high" ? "urgent" : "need_check"} />
+      <EmergencyStatusBadge status={report.lastHandlingStatus || report.status} />
     </div>
   </div>
 
   <p className="admin-emergency-list-description">
-    {truncateText(report.description)}
+    {truncateText(report.lastHandlingMemo || report.description || report.title || report.issueType)}
+  </p>
+
+  <p className="muted">
+    {report.checkerName || checkerName(users, report.checkerId) || "체커 없음"}
+    {report.lastHandlingStatusLabel ? ` · 최근 처리 ${report.lastHandlingStatusLabel}` : ""}
   </p>
 
   <Button
     variant="ghost"
     className="admin-emergency-detail-button"
-    onClick={() => navigate(`/admin/emergencies/${report.id}`)}
+    disabled={!findLocalEmergencyMatchId(report, rawReports, targets)}
+    onClick={() => {
+      const localEmergencyId = findLocalEmergencyMatchId(report, rawReports, targets);
+      if (!localEmergencyId) return;
+      navigate(`/admin/emergencies/${localEmergencyId}`);
+    }}
   >
     상세보기
   </Button>
