@@ -480,8 +480,8 @@ if (adminTargetMatch) {
     }
 
     if (location.pathname === "/admin/emergencies") {
-      return <AdminEmergencies data={data} navigate={navigate} />;
-    }
+        return <AdminEmergencies data={data} navigate={navigate} currentUser={user} />;
+      }
 
     if (adminEmergencyMatch) {
       return (

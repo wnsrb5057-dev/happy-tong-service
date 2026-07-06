@@ -158,6 +158,8 @@ const SUPABASE_ADMIN_ORGANIZATION_ID_MAP = {
 };
 
 function resolveAdminSupabaseOrganizationId(currentUser, data) {
+  const organizations = Array.isArray(data?.organizations) ? data.organizations : [];
+  const targets = Array.isArray(data?.targets) ? data.targets : [];
   const normalizedValues = [
     currentUser?.organizationId,
     currentUser?.organizationName,
@@ -172,7 +174,33 @@ function resolveAdminSupabaseOrganizationId(currentUser, data) {
   const includesKeyword = (keyword) =>
     normalizedValues.some((value) => value.includes(keyword));
 
-  if (includesKeyword("충주") || includesKeyword("chungju")) {
+  const localSignals = [
+    ...organizations.flatMap((organization) => [
+      organization?.id,
+      organization?.name,
+      organization?.region,
+      organization?.adminName,
+    ]),
+    ...targets.flatMap((target) => [
+      target?.managerName,
+      target?.managerOrg,
+      target?.address,
+      target?.area,
+      target?.district,
+    ]),
+  ]
+    .filter(Boolean)
+    .map((value) => String(value).trim());
+
+  const includesLocalSignal = (keyword) =>
+    localSignals.some((value) => value.includes(keyword));
+
+  if (
+    includesKeyword("충주") ||
+    includesKeyword("chungju") ||
+    includesLocalSignal("충주") ||
+    includesLocalSignal("chungju")
+  ) {
     return "22222222-2222-2222-2222-222222222222";
   }
 
@@ -182,6 +210,9 @@ function resolveAdminSupabaseOrganizationId(currentUser, data) {
     includesKeyword("은평") ||
     includesKeyword("eunpyeong") ||
     includesKeyword("박서연") ||
+    includesLocalSignal("행복복지관") ||
+    includesLocalSignal("은평") ||
+    includesLocalSignal("박서연") ||
     currentUser?.username === "admin" ||
     currentUser?.id === "admin" ||
     currentUser?.role === "admin"
@@ -201,7 +232,6 @@ function resolveAdminSupabaseOrganizationId(currentUser, data) {
     }
   }
 
-  const organizations = Array.isArray(data?.organizations) ? data.organizations : [];
   const localOrganization =
     organizations.find((organization) => organization.id === currentUser?.organizationId) ||
     organizations.find((organization) => organization.adminName === currentUser?.name) ||
@@ -2262,6 +2292,8 @@ export function AdminEmergencies({ data, navigate, currentUser }) {
     }));
 
     async function load() {
+      console.debug("[admin-emergencies] current user", currentUser);
+
       if (!adminSupabaseOrganizationId) {
         if (!mounted) return;
         setSupabaseEmergenciesState({
