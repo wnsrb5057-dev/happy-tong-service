@@ -476,7 +476,7 @@ if (adminTargetMatch) {
 }
 
     if (location.pathname === "/admin/activities") {
-      return <AdminActivities data={data} />;
+      return <AdminActivities data={data} currentUser={user} />;
     }
 
     if (location.pathname === "/admin/emergencies") {
@@ -508,7 +508,7 @@ if (adminTargetMatch) {
     }
 
     if (location.pathname === "/admin/statistics") {
-      return <AdminStatistics data={data} />;
+      return <AdminStatistics data={data} currentUser={user} />;
     }
 
     return <NotFound navigate={() => navigate("/admin/dashboard")} />;

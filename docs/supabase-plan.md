@@ -171,3 +171,9 @@
 - If the mapping or RPC fails, the statistics screen falls back to the existing localStorage/mock data.
 - Existing period filters and chart rendering remain in place, and write flows stay on the localStorage side in this stage.
 
+## 22. Admin report read-only step
+
+- 읽기 전용 전환 12단계에서는 관리자 보고서 화면이 docs/supabase-admin-report-summary-rpc.sql의 get_public_admin_report_summary(p_organization_id uuid) RPC를 우선 사용한다.
+- 현재 MVP 단계에서는 로컬 기관과 Supabase seed 기관 id를 임시 매핑하며, 실패 시 기존 localStorage/mock 보고서 요약으로 fallback한다.
+- 보고서 저장/생성/PDF 인쇄 기능은 아직 기존 흐름을 유지한다.
+

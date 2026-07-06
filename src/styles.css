@@ -6150,6 +6150,13 @@ button.upload-box {
   margin-bottom: 16px;
 }
 
+.app-shell-admin .admin-report-summary-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  align-items: center;
+}
+
 @media (max-width: 640px) {
   .app-shell-admin .filter-tabs {
     margin-top: 14px;

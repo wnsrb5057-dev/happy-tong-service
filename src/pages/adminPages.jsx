@@ -50,6 +50,7 @@ import { getSupabaseAdminTargets } from "../services/supabaseAdminTargetsService
 import { getSupabaseAdminEmergencies } from "../services/supabaseAdminEmergenciesService.js";
 import { getSupabaseAdminActivityRecords } from "../services/supabaseAdminActivityRecordsService.js";
 import { getSupabaseAdminStatistics } from "../services/supabaseAdminStatisticsService.js";
+import { getSupabaseAdminReportSummary } from "../services/supabaseAdminReportSummaryService.js";
 
 function getToday() {
   const now = new Date();
@@ -3027,14 +3028,101 @@ function ReportDocument({ report, currentUser }) {
 }
 export function AdminReportNew({ data, actions, navigate, currentUser }) {
   const defaultDraft = generateReportDraft(data, "2026-06-10", getTodayFromStats());
+  const adminSupabaseOrganizationId = useMemo(
+    () => resolveAdminSupabaseOrganizationId(currentUser, data),
+    [currentUser, data]
+  );
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
   const [preview, setPreview] = useState(null);
   const [form, setForm] = useState(() => readReportDraft(defaultDraft));
+  const [supabaseReportSummaryState, setSupabaseReportSummaryState] = useState({
+    loading: true,
+    source: "local",
+    noteClassName: "super-source-local",
+    noteLabel: "로컬 데이터 기준",
+    noteMessage: "",
+    summary: null,
+  });
   const reportInsights = useMemo(
     () => buildReportInsights(data, form.periodStart, form.periodEnd),
     [data, form.periodEnd, form.periodStart]
   );
+  const displayedReportSummary = supabaseReportSummaryState.source === "supabase" && supabaseReportSummaryState.summary
+    ? supabaseReportSummaryState.summary
+    : null;
+
+  useEffect(() => {
+    let mounted = true;
+
+    setSupabaseReportSummaryState((current) => ({
+      ...current,
+      loading: true,
+    }));
+
+    async function load() {
+      if (!adminSupabaseOrganizationId) {
+        if (!mounted) return;
+        setSupabaseReportSummaryState({
+          loading: false,
+          source: "local",
+          noteClassName: "super-source-local",
+          noteLabel: "로컬 데이터 기준",
+          noteMessage: "Supabase 기관 매핑 정보를 찾지 못해 로컬 데이터를 표시합니다.",
+          summary: null,
+        });
+        return;
+      }
+
+      const result = await getSupabaseAdminReportSummary(adminSupabaseOrganizationId);
+
+      if (!mounted) return;
+
+      if (result.ok && result.summary) {
+        setSupabaseReportSummaryState({
+          loading: false,
+          source: "supabase",
+          noteClassName: "super-source-supabase",
+          noteLabel: "Supabase 기준",
+          noteMessage: "Supabase 보고서 요약을 불러왔습니다.",
+          summary: result.summary,
+        });
+        return;
+      }
+
+      const fallbackMessage =
+        result.source === "error" || result.source === "not_found"
+          ? "Supabase 보고서 요약을 불러오지 못해 로컬 데이터를 표시합니다."
+          : result.message || "Supabase 보고서 요약을 확인 중입니다.";
+
+      setSupabaseReportSummaryState({
+        loading: false,
+        source: "local",
+        noteClassName: "super-source-local",
+        noteLabel: "로컬 데이터 기준",
+        noteMessage: fallbackMessage,
+        summary: null,
+      });
+    }
+
+    load();
+
+    return () => {
+      mounted = false;
+    };
+  }, [adminSupabaseOrganizationId]);
+
+  const summaryOrganizationName = displayedReportSummary?.organizationName || currentUser?.organizationName || "기관명 없음";
+  const summaryRegion = displayedReportSummary?.region || currentUser?.region || "-";
+  const summaryPeriodText = displayedReportSummary
+    ? `${displayedReportSummary.reportPeriodStart || "-"} ~ ${displayedReportSummary.reportPeriodEnd || "-"}`
+    : `${form.periodStart || "-"} ~ ${form.periodEnd || "-"}`;
+  const displayedOperatingTargetCount = displayedReportSummary?.activeTargetCount ?? reportInsights.operatingTargetCount;
+  const displayedActivityCount = displayedReportSummary?.activityCount ?? reportInsights.totalActivities;
+  const displayedEmergencyCount = displayedReportSummary?.emergencyCount ?? reportInsights.emergencyCount;
+  const displayedUnresolvedEmergencyCount =
+    displayedReportSummary?.unresolvedEmergencyCount ?? reportInsights.unresolvedEmergencyCount;
+  const displayedReassignmentNeededCount = reportInsights.reassignmentNeededCount;
 
   function updateForm(key, value) {
     setForm((current) => ({ ...current, [key]: value }));
@@ -3153,12 +3241,31 @@ export function AdminReportNew({ data, actions, navigate, currentUser }) {
         action={<Button variant="ghost" onClick={() => navigate('/admin/reports/preview')}>미리보기 화면</Button>}
       />
 
+      <div className="admin-dashboard-source-note">
+        {supabaseReportSummaryState.loading ? (
+          <span className="muted">Supabase 보고서 요약을 확인 중입니다.</span>
+        ) : (
+          <>
+            <span className={`badge ${supabaseReportSummaryState.noteClassName}`}>{supabaseReportSummaryState.noteLabel}</span>
+            <span className="muted">{supabaseReportSummaryState.noteMessage}</span>
+          </>
+        )}
+      </div>
+
+      <Card className="admin-report-form-card">
+        <div className="admin-report-summary-meta">
+          <strong>{summaryOrganizationName}</strong>
+          <span className="muted">{summaryRegion}</span>
+          <span className="muted">요약 기간 {summaryPeriodText}</span>
+        </div>
+      </Card>
+
       <div className="statistics-grid super-kpi-grid report-kpi-summary-grid">
-        <StatCard label="운영 대상자" value={`${reportInsights.operatingTargetCount}명`} tone="blue" helper="관리종료 제외" />
-        <StatCard label="확인 기록" value={`${reportInsights.totalActivities}건`} tone="green" helper="기간 내 집계" />
-        <StatCard label="이상징후 보고" value={`${reportInsights.emergencyCount}건`} tone="orange" helper="기간 내 보고" />
-        <StatCard label="미처리 이상징후" value={`${reportInsights.unresolvedEmergencyCount}건`} tone="red" helper="완료 제외" />
-        <StatCard label="재배정 필요" value={`${reportInsights.reassignmentNeededCount}명`} tone="red" helper="체커 상태 기준" />
+        <StatCard label="운영 대상자" value={`${displayedOperatingTargetCount}명`} tone="blue" helper="관리종료 제외" />
+        <StatCard label="확인 기록" value={`${displayedActivityCount}건`} tone="green" helper={displayedReportSummary ? "기관 전체 집계" : "기간 내 집계"} />
+        <StatCard label="이상징후 보고" value={`${displayedEmergencyCount}건`} tone="orange" helper={displayedReportSummary ? "기관 전체 집계" : "기간 내 보고"} />
+        <StatCard label="미처리 이상징후" value={`${displayedUnresolvedEmergencyCount}건`} tone="red" helper="완료 제외" />
+        <StatCard label="재배정 필요" value={`${displayedReassignmentNeededCount}명`} tone="red" helper="체커 상태 기준" />
       </div>
 
       <form className="form-stack admin-report-form">
