@@ -164,3 +164,10 @@
 - If the mapping or RPC fails, the activity records list falls back to the existing localStorage/mock data.
 - Activity record detail, update, and delete flows still use the existing localStorage flow in this stage.
 
+## 21. Admin statistics read-only step
+
+- Read-only transition step 11 uses docs/supabase-admin-statistics-rpc.sql and the get_public_admin_statistics(p_organization_id uuid) RPC for /admin/statistics.
+- In the current MVP stage, local admin organizations are temporarily mapped to Supabase seed organization ids.
+- If the mapping or RPC fails, the statistics screen falls back to the existing localStorage/mock data.
+- Existing period filters and chart rendering remain in place, and write flows stay on the localStorage side in this stage.
+

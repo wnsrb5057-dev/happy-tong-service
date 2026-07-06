@@ -49,6 +49,7 @@ import { getSupabaseAdminDashboard } from "../services/supabaseAdminDashboardSer
 import { getSupabaseAdminTargets } from "../services/supabaseAdminTargetsService.js";
 import { getSupabaseAdminEmergencies } from "../services/supabaseAdminEmergenciesService.js";
 import { getSupabaseAdminActivityRecords } from "../services/supabaseAdminActivityRecordsService.js";
+import { getSupabaseAdminStatistics } from "../services/supabaseAdminStatisticsService.js";
 
 function getToday() {
   const now = new Date();
@@ -3777,8 +3778,20 @@ export function AdminTargetNew({ data, actions, navigate }) {
   );
 }
 
-export function AdminStatistics({ data }) {
+export function AdminStatistics({ data, currentUser }) {
   const [period, setPeriod] = useState("all");
+  const adminSupabaseOrganizationId = useMemo(
+    () => resolveAdminSupabaseOrganizationId(currentUser, data),
+    [currentUser, data]
+  );
+  const [supabaseStatisticsState, setSupabaseStatisticsState] = useState({
+    loading: true,
+    source: "local",
+    noteClassName: "super-source-local",
+    noteLabel: "로컬 데이터 기준",
+    noteMessage: "",
+    statistics: null,
+  });
   const stats = getDashboardStats(data, period);
   const emergencyStats = getEmergencyStats(data.emergencyReports, period);
   const recentRows = getRecentDailyActivityStats(data.activityRecords, 7);
@@ -3793,6 +3806,130 @@ export function AdminStatistics({ data }) {
     { label: "처리중", value: emergencyStats.reports.filter((report) => ["checking", "contacted", "visiting"].includes(getEmergencyStatusValue(report.status))).length, tone: "orange" },
     { label: "완료", value: emergencyStats.reports.filter((report) => isEmergencyCompleted(report.status)).length, tone: "green" },
   ];
+  const useSupabaseStatistics = period === "all" && supabaseStatisticsState.source === "supabase" && supabaseStatisticsState.statistics;
+
+  useEffect(() => {
+    let mounted = true;
+
+    setSupabaseStatisticsState((current) => ({
+      ...current,
+      loading: true,
+    }));
+
+    async function load() {
+      if (!adminSupabaseOrganizationId) {
+        if (!mounted) return;
+        setSupabaseStatisticsState({
+          loading: false,
+          source: "local",
+          noteClassName: "super-source-local",
+          noteLabel: "로컬 데이터 기준",
+          noteMessage: "Supabase 기관 매핑 정보를 찾지 못해 로컬 데이터를 표시합니다.",
+          statistics: null,
+        });
+        return;
+      }
+
+      console.debug("[admin-statistics] current user", currentUser);
+      console.debug("[admin-statistics] supabase organization id", adminSupabaseOrganizationId);
+
+      const result = await getSupabaseAdminStatistics(adminSupabaseOrganizationId);
+
+      if (!mounted) return;
+
+      console.debug("[admin-statistics] supabase statistics result", {
+        ok: result.ok,
+        source: result.source,
+        activityCount: result.statistics?.activityCount ?? null,
+        emergencyCount: result.statistics?.emergencyCount ?? null,
+      });
+
+      if (result.ok && result.statistics) {
+        setSupabaseStatisticsState({
+          loading: false,
+          source: "supabase",
+          noteClassName: "super-source-supabase",
+          noteLabel: "Supabase 기준",
+          noteMessage: "Supabase 통계 요약을 불러왔습니다.",
+          statistics: result.statistics,
+        });
+        return;
+      }
+
+      const fallbackMessage =
+        result.source === "error" || result.source === "not_found"
+          ? "Supabase 통계 요약을 불러오지 못해 로컬 데이터를 표시합니다."
+          : result.message || "Supabase 통계 요약을 확인 중입니다.";
+
+      setSupabaseStatisticsState({
+        loading: false,
+        source: "local",
+        noteClassName: "super-source-local",
+        noteLabel: "로컬 데이터 기준",
+        noteMessage: fallbackMessage,
+        statistics: null,
+      });
+    }
+
+    load();
+
+    return () => {
+      mounted = false;
+    };
+  }, [adminSupabaseOrganizationId, currentUser]);
+
+  const formatStatisticsDateLabel = (value) => {
+    if (!value) return "-";
+    if (typeof value === "string" && value.length >= 10) {
+      return value.slice(5, 10);
+    }
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+      return String(value);
+    }
+    return `${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+  };
+
+  const displayedTotalActivities = useSupabaseStatistics ? supabaseStatisticsState.statistics.activityCount : stats.totalActivities;
+  const displayedEmergencyCount = useSupabaseStatistics ? supabaseStatisticsState.statistics.emergencyCount : stats.emergencyCount;
+  const displayedUnresolvedEmergencyCount = useSupabaseStatistics
+    ? supabaseStatisticsState.statistics.unresolvedEmergencyCount
+    : stats.unresolvedEmergencyCount;
+  const displayedDangerTargetCount = useSupabaseStatistics ? supabaseStatisticsState.statistics.highRiskTargetCount : stats.dangerTargetCount;
+  const displayedRecentRows = useSupabaseStatistics
+    ? (supabaseStatisticsState.statistics.dailyActivityCounts.length
+        ? supabaseStatisticsState.statistics.dailyActivityCounts
+        : recentRows.map((row) => ({ date: row.label, count: row.count })))
+        .map((row) => ({
+          label: formatStatisticsDateLabel(row.date),
+          value: row.count,
+          tone: "green",
+        }))
+    : recentRows.map((row) => ({ label: row.label, value: row.count, tone: "green" }));
+  const displayedIssueRows = useSupabaseStatistics
+    ? (supabaseStatisticsState.statistics.emergencyBySeverity.length
+        ? supabaseStatisticsState.statistics.emergencyBySeverity
+        : [{ label: "이상징후 없음", count: 0 }]).map((row) => ({
+          label: row.label,
+          value: row.count,
+          tone: row.label === "위험" || row.label === "긴급" ? "red" : row.label === "주의" ? "orange" : "green",
+        }))
+    : issueTypeRows.length
+      ? issueTypeRows
+      : [{ label: "이상징후 없음", value: 0, tone: "green" }];
+  const displayedStatusRows = useSupabaseStatistics
+    ? (supabaseStatisticsState.statistics.emergencyByStatus.length
+        ? supabaseStatisticsState.statistics.emergencyByStatus
+        : [{ label: "접수됨", count: 0 }]).map((row) => ({
+          label: row.label,
+          value: row.count,
+          tone: row.label === "완료" ? "green" : row.label === "접수됨" ? "red" : "orange",
+        }))
+    : statusRows;
+  const issueChartTitle = useSupabaseStatistics ? "이상징후 심각도 분포" : "이상징후 유형별 발생 건수";
+  const issueChartDescription = useSupabaseStatistics
+    ? "기관 기준 이상징후 심각도 분포입니다."
+    : "기간 필터가 반영된 이상징후 유형 분포입니다.";
 
   return (
     <>
@@ -3802,7 +3939,18 @@ export function AdminStatistics({ data }) {
         description="확인 기록과 이상징후 현황을 핵심 지표 중심으로 확인합니다."
       />
 
-<div className="filter-tabs compact-filter-tabs statistics-period-tabs" aria-label="통계 기간 필터">
+      <div className="admin-dashboard-source-note">
+        {supabaseStatisticsState.loading ? (
+          <span className="muted">Supabase 통계 요약을 확인 중입니다.</span>
+        ) : (
+          <>
+            <span className={`badge ${supabaseStatisticsState.noteClassName}`}>{supabaseStatisticsState.noteLabel}</span>
+            <span className="muted">{supabaseStatisticsState.noteMessage}</span>
+          </>
+        )}
+      </div>
+
+      <div className="filter-tabs compact-filter-tabs statistics-period-tabs" aria-label="통계 기간 필터">
         {[
           { value: "all", label: "전체" },
           { value: "today", label: "오늘" },
@@ -3821,27 +3969,27 @@ export function AdminStatistics({ data }) {
       </div>
 
       <div className="stats-grid statistics-grid">
-        <StatCard label="전체 확인 기록" value={`${stats.totalActivities}건`} tone="green" />
-        <StatCard label="이상징후 보고" value={`${stats.emergencyCount}건`} tone="red" />
-        <StatCard label="미처리 이상징후" value={`${stats.unresolvedEmergencyCount}건`} tone={stats.unresolvedEmergencyCount ? "red" : "green"} />
-        <StatCard label="위험 대상자" value={`${stats.dangerTargetCount}명`} tone={stats.dangerTargetCount ? "red" : "green"} />
+        <StatCard label="전체 확인 기록" value={`${displayedTotalActivities}건`} tone="green" />
+        <StatCard label="이상징후 보고" value={`${displayedEmergencyCount}건`} tone="red" />
+        <StatCard label="미처리 이상징후" value={`${displayedUnresolvedEmergencyCount}건`} tone={displayedUnresolvedEmergencyCount ? "red" : "green"} />
+        <StatCard label="위험 대상자" value={`${displayedDangerTargetCount}명`} tone={displayedDangerTargetCount ? "red" : "green"} />
       </div>
 
       <section className="chart-grid">
         <ChartCard
           title="최근 7일 확인 건수"
           description="최근 7일 날짜별 확인 기록 수입니다."
-          rows={recentRows.map((row) => ({ label: row.label, value: row.count, tone: "green" }))}
+          rows={displayedRecentRows}
         />
         <ChartCard
-          title="이상징후 유형별 발생 건수"
-          description="기간 필터가 반영된 이상징후 유형 분포입니다."
-          rows={issueTypeRows.length ? issueTypeRows : [{ label: "이상징후 없음", value: 0, tone: "green" }]}
+          title={issueChartTitle}
+          description={issueChartDescription}
+          rows={displayedIssueRows}
         />
         <ChartCard
           title="처리 상태별 이상징후 현황"
           description="접수, 처리중, 완료 상태 분포입니다."
-          rows={statusRows}
+          rows={displayedStatusRows}
         />
       </section>
     </>
