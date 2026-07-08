@@ -182,3 +182,13 @@
 - 읽기 전용 전환 13단계에서는 체커 홈 화면(`/checker/home`)이 `docs/supabase-checker-home-rpc.sql`의 `get_public_checker_home(p_checker_id uuid)` RPC를 우선 사용한다.
 - 현재 MVP 단계에서는 로컬 체커 계정과 Supabase seed 체커 id를 임시 매핑하며, 실패 시 기존 localStorage/mock 체커 홈 데이터로 fallback한다.
 - 생활 확인 기록 작성과 이상징후 보고 저장은 아직 localStorage 기준으로 유지한다.
+## 24. Checker targets read-only step
+
+- 읽기 전용 전환 14단계에서는 체커 대상자 목록 화면(`/checker/targets`)이 `docs/supabase-checker-targets-rpc.sql`의 `get_public_checker_targets(p_checker_id uuid)` RPC를 우선 사용한다.
+- 현재 MVP 단계에서는 로컬 체커 계정과 Supabase seed 체커 id를 임시 매핑하며, 실패 시 기존 localStorage/mock 체커 대상자 목록으로 fallback한다.
+- 대상자 상세 이동, 생활 확인 기록 작성, 이상징후 보고 저장은 아직 localStorage 기준으로 유지한다.
+## 25. Checker activity history read-only step
+
+- 읽기 전용 전환 15단계에서는 체커 확인기록 화면(`/checker/activity/history`)이 `docs/supabase-checker-activity-history-rpc.sql`의 `get_public_checker_activity_history(p_checker_id uuid)` RPC를 우선 사용한다.
+- 현재 MVP 단계에서는 로컬 체커 계정과 Supabase seed 체커 id를 임시 매핑하며, 실패 시 기존 localStorage/mock 체커 확인기록 목록으로 fallback한다.
+- 확인기록 작성, 이상징후 보고 저장, 기록 상세 수정은 아직 localStorage 기준으로 유지한다.

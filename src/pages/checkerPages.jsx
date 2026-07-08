@@ -20,6 +20,7 @@ import {
 import { getAssignedTargets } from "../services/targetService.js";
 import { getSupabaseCheckerHome } from "../services/supabaseCheckerHomeService.js";
 import { getSupabaseCheckerTargets } from "../services/supabaseCheckerTargetsService.js";
+import { getSupabaseCheckerActivityHistory } from "../services/supabaseCheckerActivityHistoryService.js";
 import { getToday } from "../utils/statistics.js";
 import ElderAvatarIcon from "../components/ElderAvatarIcon.jsx";
 import heroGrandmother from "../assets/happytong-hero-grandmother.png";
@@ -152,6 +153,31 @@ function getLastActivityStatusLabel(status) {
   if (status === "completed" || status === "완료") return "완료";
   if (status === "missed" || status === "미실시") return "미실시";
   return "-";
+}
+
+function getCheckerHistoryCheckTypeLabel(checkType) {
+  return activityTypeLabels[checkType] || checkTypeLabels[checkType] || checkType || "전화 확인";
+}
+
+function getCheckerHistoryResultStatusLabel(status) {
+  if (status === "normal" || status === "이상 없음") return "이상 없음";
+  if (status === "caution" || status === "관찰 필요") return "관찰 필요";
+  if (status === "emergency" || status === "이상징후") return "이상징후";
+  if (status === "no_answer" || status === "미응답") return "미응답";
+  if (status === "completed" || status === "완료") return "완료";
+  if (status === "missed" || status === "미실시") return "미실시";
+  return status || "이상 없음";
+}
+
+function formatCheckerHistoryDate(value) {
+  if (!value) return "날짜 정보 없음";
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return String(value);
+  }
+
+  return date.toLocaleDateString("ko-KR");
 }
 
 function getAssignedCheckerInfo(users, target) {
@@ -1114,35 +1140,127 @@ export function ActivityNew({ user, data, actions, navigate, initialTargetId }) 
   );
 }
 
-export function ActivityHistory({ user, data, saved }) {
+export function ActivityHistory({ user, currentUser, data, saved }) {
+  const activeUser = currentUser || user;
   const [filter, setFilter] = useState("all");
   const [openRecordId, setOpenRecordId] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const params = new URLSearchParams(window.location.search);
   const targetIdFilter = params.get("targetId") || "";
   const today = getToday();
-  const allRecords = useMemo(() => {
+  const localAllRecords = useMemo(() => {
     return data.activityRecords
-      .filter((record) => record.checkerId === user.id)
+      .filter((record) => record.checkerId === activeUser.id)
       .sort((a, b) => {
         const aTime = a?.date ? new Date(a.date).getTime() : 0;
         const bTime = b?.date ? new Date(b.date).getTime() : 0;
         return bTime - aTime;
       });
-  }, [data.activityRecords, user.id]);
+  }, [activeUser.id, data.activityRecords]);
+  const checkerSupabaseId = resolveCheckerSupabaseId(activeUser);
+  const [activityHistoryState, setActivityHistoryState] = useState(() => ({
+    loading: Boolean(checkerSupabaseId),
+    source: checkerSupabaseId ? "loading" : "local",
+    noteLabel: "로컬 데이터 기준",
+    noteMessage: checkerSupabaseId
+      ? "Supabase 체커 확인기록을 확인 중입니다."
+      : "Supabase 체커 매핑 정보를 찾지 못해 로컬 데이터를 표시합니다.",
+    records: localAllRecords,
+  }));
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function load() {
+      console.debug("[checker-history] current user", activeUser);
+
+      if (!checkerSupabaseId) {
+        setActivityHistoryState({
+          loading: false,
+          source: "local",
+          noteLabel: "로컬 데이터 기준",
+          noteMessage: "Supabase 체커 매핑 정보를 찾지 못해 로컬 데이터를 표시합니다.",
+          records: localAllRecords,
+        });
+        return;
+      }
+
+      setActivityHistoryState((current) => ({
+        ...current,
+        loading: true,
+        source: "loading",
+        noteLabel: "로컬 데이터 기준",
+        noteMessage: "Supabase 체커 확인기록을 확인 중입니다.",
+        records: localAllRecords,
+      }));
+
+      console.debug("[checker-history] supabase checker id", checkerSupabaseId);
+      const result = await getSupabaseCheckerActivityHistory(checkerSupabaseId);
+
+      if (!mounted) return;
+
+      console.debug("[checker-history] supabase records result", result.source, result.ok, result.records?.length);
+
+      if (result.ok) {
+        setActivityHistoryState({
+          loading: false,
+          source: "supabase",
+          noteLabel: "Supabase 기준",
+          noteMessage: result.message,
+          records: result.records,
+        });
+        return;
+      }
+
+      setActivityHistoryState({
+        loading: false,
+        source: "local",
+        noteLabel: "로컬 데이터 기준",
+        noteMessage:
+          result.source === "not_found"
+            ? "Supabase 체커 매핑 정보를 찾지 못해 로컬 데이터를 표시합니다."
+            : "Supabase 체커 확인기록을 불러오지 못해 로컬 데이터를 표시합니다.",
+        records: localAllRecords,
+      });
+    }
+
+    load();
+
+    return () => {
+      mounted = false;
+    };
+  }, [activeUser, checkerSupabaseId, localAllRecords]);
+
+  const allRecords =
+    activityHistoryState.source === "supabase"
+      ? Array.isArray(activityHistoryState.records)
+        ? activityHistoryState.records
+        : []
+      : localAllRecords;
   const records = useMemo(() => {
     const keyword = searchTerm.trim().toLowerCase();
     return allRecords.filter((record) => {
       const recordType = record.checkType || record.type;
-      const hasIssue = record.hasIssue || record.issueLevel === "need_check" || record.issueLevel === "urgent";
-      const historyTarget = getHistoryTargetInfo(data.targets, record.targetId);
+      const hasIssue =
+        record.hasIssue ||
+        record.issueLevel === "need_check" ||
+        record.issueLevel === "urgent" ||
+        record.resultStatus === "caution" ||
+        record.resultStatus === "emergency";
+      const historyTarget = record.isSupabaseOnly
+        ? {
+            label: record.targetName || "대상자 정보 없음",
+            searchText: `${record.targetName || ""} ${record.targetAddress || ""}`.toLowerCase(),
+          }
+        : getHistoryTargetInfo(data.targets, record.targetId);
       const targetText = historyTarget.searchText;
+      const recordDate = (record.date || record.checkedAt || "").slice(0, 10);
 
       if (targetIdFilter && record.targetId !== targetIdFilter) {
         return false;
       }
 
-      if (filter === "today" && record.date !== today) {
+      if (filter === "today" && recordDate !== today) {
         return false;
       }
 
@@ -1171,14 +1289,28 @@ export function ActivityHistory({ user, data, saved }) {
     { value: "visit", label: "방문 확인" },
     { value: "intensive", label: "집중 모니터링" },
   ];
-  const issueCount = allRecords.filter((record) => record.hasIssue || record.issueLevel === "need_check" || record.issueLevel === "urgent").length;
-  const todayCount = allRecords.filter((record) => record.date === today).length;
+  const issueCount = allRecords.filter(
+    (record) =>
+      record.hasIssue ||
+      record.issueLevel === "need_check" ||
+      record.issueLevel === "urgent" ||
+      record.resultStatus === "caution" ||
+      record.resultStatus === "emergency"
+  ).length;
+  const todayCount = allRecords.filter((record) => (record.date || record.checkedAt || "").slice(0, 10) === today).length;
   const targetFilterLabel = targetIdFilter ? targetName(data.targets, targetIdFilter) : "";
 
   return (
     <>
       <PageHeader eyebrow="확인 이력" title="내 확인 기록" description="작성한 확인 기록을 다시 확인합니다." />
       {saved ? <p className="notice">활동 기록이 저장되었습니다.</p> : null}
+
+      <div className="admin-dashboard-source-note">
+        <span className={`badge ${activityHistoryState.source === "supabase" ? "super-source-supabase" : "super-source-local"}`}>
+          {activityHistoryState.noteLabel}
+        </span>
+        <span className="muted">{activityHistoryState.noteMessage}</span>
+      </div>
 
       <Card className="summary-card history-summary-card">
         <p className="eyebrow">기록 요약</p>
@@ -1220,19 +1352,35 @@ export function ActivityHistory({ user, data, saved }) {
 
       <div className="stack">
         {records.length ? records.map((record) => {
-          const hasIssue = record.hasIssue || record.issueLevel !== "none";
-          const historyTarget = getHistoryTargetInfo(data.targets, record.targetId);
+          const hasIssue =
+            record.hasIssue ||
+            (record.issueLevel && record.issueLevel !== "none") ||
+            record.resultStatus === "caution" ||
+            record.resultStatus === "emergency";
+          const historyTarget = record.isSupabaseOnly
+            ? {
+                label: record.targetName || "대상자 정보 없음",
+              }
+            : getHistoryTargetInfo(data.targets, record.targetId);
           return (
             <Card key={record.id} className="history-record-card">
               <div className="history-record-top">
-                <strong>{record.date || "날짜 정보 없음"}</strong>
-                <StatusBadge type="record" value={record.status} />
+                <strong>{formatCheckerHistoryDate(record.date || record.checkedAt)}</strong>
+                <StatusBadge type="record" value={record.status || (record.resultStatus === "completed" ? "completed" : "pending")} />
               </div>
               <div className="history-record-subtitle">
                 <strong>{historyTarget.label}</strong>
-                <span>{activityTypeLabels[record.checkType || record.type]}</span>
+                <span>{getCheckerHistoryCheckTypeLabel(record.checkType || record.type)}</span>
               </div>
-              <p className="history-record-memo">{truncateText(record.issueSummary || record.memo || getCheckItemText(record.checkType || record.type || "external", record.checkItems), 60)}</p>
+              <p className="history-record-memo">
+                {truncateText(
+                  record.issueSummary ||
+                    record.memo ||
+                    record.targetAddress ||
+                    getCheckItemText(record.checkType || record.type || "external", record.checkItems),
+                  60
+                )}
+              </p>
               <div className="history-record-footer">
                 <span className={hasIssue ? "badge badge-risk-danger" : "badge badge-muted"}>
                   {hasIssue ? "이상징후 있음" : "이상징후 없음"}
@@ -1241,8 +1389,11 @@ export function ActivityHistory({ user, data, saved }) {
               </div>
               {openRecordId === record.id ? (
                 <div className="detail-box">
-                  <p>건강 상태: {activityHealthLabels[record.healthStatus] ?? "양호"}</p>
-                  <p>{getCheckItemText(record.checkType || record.type || "external", record.checkItems)}</p>
+                  <p>확인 유형: {getCheckerHistoryCheckTypeLabel(record.checkType || record.type)}</p>
+                  <p>결과 상태: {getCheckerHistoryResultStatusLabel(record.resultStatus || record.status)}</p>
+                  <p>대상자 주소: {record.targetAddress || historyTarget.label}</p>
+                  {!record.isSupabaseOnly ? <p>건강 상태: {activityHealthLabels[record.healthStatus] ?? "양호"}</p> : null}
+                  {!record.isSupabaseOnly ? <p>{getCheckItemText(record.checkType || record.type || "external", record.checkItems)}</p> : null}
                   <p>{record.memo || "작성된 메모가 없습니다."}</p>
                   {record.issueSummary ? <p className="danger-text">{record.issueSummary}</p> : null}
                 </div>
