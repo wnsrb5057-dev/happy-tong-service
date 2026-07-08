@@ -177,3 +177,8 @@
 - 현재 MVP 단계에서는 로컬 기관과 Supabase seed 기관 id를 임시 매핑하며, 실패 시 기존 localStorage/mock 보고서 요약으로 fallback한다.
 - 보고서 저장/생성/PDF 인쇄 기능은 아직 기존 흐름을 유지한다.
 
+## 23. Checker home read-only step
+
+- 읽기 전용 전환 13단계에서는 체커 홈 화면(`/checker/home`)이 `docs/supabase-checker-home-rpc.sql`의 `get_public_checker_home(p_checker_id uuid)` RPC를 우선 사용한다.
+- 현재 MVP 단계에서는 로컬 체커 계정과 Supabase seed 체커 id를 임시 매핑하며, 실패 시 기존 localStorage/mock 체커 홈 데이터로 fallback한다.
+- 생활 확인 기록 작성과 이상징후 보고 저장은 아직 localStorage 기준으로 유지한다.

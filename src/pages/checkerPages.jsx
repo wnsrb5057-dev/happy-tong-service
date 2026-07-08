@@ -1,4 +1,4 @@
-﻿import { useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import {
   activityHealthLabels,
   activityTypeLabels,
@@ -18,6 +18,7 @@ import {
   TextArea,
 } from "../components/UI.jsx";
 import { getAssignedTargets } from "../services/targetService.js";
+import { getSupabaseCheckerHome } from "../services/supabaseCheckerHomeService.js";
 import { getToday } from "../utils/statistics.js";
 import ElderAvatarIcon from "../components/ElderAvatarIcon.jsx";
 import heroGrandmother from "../assets/happytong-hero-grandmother.png";
@@ -69,6 +70,45 @@ function getTargetCheckTime(target) {
 
 function getTargetCheckType(target) {
   return target.defaultCheckType || "external";
+}
+
+function formatCheckerHomeDate(value) {
+  if (!value || value === "-") return "-";
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return String(value);
+  }
+
+  return date.toLocaleDateString("ko-KR", {
+    month: "2-digit",
+    day: "2-digit",
+  });
+}
+
+function sortByLatestDate(a, b) {
+  const aTime = new Date(a?.checkedAt || a?.reportedAt || a?.date || 0).getTime();
+  const bTime = new Date(b?.checkedAt || b?.reportedAt || b?.date || 0).getTime();
+
+  return (Number.isNaN(bTime) ? 0 : bTime) - (Number.isNaN(aTime) ? 0 : aTime);
+}
+
+function resolveCheckerSupabaseId(user) {
+  // MVP 읽기 전용 전환용 임시 매핑입니다. 운영 전에는 Auth/users.id 기준으로 대체해야 합니다.
+  if (user?.username === "checker" || user?.id === "checker" || String(user?.name || "").includes("김하나")) {
+    return "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa3";
+  }
+
+  return "";
+}
+
+function findLocalTargetId(targets, supabaseTarget) {
+  const directMatch = targets.find((target) => target.id === supabaseTarget?.id);
+  if (directMatch) return directMatch.id;
+
+  const nameMatch = targets.find((target) => target.name === supabaseTarget?.name);
+  return nameMatch?.id || "";
 }
 
 function getAssignedCheckerInfo(users, target) {
@@ -128,8 +168,12 @@ function MicIcon() {
 }
 
 function TargetCard({ target, navigate, homePreview = false }) {
+  const detailTargetId = target.localDetailTargetId || target.id;
+  const canOpenDetail = !target.isSupabaseOnly || Boolean(target.localDetailTargetId);
+
   function goDetail() {
-    navigate(`/checker/targets/${target.id}`);
+    if (!canOpenDetail) return;
+    navigate(`/checker/targets/${detailTargetId}`);
   }
 
   const scheduleText = target.checkDays?.join(", ") || "요일 미정";
@@ -157,7 +201,7 @@ function TargetCard({ target, navigate, homePreview = false }) {
       </div>
 
       <div className="card-row target-card-meta">
-        <small>최근 확인 {target.lastVisitDate}</small>
+        <small>최근 확인 {formatCheckerHomeDate(target.lastVisitDate || target.lastActivityAt)}</small>
         <small>{scheduleText}</small>
       </div>
 
@@ -165,21 +209,218 @@ function TargetCard({ target, navigate, homePreview = false }) {
         variant="ghost"
         className="full-width target-detail-button"
         onClick={goDetail}
+        disabled={!canOpenDetail}
         aria-label={`${target.name} 상세보기`}
       >
-        상세보기
+        {canOpenDetail ? "상세보기" : "목록에서 확인"}
       </Button>
     </article>
   );
 }
 
-export function CheckerHome({ user, data, navigate, emergencySent }) {
-  const assignedTargets = data.targets.filter((target) => target.assignedCheckerId === user.id && isActiveTarget(target));
-  const todayTargets = assignedTargets.filter(isTodayScheduled);
-  const pendingRecords = data.activityRecords.filter(
-    (record) => record.checkerId === user.id && record.status !== "completed"
+function CheckerHomeActivityList({ activities }) {
+  if (!activities.length) {
+    return (
+      <Card className="empty-assignment-card">
+        <strong>최근 확인 기록이 없습니다.</strong>
+        <p>확인 기록이 등록되면 이곳에 표시됩니다.</p>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="stack">
+      {activities.map((record) => (
+        <Card key={record.id} className="admin-activity-card">
+          <div className="admin-activity-primary">
+            <strong>{record.targetName}</strong>
+            <span>{formatCheckerHomeDate(record.checkedAt)}</span>
+          </div>
+          <div className="badge-row compact-badges admin-activity-badges">
+            <span className="badge badge-info">{record.checkTypeLabel || record.checkType || "확인"}</span>
+            <span className="badge badge-muted">{record.resultStatusLabel || record.statusLabel || "완료"}</span>
+          </div>
+        </Card>
+      ))}
+    </div>
   );
-  const riskCount = assignedTargets.filter((target) => target.riskLevel === "caution" || target.riskLevel === "danger").length;
+}
+
+function CheckerHomeEmergencyList({ emergencies }) {
+  if (!emergencies.length) {
+    return (
+      <Card className="empty-assignment-card">
+        <strong>최근 이상징후가 없습니다.</strong>
+        <p>보고된 이상징후가 있으면 이곳에 표시됩니다.</p>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="stack">
+      {emergencies.map((report) => (
+        <Card key={report.id} className="admin-emergency-list-card">
+          <div className="admin-emergency-list-head">
+            <div className="admin-emergency-list-copy">
+              <strong>{report.title || "이상징후 보고"}</strong>
+              <p>{report.targetName}</p>
+            </div>
+            <span>{formatCheckerHomeDate(report.reportedAt || report.date)}</span>
+          </div>
+          <div className="badge-row compact-badges">
+            <span className="badge badge-warning">{report.severityLabel || report.severity || "주의"}</span>
+            <span className="badge badge-info">{report.statusLabel || report.status || "접수됨"}</span>
+          </div>
+        </Card>
+      ))}
+    </div>
+  );
+}
+
+export function CheckerHome({ user, data, navigate, emergencySent }) {
+  const assignedTargets = useMemo(
+    () => data.targets.filter((target) => target.assignedCheckerId === user.id && isActiveTarget(target)),
+    [data.targets, user.id]
+  );
+  const todayTargets = useMemo(() => assignedTargets.filter(isTodayScheduled), [assignedTargets]);
+  const pendingRecords = useMemo(
+    () => data.activityRecords.filter((record) => record.checkerId === user.id && record.status !== "completed"),
+    [data.activityRecords, user.id]
+  );
+  const assignedTargetIds = useMemo(
+    () => new Set(assignedTargets.map((target) => target.id)),
+    [assignedTargets]
+  );
+  const localRecentActivities = useMemo(
+    () =>
+      data.activityRecords
+        .filter((record) => record.checkerId === user.id)
+        .sort(sortByLatestDate)
+        .slice(0, 5)
+        .map((record) => ({
+          id: record.id,
+          targetName: targetName(data.targets, record.targetId),
+          checkType: record.type || record.checkType,
+          checkTypeLabel: activityTypeLabels[record.type] || checkTypeLabels[record.checkType] || record.type || "확인",
+          resultStatus: record.status,
+          resultStatusLabel: record.status === "completed" ? "완료" : "미작성",
+          checkedAt: record.date || record.checkedAt || record.createdAt,
+        })),
+    [data.activityRecords, data.targets, user.id]
+  );
+  const localRecentEmergencies = useMemo(
+    () =>
+      data.emergencyReports
+        .filter((report) => assignedTargetIds.has(report.targetId))
+        .sort(sortByLatestDate)
+        .slice(0, 5)
+        .map((report) => ({
+          id: report.id,
+          targetName: targetName(data.targets, report.targetId),
+          title: report.title || report.issueType || "이상징후 보고",
+          severity: report.severity || report.issueLevel || "caution",
+          severityLabel: issueLevelLabels[report.issueLevel] || report.severity || "주의",
+          status: report.status || "received",
+          statusLabel: report.status || "접수됨",
+          reportedAt: report.reportedAt || report.date,
+        })),
+    [assignedTargetIds, data.emergencyReports, data.targets]
+  );
+  const fallbackHome = useMemo(
+    () => ({
+      assignedTargetCount: assignedTargets.length,
+      todayPendingCount: todayTargets.length,
+      todayCompletedCount: Math.max(0, todayTargets.length - pendingRecords.length),
+      unresolvedEmergencyCount: localRecentEmergencies.filter((report) => report.status !== "completed").length,
+      todayTargets,
+      recentActivities: localRecentActivities,
+      recentEmergencies: localRecentEmergencies,
+    }),
+    [assignedTargets, todayTargets, pendingRecords.length, localRecentActivities, localRecentEmergencies]
+  );
+  const checkerSupabaseId = resolveCheckerSupabaseId(user);
+  const [checkerHomeState, setCheckerHomeState] = useState(() => ({
+    loading: Boolean(checkerSupabaseId),
+    source: checkerSupabaseId ? "loading" : "local",
+    noteLabel: "로컬 데이터 기준",
+    noteMessage: checkerSupabaseId
+      ? "Supabase 체커 홈 요약을 확인 중입니다."
+      : "Supabase 체커 매핑 정보를 찾지 못해 로컬 데이터를 표시합니다.",
+    home: fallbackHome,
+  }));
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function load() {
+      if (!checkerSupabaseId) {
+        setCheckerHomeState({
+          loading: false,
+          source: "local",
+          noteLabel: "로컬 데이터 기준",
+          noteMessage: "Supabase 체커 매핑 정보를 찾지 못해 로컬 데이터를 표시합니다.",
+          home: fallbackHome,
+        });
+        return;
+      }
+
+      setCheckerHomeState((current) => ({
+        ...current,
+        loading: true,
+        source: "loading",
+        noteLabel: "로컬 데이터 기준",
+        noteMessage: "Supabase 체커 홈 요약을 확인 중입니다.",
+        home: fallbackHome,
+      }));
+
+      console.debug("[checker-home] supabase checker id", checkerSupabaseId);
+      const result = await getSupabaseCheckerHome(checkerSupabaseId);
+
+      if (!mounted) return;
+
+      if (result.ok && result.home) {
+        const mapSupabaseTarget = (target) => ({
+          ...target,
+          localDetailTargetId: findLocalTargetId(data.targets, target),
+        });
+
+        setCheckerHomeState({
+          loading: false,
+          source: "supabase",
+          noteLabel: "Supabase 기준",
+          noteMessage: result.message,
+          home: {
+            ...result.home,
+            todayTargets: result.home.todayTargets.map(mapSupabaseTarget),
+            assignedTargets: result.home.assignedTargets.map(mapSupabaseTarget),
+          },
+        });
+        return;
+      }
+
+      setCheckerHomeState({
+        loading: false,
+        source: "local",
+        noteLabel: "로컬 데이터 기준",
+        noteMessage:
+          result.source === "not_found"
+            ? "Supabase 체커 매핑 정보를 찾지 못해 로컬 데이터를 표시합니다."
+            : "Supabase 체커 홈 요약을 불러오지 못해 로컬 데이터를 표시합니다.",
+        home: fallbackHome,
+      });
+    }
+
+    load();
+
+    return () => {
+      mounted = false;
+    };
+  }, [checkerSupabaseId, data.targets, fallbackHome]);
+
+  const displayedHome = checkerHomeState.home || fallbackHome;
+  const displayedTodayTargets = Array.isArray(displayedHome.todayTargets) ? displayedHome.todayTargets : [];
+  const displayedRecentActivities = Array.isArray(displayedHome.recentActivities) ? displayedHome.recentActivities : [];
+  const displayedRecentEmergencies = Array.isArray(displayedHome.recentEmergencies) ? displayedHome.recentEmergencies : [];
 
   return (
     <>
@@ -198,19 +439,30 @@ export function CheckerHome({ user, data, navigate, emergencySent }) {
 </div>
         <div className="summary-split checker-home-summary">
           <div className="summary-metric">
-            <strong>{todayTargets.length}</strong>
-            <span>오늘 확인 예정</span>
+            <strong>{displayedHome.assignedTargetCount}</strong>
+            <span>담당 대상자</span>
           </div>
           <div className="summary-metric">
-            <strong>{pendingRecords.length}</strong>
-            <span>미작성</span>
+            <strong>{displayedHome.todayPendingCount}</strong>
+            <span>오늘 확인 필요</span>
           </div>
           <div className="summary-metric">
-            <strong>{riskCount}</strong>
-            <span>주의/위험</span>
+            <strong>{displayedHome.todayCompletedCount}</strong>
+            <span>오늘 확인 완료</span>
+          </div>
+          <div className="summary-metric">
+            <strong>{displayedHome.unresolvedEmergencyCount}</strong>
+            <span>미처리 이상징후</span>
           </div>
         </div>
       </section>
+
+      <div className="admin-dashboard-source-note">
+        <span className={`badge ${checkerHomeState.source === "supabase" ? "super-source-supabase" : "super-source-local"}`}>
+          {checkerHomeState.noteLabel}
+        </span>
+        <span className="muted">{checkerHomeState.noteMessage}</span>
+      </div>
 
       {emergencySent ? <p className="notice danger-notice">이상징후 보고가 관리자에게 전달되었습니다.</p> : null}
 
@@ -227,7 +479,7 @@ export function CheckerHome({ user, data, navigate, emergencySent }) {
             전체 보기
           </Button>
         </div>
-        {assignedTargets.length === 0 ? (
+        {displayedHome.assignedTargetCount === 0 ? (
           <Card className="empty-assignment-card">
             <strong>아직 배정된 대상자가 없습니다.</strong>
             <p>담당 기관에서 대상자를 배정하면 오늘 확인 일정이 표시됩니다.</p>
@@ -235,10 +487,10 @@ export function CheckerHome({ user, data, navigate, emergencySent }) {
           </Card>
         ) : (
           <div className="stack">
-            {todayTargets.slice(0, 2).map((target) => (
+            {displayedTodayTargets.slice(0, 10).map((target) => (
               <TargetCard key={target.id} target={target} navigate={navigate} homePreview />
             ))}
-            {todayTargets.length === 0 ? (
+            {displayedTodayTargets.length === 0 ? (
               <Card className="empty-assignment-card">
                 <strong>오늘 확인 예정 대상자가 없습니다.</strong>
                 <p>배정된 대상자 중 오늘 일정이 잡히면 이곳에 표시됩니다.</p>
@@ -246,6 +498,20 @@ export function CheckerHome({ user, data, navigate, emergencySent }) {
             ) : null}
           </div>
         )}
+      </section>
+
+      <section className="section-block">
+        <div className="section-title">
+          <h2>최근 확인 기록</h2>
+        </div>
+        <CheckerHomeActivityList activities={displayedRecentActivities} />
+      </section>
+
+      <section className="section-block">
+        <div className="section-title">
+          <h2>최근 이상징후</h2>
+        </div>
+        <CheckerHomeEmergencyList emergencies={displayedRecentEmergencies} />
       </section>
     </>
   );
