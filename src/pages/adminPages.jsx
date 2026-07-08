@@ -163,13 +163,23 @@ const SUPABASE_ADMIN_ORGANIZATION_ID_MAP = {
 function resolveAdminSupabaseOrganizationId(currentUser, data) {
   const organizations = Array.isArray(data?.organizations) ? data.organizations : [];
   const targets = Array.isArray(data?.targets) ? data.targets : [];
+  const currentUserValues = {
+    organizationId: String(currentUser?.organizationId || "").trim(),
+    organizationName: String(currentUser?.organizationName || "").trim(),
+    region: String(currentUser?.region || "").trim(),
+    name: String(currentUser?.name || "").trim(),
+    displayName: String(currentUser?.displayName || "").trim(),
+    username: String(currentUser?.username || "").trim(),
+    id: String(currentUser?.id || "").trim(),
+  };
   const normalizedValues = [
-    currentUser?.organizationId,
-    currentUser?.organizationName,
-    currentUser?.region,
-    currentUser?.name,
-    currentUser?.displayName,
-    currentUser?.username,
+    currentUserValues.organizationId,
+    currentUserValues.organizationName,
+    currentUserValues.region,
+    currentUserValues.name,
+    currentUserValues.displayName,
+    currentUserValues.username,
+    currentUserValues.id,
   ]
     .filter(Boolean)
     .map((value) => String(value).trim());
@@ -199,28 +209,27 @@ function resolveAdminSupabaseOrganizationId(currentUser, data) {
     localSignals.some((value) => value.includes(keyword));
 
   if (
+    currentUserValues.username === "admin" ||
+    currentUserValues.id === "admin" ||
+    currentUserValues.name.includes("박서연") ||
+    currentUserValues.displayName.includes("박서연") ||
+    currentUserValues.organizationName.includes("행복복지관") ||
+    currentUserValues.organizationName.includes("은평") ||
+    currentUserValues.region.includes("은평") ||
+    currentUserValues.organizationId === "org-eunpyeong-care" ||
+    currentUserValues.organizationId.includes("eunpyeong")
+  ) {
+    console.debug("[admin-mapping] current user priority matched", currentUser);
+    return "11111111-1111-1111-1111-111111111111";
+  }
+
+  if (
     includesKeyword("충주") ||
     includesKeyword("chungju") ||
     includesLocalSignal("충주") ||
     includesLocalSignal("chungju")
   ) {
     return "22222222-2222-2222-2222-222222222222";
-  }
-
-  if (
-    currentUser?.organizationId === "org-eunpyeong-care" ||
-    includesKeyword("행복복지관") ||
-    includesKeyword("은평") ||
-    includesKeyword("eunpyeong") ||
-    includesKeyword("박서연") ||
-    includesLocalSignal("행복복지관") ||
-    includesLocalSignal("은평") ||
-    includesLocalSignal("박서연") ||
-    currentUser?.username === "admin" ||
-    currentUser?.id === "admin" ||
-    currentUser?.role === "admin"
-  ) {
-    return "11111111-1111-1111-1111-111111111111";
   }
 
   const directCandidates = [
