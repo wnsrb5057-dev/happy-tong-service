@@ -104,6 +104,8 @@ status 예시:
 - `paused`
 - `left`
 
+상세 스키마 초안과 검토용 SQL은 `docs/supabase-users-schema-plan.md` 문서를 기준으로 관리한다.
+
 ## 7. auth.users 와 public.users 연결 방식
 
 두 가지 설계가 가능하다.
@@ -237,13 +239,14 @@ Auth 이후 권장 방향:
 ## 12. 단계별 전환 계획
 
 1. Auth / users 매핑 전략 문서 확정
-2. Supabase Auth 시범 계정 생성
-3. `public.users`와 `auth.users` 연결
-4. 로그인 후 `currentUser`를 Supabase 기준으로 로드
-5. 기존 임시 매핑 제거 준비
-6. 읽기 RPC를 `auth.uid()` 기반으로 순차 전환
-7. RLS 정책 적용
-8. 쓰기 기능 전환 시작
+2. `public.users` 스키마 문서와 SQL 초안 검토
+3. Supabase Auth 시범 계정 생성
+4. `public.users`와 `auth.users` 연결
+5. 로그인 후 `currentUser`를 Supabase 기준으로 로드
+6. 기존 임시 매핑 제거 준비
+7. 읽기 RPC를 `auth.uid()` 기반으로 순차 전환
+8. RLS 정책 적용
+9. 쓰기 기능 전환 시작
 
 ## 13. 쓰기 전환 전 체크리스트
 

@@ -90,6 +90,7 @@
 - 프로젝트 생성 / 환경변수 설정 가이드: `docs/supabase-setup-guide.md`
 - 수동 QA 체크리스트: `docs/manual-test-checklist.md`
 - Auth / users 매핑 전략: `docs/supabase-auth-user-mapping-strategy.md`
+- public.users 스키마 초안: `docs/supabase-users-schema-plan.md`
 
 ## 9. RLS 적용 순서
 
@@ -235,16 +236,18 @@
 ## 29. Auth / users 매핑 설계 문서 메모
 
 - 읽기 전환 1차 마무리 이후에는 구현보다 먼저 `docs/supabase-auth-user-mapping-strategy.md` 문서 기준으로 Auth / users / organization 연결 구조를 확정한다.
+- `public.users` 권장 컬럼, id 전략 비교, 시범 Auth 계정 계획은 `docs/supabase-users-schema-plan.md` 문서를 기준으로 검토한다.
 - 현재의 임시 admin/checker UUID 매핑은 유지하되, 이후 단계에서 제거 가능한 상태로만 관리한다.
 - 다음 설계 기준은 `Supabase Auth + public.users + organization_id + role + status + RLS` 조합이다.
 
 ## 30. 이후 전환 순서 갱신
 
 1. Auth / users 매핑 설계 문서 확정
-2. Supabase Auth 시범 계정 생성
-3. `public.users`와 `auth.users` 연결
-4. 로그인 후 `currentUser`를 Supabase 기준으로 로드
-5. 기존 임시 admin/checker UUID 매핑 제거 준비
-6. 기존 `get_public_*` RPC를 `auth.uid()` 기반 `get_my_*` 또는 동등한 authenticated RPC로 순차 전환
-7. 역할 / organization / assigned target 기준 RLS 정책 적용
-8. 마지막 단계에서 쓰기 기능 전환 시작
+2. `public.users` 스키마 문서 검토와 실제 Supabase 테이블 상태 확인
+3. Supabase Auth 시범 계정 생성
+4. `public.users`와 `auth.users` 연결
+5. 로그인 후 `currentUser`를 Supabase 기준으로 로드
+6. 기존 임시 admin/checker UUID 매핑 제거 준비
+7. 기존 `get_public_*` RPC를 `auth.uid()` 기반 `get_my_*` 또는 동등한 authenticated RPC로 순차 전환
+8. 역할 / organization / assigned target 기준 RLS 정책 적용
+9. 마지막 단계에서 쓰기 기능 전환 시작
