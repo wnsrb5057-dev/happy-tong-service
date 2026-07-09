@@ -378,11 +378,11 @@ function renderPage({ location, user, data, actions, navigate }) {
     }
 
     if (location.pathname === "/checker/home") {
-      return <CheckerHome user={user} data={data} navigate={navigate} emergencySent={params.get("emergency") === "sent"} />;
+      return <CheckerHome user={user} currentUser={user} data={data} navigate={navigate} emergencySent={params.get("emergency") === "sent"} />;
     }
 
     if (location.pathname === "/checker/targets") {
-      return <CheckerTargets user={user} data={data} navigate={navigate} />;
+      return <CheckerTargets user={user} currentUser={user} data={data} navigate={navigate} />;
     }
 
     if (checkerTargetMatch) {
@@ -393,6 +393,7 @@ function renderPage({ location, user, data, actions, navigate }) {
       return (
         <ActivityNew
           user={user}
+          currentUser={user}
           data={data}
           actions={actions}
           navigate={navigate}
@@ -402,7 +403,7 @@ function renderPage({ location, user, data, actions, navigate }) {
     }
 
     if (location.pathname === "/checker/activity/history") {
-      return <ActivityHistory user={user} data={data} saved={params.get("saved") === "1"} />;
+      return <ActivityHistory user={user} currentUser={user} data={data} saved={params.get("saved") === "1"} />;
     }
 
     if (location.pathname === "/checker/emergency/new") {

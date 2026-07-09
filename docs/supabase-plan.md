@@ -192,3 +192,41 @@
 - 읽기 전용 전환 15단계에서는 체커 확인기록 화면(`/checker/activity/history`)이 `docs/supabase-checker-activity-history-rpc.sql`의 `get_public_checker_activity_history(p_checker_id uuid)` RPC를 우선 사용한다.
 - 현재 MVP 단계에서는 로컬 체커 계정과 Supabase seed 체커 id를 임시 매핑하며, 실패 시 기존 localStorage/mock 체커 확인기록 목록으로 fallback한다.
 - 확인기록 작성, 이상징후 보고 저장, 기록 상세 수정은 아직 localStorage 기준으로 유지한다.
+
+## 26. Checker activity new target selection read-only step
+
+- 읽기 전용 전환 16단계에서는 체커 확인기록 작성 화면(`/checker/activity/new`)의 대상자 선택 목록이 `docs/supabase-checker-activity-form-targets-rpc.sql`의 `get_public_checker_activity_form_targets(p_checker_id uuid)` RPC를 우선 사용한다.
+- 현재 MVP 단계에서는 로컬 체커 계정과 Supabase seed 체커 id를 임시 매핑하며, 실패 시 기존 localStorage/mock 대상자 목록으로 fallback한다.
+- 실제 확인기록 저장, 이상징후 보고 저장, 대상자 선택 이후의 쓰기 흐름은 아직 localStorage 기준으로 유지한다.
+- Supabase target id와 localStorage target id가 다를 수 있으므로, 로컬 대상자와 연결된 경우에만 기존 저장 흐름으로 이어진다.
+
+## 27. 현재 완료 범위 요약
+
+- 총관리자 읽기 전용 전환 완료:
+  - `/super/dashboard`
+  - `/super/organizations`
+  - `/super/organizations/:id`
+  - `/super/status`
+- 관리자 읽기 전용 전환 완료:
+  - `/admin/dashboard`
+  - `/admin/targets`
+  - `/admin/emergencies`
+  - `/admin/activities`
+  - `/admin/statistics`
+  - `/admin/reports`
+- 체커 읽기 전용 전환 완료:
+  - `/checker/home`
+  - `/checker/targets`
+  - `/checker/activity/history`
+  - `/checker/activity/new` 대상자 선택 목록
+- 위 화면들은 모두 Supabase 조회 실패 시 기존 localStorage/mock 데이터로 fallback한다.
+- 쓰기 기능은 아직 전환하지 않았으며 기존 localStorage 흐름을 유지한다.
+
+## 28. 임시 매핑과 다음 단계 메모
+
+- 현재 단계의 organizationId/checkerId 연결은 MVP 읽기 전용 전환을 위한 임시 매핑이다.
+- 관리자 계정은 `resolveAdminSupabaseOrganizationId()`에서 로컬 계정 신호를 우선 확인해 seed organization id로 연결한다.
+- 체커 계정은 `resolveCheckerSupabaseId()`에서 로컬 계정 신호를 우선 확인해 seed checker id로 연결한다.
+- 이 매핑은 localStorage 데이터와 Supabase seed 데이터가 완전히 같지 않을 수 있다는 전제를 가진다.
+- 다음 단계에서는 `Supabase Auth`, `users.id`, `users.organization_id` 기준의 실제 사용자 매핑으로 대체해야 한다.
+- 그 이후에만 쓰기 전환과 RLS 전체 적용을 진행한다.
