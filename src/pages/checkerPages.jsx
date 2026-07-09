@@ -21,6 +21,7 @@ import { getAssignedTargets } from "../services/targetService.js";
 import { getSupabaseCheckerHome } from "../services/supabaseCheckerHomeService.js";
 import { getSupabaseCheckerTargets } from "../services/supabaseCheckerTargetsService.js";
 import { getSupabaseCheckerActivityHistory } from "../services/supabaseCheckerActivityHistoryService.js";
+import { getSupabaseCheckerActivityFormTargets } from "../services/supabaseCheckerActivityFormTargetsService.js";
 import { getToday } from "../utils/statistics.js";
 import ElderAvatarIcon from "../components/ElderAvatarIcon.jsx";
 import heroGrandmother from "../assets/happytong-hero-grandmother.png";
@@ -895,8 +896,21 @@ export function CheckerTargetDetail({ targetId, user, data, navigate }) {
   );
 }
 
-export function ActivityNew({ user, data, actions, navigate, initialTargetId }) {
-  const assignedTargets = getAssignedTargets(data.targets, user.id).filter(isActiveTarget);
+export function ActivityNew({ user, currentUser, data, actions, navigate, initialTargetId }) {
+  const activeUser = currentUser || user;
+  const assignedTargets = useMemo(
+    () => getAssignedTargets(data.targets, activeUser.id).filter(isActiveTarget),
+    [activeUser.id, data.targets]
+  );
+  const fallbackTargets = useMemo(
+    () =>
+      assignedTargets.map((target) => ({
+        ...target,
+        localDetailTargetId: target.id,
+        selectionValue: target.id,
+      })),
+    [assignedTargets]
+  );
   const validInitialTargetId = assignedTargets.some((target) => target.id === initialTargetId)
     ? initialTargetId
     : assignedTargets[0]?.id || "";
@@ -912,10 +926,102 @@ export function ActivityNew({ user, data, actions, navigate, initialTargetId }) 
   const [error, setError] = useState("");
   const [showTargetPicker, setShowTargetPicker] = useState(!validInitialTargetId);
   const [photoLabel, setPhotoLabel] = useState("");
-  const selectedTarget = assignedTargets.find((target) => target.id === form.targetId);
+  const checkerSupabaseId = resolveCheckerSupabaseId(activeUser);
+  const [activityFormTargetsState, setActivityFormTargetsState] = useState(() => ({
+    loading: Boolean(checkerSupabaseId),
+    source: checkerSupabaseId ? "loading" : "local",
+    noteLabel: "로컬 데이터 기준",
+    noteMessage: checkerSupabaseId
+      ? "Supabase 기록작성 대상자 목록을 확인 중입니다."
+      : "Supabase 체커 매핑 정보를 찾지 못해 로컬 데이터를 표시합니다.",
+    targets: fallbackTargets,
+  }));
+  const displayedTargets =
+    activityFormTargetsState.source === "supabase"
+      ? Array.isArray(activityFormTargetsState.targets)
+        ? activityFormTargetsState.targets
+        : []
+      : fallbackTargets;
+  const selectedTarget = displayedTargets.find((target) => (target.selectionValue || target.localDetailTargetId) === form.targetId);
   const activeCheckItems = checkItemGroups[form.checkType] || checkItemGroups.external;
 
-  if (assignedTargets.length === 0) {
+  useEffect(() => {
+    let mounted = true;
+
+    async function load() {
+      console.debug("[checker-activity-form-targets] current user", activeUser);
+
+      if (!checkerSupabaseId) {
+        setActivityFormTargetsState({
+          loading: false,
+          source: "local",
+          noteLabel: "로컬 데이터 기준",
+          noteMessage: "Supabase 체커 매핑 정보를 찾지 못해 로컬 데이터를 표시합니다.",
+          targets: fallbackTargets,
+        });
+        return;
+      }
+
+      setActivityFormTargetsState((current) => ({
+        ...current,
+        loading: true,
+        source: "loading",
+        noteLabel: "로컬 데이터 기준",
+        noteMessage: "Supabase 기록작성 대상자 목록을 확인 중입니다.",
+        targets: fallbackTargets,
+      }));
+
+      console.debug("[checker-activity-form-targets] supabase checker id", checkerSupabaseId);
+      const result = await getSupabaseCheckerActivityFormTargets(checkerSupabaseId);
+
+      if (!mounted) return;
+
+      console.debug(
+        "[checker-activity-form-targets] supabase targets result",
+        result.source,
+        result.ok,
+        result.targets?.length
+      );
+
+      if (result.ok) {
+        setActivityFormTargetsState({
+          loading: false,
+          source: "supabase",
+          noteLabel: "Supabase 기준",
+          noteMessage: result.message,
+          targets: result.targets.map((target) => ({
+            ...target,
+            riskLevelLabel: target.riskLevel,
+            lifecycleStatusLabel: getLifecycleStatusLabel(target.lifecycleStatus),
+            defaultCheckTypeLabel: checkTypeLabels[target.defaultCheckType] || target.defaultCheckType,
+            lastActivityStatusLabel: getLastActivityStatusLabel(target.lastActivityStatus),
+            localDetailTargetId: findLocalTargetId(data.targets, target),
+            selectionValue: findLocalTargetId(data.targets, target) || `supabase:${target.id}`,
+          })),
+        });
+        return;
+      }
+
+      setActivityFormTargetsState({
+        loading: false,
+        source: "local",
+        noteLabel: "로컬 데이터 기준",
+        noteMessage:
+          result.source === "not_found"
+            ? "Supabase 체커 매핑 정보를 찾지 못해 로컬 데이터를 표시합니다."
+            : "Supabase 기록작성 대상자 목록을 불러오지 못해 로컬 데이터를 표시합니다.",
+        targets: fallbackTargets,
+      });
+    }
+
+    load();
+
+    return () => {
+      mounted = false;
+    };
+  }, [activeUser, checkerSupabaseId, data.targets, fallbackTargets]);
+
+  if (displayedTargets.length === 0 && activityFormTargetsState.source !== "loading") {
     return (
       <>
         <PageHeader eyebrow="확인 기록" title="확인 기록 작성" description="대상자와 확인 유형을 확인한 뒤 바로 기록합니다." />
@@ -932,7 +1038,7 @@ export function ActivityNew({ user, data, actions, navigate, initialTargetId }) 
   }
 
   function handleTargetChange(targetId) {
-    const nextTarget = assignedTargets.find((target) => target.id === targetId);
+    const nextTarget = displayedTargets.find((target) => (target.selectionValue || target.localDetailTargetId) === targetId);
     const nextCheckType = getTargetCheckType(nextTarget || {});
     setForm((current) => ({ ...current, targetId, checkType: nextCheckType }));
     setCheckItems(createDefaultCheckItems(nextCheckType));
@@ -956,6 +1062,11 @@ export function ActivityNew({ user, data, actions, navigate, initialTargetId }) 
       return;
     }
 
+    if (!selectedTarget || !selectedTarget.localDetailTargetId) {
+      setError("로컬 대상자와 연결된 경우에만 기록을 저장할 수 있습니다.");
+      return;
+    }
+
     if (activeCheckItems.some((item) => !checkItems[item.key])) {
       setError("확인 항목을 모두 선택해주세요.");
       return;
@@ -968,7 +1079,7 @@ export function ActivityNew({ user, data, actions, navigate, initialTargetId }) 
     const now = new Date().toISOString();
     actions.addActivityRecord({
       id: `record-${Date.now()}`,
-      targetId: form.targetId,
+      targetId: selectedTarget.localDetailTargetId,
       checkerId: user.id,
       date: getToday(),
       type: form.checkType,
@@ -991,17 +1102,24 @@ export function ActivityNew({ user, data, actions, navigate, initialTargetId }) 
     <>
       <PageHeader eyebrow="확인 기록" title="확인 기록 작성" description="대상자와 확인 유형을 확인한 뒤 바로 기록합니다." />
 
+      <div className="admin-dashboard-source-note">
+        <span className={`badge ${activityFormTargetsState.source === "supabase" ? "super-source-supabase" : "super-source-local"}`}>
+          {activityFormTargetsState.noteLabel}
+        </span>
+        <span className="muted">{activityFormTargetsState.noteMessage}</span>
+      </div>
+
       <form className="form-stack activity-form" onSubmit={handleSubmit}>
         {showTargetPicker ? (
           <Card className="activity-target-card">
             <h2>대상자 선택</h2>
             <div className="activity-target-grid" role="list" aria-label="대상자 선택">
-              {assignedTargets.map((target) => (
+              {displayedTargets.map((target) => (
                 <button
-                  key={target.id}
+                  key={target.selectionValue || target.id || target.localDetailTargetId}
                   type="button"
-                  className={`activity-target-option ${form.targetId === target.id ? "active" : ""}`}
-                  onClick={() => handleTargetChange(target.id)}
+                  className={`activity-target-option ${form.targetId === (target.selectionValue || target.localDetailTargetId) ? "active" : ""}`}
+                  onClick={() => handleTargetChange(target.selectionValue || target.localDetailTargetId)}
                 >
                   <strong>{target.name}</strong>
                   <span>{target.address}</span>
@@ -1032,6 +1150,9 @@ export function ActivityNew({ user, data, actions, navigate, initialTargetId }) 
               <StatusBadge type="checkType" value={form.checkType} />
               <span className="badge badge-info">{`오늘 ${isTodayScheduled(selectedTarget) ? getTargetCheckTime(selectedTarget) : "일정 없음"}`}</span>
             </div>
+            {!selectedTarget.localDetailTargetId ? (
+              <p className="notice target-detail-notice">이 대상자는 읽기 전용 Supabase 데이터로만 연결되어 있어 현재 기록 저장은 지원하지 않습니다.</p>
+            ) : null}
           </Card>
         ) : null}
 
