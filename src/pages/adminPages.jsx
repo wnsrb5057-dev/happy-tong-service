@@ -2816,6 +2816,17 @@ export function AdminEmergencyDetail({ emergencyId, data, actions, currentUser, 
 
   const report = localReport || supabaseEmergencyState.report;
   const localEditableEmergencyId = localReport?.id || findLocalEmergencyMatchId(report || {}, data.emergencyReports, data.targets);
+  const displayTargetName = report?.targetName || targetName(data.targets, report?.targetId);
+  const displayTargetAddress = report?.targetAddress || targetById(data.targets, report?.targetId)?.address || "-";
+  const displayCheckerName = report?.checkerName || checkerName(data.users, report?.checkerId) || "체커 없음";
+  const displayCheckerPhone =
+    report?.checkerPhone ||
+    report?.guardianPhone ||
+    checkerPhone(data.users, report?.checkerId) ||
+    "연락처 없음";
+  const displayIssueTitle = report?.title || report?.issueType || "이상징후 보고";
+  const displayIssueDescription = report?.description || report?.content || report?.note || "상세 내용이 없습니다.";
+  const displayReportedDate = report?.reportedAt || report?.date || report?.createdAt || "-";
   const handlingLogs = [...(Array.isArray(report?.handlingLogs) ? report.handlingLogs : [])].sort(
     (a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || ""))
   );
@@ -2888,8 +2899,8 @@ export function AdminEmergencyDetail({ emergencyId, data, actions, currentUser, 
     <>
       <PageHeader
         eyebrow="이상징후 상세"
-        title={targetName(data.targets, report.targetId)}
-        description={`${report.date} · ${report.issueType}`}
+        title={displayTargetName}
+        description={`${displayReportedDate} · ${displayIssueTitle}`}
         action={<StatusBadge type="issueLevel" value={getIssueLevel(report)} />}
       />
 
@@ -2897,17 +2908,29 @@ export function AdminEmergencyDetail({ emergencyId, data, actions, currentUser, 
   <div className="admin-emergency-meta">
     <div className="admin-emergency-meta-item">
       <span>대상자</span>
-      <strong>{targetName(data.targets, report.targetId)}</strong>
+      <strong>{displayTargetName}</strong>
     </div>
 
     <div className="admin-emergency-meta-item">
       <span>체커</span>
-      <strong>{checkerName(data.users, report.checkerId)}</strong>
+      <strong>{displayCheckerName}</strong>
     </div>
 
     <div className="admin-emergency-meta-item">
       <span>연락처</span>
-      <strong>{checkerPhone(data.users, report.checkerId)}</strong>
+      <strong>{displayCheckerPhone}</strong>
+    </div>
+  </div>
+
+  <div className="admin-emergency-meta">
+    <div className="admin-emergency-meta-item">
+      <span>주소</span>
+      <strong>{displayTargetAddress}</strong>
+    </div>
+
+    <div className="admin-emergency-meta-item">
+      <span>보고일</span>
+      <strong>{formatSafeDateLabel(displayReportedDate)}</strong>
     </div>
   </div>
 
@@ -2919,7 +2942,7 @@ export function AdminEmergencyDetail({ emergencyId, data, actions, currentUser, 
 
       <Card>
         <h2>상세 내용</h2>
-        <p>{report.description}</p>
+        <p>{displayIssueDescription}</p>
       </Card>
 
       <Card className="emergency-handling-form">

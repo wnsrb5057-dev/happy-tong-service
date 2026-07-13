@@ -30,18 +30,37 @@ function normalizeEmergency(item) {
   const severity = item?.severity || "caution";
   const status = item?.status || "received";
   const lastHandlingStatus = item?.last_handling_status || item?.lastHandlingStatus || null;
+  const fallbackTitle =
+    item?.title ||
+    item?.type ||
+    item?.emergency_type ||
+    item?.emergencyType ||
+    item?.issue_type ||
+    item?.issueType ||
+    "이상징후 보고";
+  const fallbackDescription =
+    item?.description ||
+    item?.content ||
+    item?.note ||
+    item?.memo ||
+    item?.detail ||
+    "";
 
   return {
     id: item?.id || "",
     organizationId: item?.organization_id || item?.organizationId || "",
     targetId: item?.target_id || item?.targetId || null,
-    targetName: item?.target_name || item?.targetName || "대상자 없음",
-    targetAddress: item?.target_address || item?.targetAddress || "-",
+    targetName: item?.target_name || item?.targetName || item?.senior_name || item?.seniorName || item?.name || "대상자 없음",
+    targetAddress: item?.target_address || item?.targetAddress || item?.address || "-",
     checkerId: item?.checker_id || item?.checkerId || null,
-    checkerName: item?.checker_name || item?.checkerName || "체커 없음",
-    title: item?.title || "이상징후 보고",
-    issueType: item?.issue_type || item?.issueType || item?.title || "이상징후 보고",
-    description: item?.description || item?.detail || "",
+    checkerName: item?.checker_name || item?.checkerName || item?.checker || "체커 없음",
+    checkerPhone: item?.checker_phone || item?.checkerPhone || item?.phone || "",
+    guardianPhone: item?.guardian_phone || item?.guardianPhone || item?.targetPhone || "",
+    title: fallbackTitle,
+    issueType: item?.issue_type || item?.issueType || item?.emergency_type || item?.emergencyType || fallbackTitle,
+    description: fallbackDescription,
+    content: fallbackDescription,
+    note: item?.note || item?.memo || fallbackDescription,
     date: item?.date || item?.reported_at || item?.reportedAt || "",
     urgency: item?.urgency || severity,
     severity,
