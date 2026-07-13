@@ -403,12 +403,60 @@ function findLocalTargetMatchId(target, localTargets) {
   const directMatch = localTargets.find((item) => item.id === target.id);
   if (directMatch) return directMatch.id;
 
-  const area = getTargetArea(target);
+  const area = String(getTargetArea(target) || "").trim();
   const fuzzyMatch = localTargets.find(
-    (item) => item.name === target.name && getTargetArea(item) === area
+    (item) =>
+      item.name === target.name &&
+      (
+        !area ||
+        String(getTargetArea(item) || "").trim() === area ||
+        String(item.address || "").includes(area) ||
+        area.includes(String(getTargetArea(item) || "").trim())
+      )
   );
 
   return fuzzyMatch?.id || null;
+}
+
+function buildAdminTargetDetailPath(target, localTargets) {
+  const localDetailTargetId = findLocalTargetMatchId(target, localTargets);
+  const routeTargetId = localDetailTargetId || target.id;
+  const searchParams = new URLSearchParams();
+
+  if (target?.name) {
+    searchParams.set("lookupName", target.name);
+  }
+
+  const targetArea = getTargetArea(target);
+  if (targetArea) {
+    searchParams.set("lookupArea", targetArea);
+  }
+
+  const queryString = searchParams.toString();
+  return `/admin/targets/${routeTargetId}${queryString ? `?${queryString}` : ""}`;
+}
+
+function findAdminTargetForDetail(targetId, targets) {
+  const directTarget = targetById(targets, targetId);
+  if (directTarget) return directTarget;
+
+  const params = new URLSearchParams(window.location.search);
+  const lookupName = params.get("lookupName") || "";
+  const lookupArea = params.get("lookupArea") || "";
+
+  if (!lookupName) {
+    return null;
+  }
+
+  return (
+    targets.find((item) => {
+      if (item.name !== lookupName) return false;
+      if (!lookupArea) return true;
+      const itemArea = String(getTargetArea(item) || "").trim();
+      const itemAddress = String(item.address || "").trim();
+      return itemArea === lookupArea || itemAddress.includes(lookupArea) || lookupArea.includes(itemArea);
+    }) || null
+  );
 }
 
 function getEmergencySeverityValue(report) {
@@ -482,10 +530,65 @@ function findLocalEmergencyMatchId(report, localReports, targets) {
     const itemTitle = item.title || item.issueType || "";
     const itemDate = item.reportedAt || item.date || "";
 
-    return itemTargetName === fallbackTargetName && itemTitle === fallbackTitle && itemDate === fallbackDate;
+    return (
+      itemTargetName === fallbackTargetName &&
+      itemTitle === fallbackTitle &&
+      String(itemDate).slice(0, 10) === String(fallbackDate).slice(0, 10)
+    );
   });
 
   return fuzzyMatch?.id || null;
+}
+
+function buildAdminEmergencyDetailPath(report, localReports, targets) {
+  const localEmergencyId = findLocalEmergencyMatchId(report, localReports, targets);
+  const routeEmergencyId = localEmergencyId || report.id;
+  const searchParams = new URLSearchParams();
+
+  if (report?.targetName) {
+    searchParams.set("lookupTargetName", report.targetName);
+  }
+
+  if (report?.title || report?.issueType) {
+    searchParams.set("lookupTitle", report.title || report.issueType);
+  }
+
+  const reportedAt = report?.reportedAt || report?.date || "";
+  if (reportedAt) {
+    searchParams.set("lookupReportedAt", reportedAt);
+  }
+
+  const queryString = searchParams.toString();
+  return `/admin/emergencies/${routeEmergencyId}${queryString ? `?${queryString}` : ""}`;
+}
+
+function findAdminEmergencyForDetail(emergencyId, reports, targets) {
+  const directReport = reports.find((item) => item.id === emergencyId);
+  if (directReport) return directReport;
+
+  const params = new URLSearchParams(window.location.search);
+  const lookupTargetName = params.get("lookupTargetName") || "";
+  const lookupTitle = params.get("lookupTitle") || "";
+  const lookupReportedAt = params.get("lookupReportedAt") || "";
+
+  if (!lookupTargetName && !lookupTitle) {
+    return null;
+  }
+
+  return (
+    reports.find((item) => {
+      const itemTarget = targetById(targets, item.targetId);
+      const itemTargetName = itemTarget?.name || "";
+      const itemTitle = item.title || item.issueType || "";
+      const itemReportedAt = item.reportedAt || item.date || "";
+
+      if (lookupTargetName && itemTargetName !== lookupTargetName) return false;
+      if (lookupTitle && itemTitle !== lookupTitle) return false;
+      if (lookupReportedAt && String(itemReportedAt).slice(0, 10) !== String(lookupReportedAt).slice(0, 10)) return false;
+
+      return true;
+    }) || null
+  );
 }
 
 function formatRecordDisplayDate(record) {
@@ -1089,7 +1192,11 @@ export function AdminDashboard({ data, navigate, currentUser }) {
                       </div>
                       <p className="muted">{truncateText(report.title || report.issueType || "이상징후 보고")}</p>
                       <div className="dashboard-card-actions">
-                        <Button variant="ghost" className="dashboard-small-button" onClick={() => navigate(`/admin/emergencies/${report.id}`)}>
+                        <Button
+                          variant="ghost"
+                          className="dashboard-small-button"
+                          onClick={() => navigate(buildAdminEmergencyDetailPath(report, emergencyReports, targets))}
+                        >
                           상세보기
                         </Button>
                       </div>
@@ -1137,7 +1244,11 @@ export function AdminDashboard({ data, navigate, currentUser }) {
                                 : "위험도 기준 우선 확인 대상자입니다."}
                         </p>
                         <div className="dashboard-card-actions">
-                          <Button variant="ghost" className="dashboard-small-button" onClick={() => navigate(`/admin/targets/${target.id}`)}>
+                          <Button
+                            variant="ghost"
+                            className="dashboard-small-button"
+                            onClick={() => navigate(buildAdminTargetDetailPath(target, targets))}
+                          >
                             상세보기
                           </Button>
                         </div>
@@ -2033,12 +2144,7 @@ export function AdminTargets({ data, navigate, currentUser }) {
             <Button
               variant="ghost"
               className="admin-target-detail-action"
-              disabled={!findLocalTargetMatchId(target, targets)}
-              onClick={() => {
-                const localDetailTargetId = findLocalTargetMatchId(target, targets);
-                if (!localDetailTargetId) return;
-                navigate(`/admin/targets/${localDetailTargetId}`);
-              }}
+              onClick={() => navigate(buildAdminTargetDetailPath(target, targets))}
               aria-label={`${target.name} 상세보기`}
             >
               상세보기
@@ -2055,10 +2161,14 @@ export function AdminTargets({ data, navigate, currentUser }) {
   );
 }
 export function AdminTargetDetail({ targetId, data, actions, navigate }) {
-  const target = targetById(data.targets, targetId);
+  const target = findAdminTargetForDetail(targetId, data.targets);
 
   if (!target) {
-    return <EmptyState title="대상자를 찾을 수 없습니다" description="대상자 관리 화면에서 다시 선택해주세요." />;
+    return (
+      <EmptyState title="대상자를 찾을 수 없습니다" description="대상자 관리 화면에서 다시 선택해주세요.">
+        <Button onClick={() => navigate("/admin/targets")}>목록으로 돌아가기</Button>
+      </EmptyState>
+    );
   }
 
   const checker = checkerById(data.users, target.assignedCheckerId);
@@ -2578,12 +2688,7 @@ export function AdminEmergencies({ data, navigate, currentUser }) {
   <Button
     variant="ghost"
     className="admin-emergency-detail-button"
-    disabled={!findLocalEmergencyMatchId(report, rawReports, targets)}
-    onClick={() => {
-      const localEmergencyId = findLocalEmergencyMatchId(report, rawReports, targets);
-      if (!localEmergencyId) return;
-      navigate(`/admin/emergencies/${localEmergencyId}`);
-    }}
+    onClick={() => navigate(buildAdminEmergencyDetailPath(report, rawReports, targets))}
   >
     상세보기
   </Button>
@@ -2596,7 +2701,7 @@ export function AdminEmergencies({ data, navigate, currentUser }) {
   );
 }
 export function AdminEmergencyDetail({ emergencyId, data, actions, currentUser, navigate }) {
-  const report = data.emergencyReports.find((item) => item.id === emergencyId);
+  const report = findAdminEmergencyForDetail(emergencyId, data.emergencyReports, data.targets);
   const handlingLogs = [...(Array.isArray(report?.handlingLogs) ? report.handlingLogs : [])].sort(
     (a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || ""))
   );
@@ -2610,7 +2715,11 @@ export function AdminEmergencyDetail({ emergencyId, data, actions, currentUser, 
   }));
 
   if (!report) {
-    return <EmptyState title="이상징후 보고를 찾을 수 없습니다" description="보고 목록에서 다시 선택해주세요." />;
+    return (
+      <EmptyState title="이상징후 보고를 찾을 수 없습니다" description="보고 목록에서 다시 선택해주세요.">
+        <Button onClick={() => navigate("/admin/emergencies")}>목록으로 돌아가기</Button>
+      </EmptyState>
+    );
   }
 
   function updateForm(key, value) {

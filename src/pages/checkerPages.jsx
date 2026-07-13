@@ -121,6 +121,45 @@ function findLocalTargetId(targets, supabaseTarget) {
   return nameMatch?.id || "";
 }
 
+function buildCheckerTargetDetailPath(target) {
+  const routeTargetId = target.localDetailTargetId || target.id;
+  const searchParams = new URLSearchParams();
+
+  if (target?.name) {
+    searchParams.set("lookupName", target.name);
+  }
+
+  if (target?.address) {
+    searchParams.set("lookupAddress", target.address);
+  }
+
+  const queryString = searchParams.toString();
+  return `/checker/targets/${routeTargetId}${queryString ? `?${queryString}` : ""}`;
+}
+
+function findCheckerTargetForDetail(targetId, targets) {
+  const directTarget = targets.find((item) => item.id === targetId && isActiveTarget(item));
+  if (directTarget) return directTarget;
+
+  const params = new URLSearchParams(window.location.search);
+  const lookupName = params.get("lookupName") || "";
+  const lookupAddress = params.get("lookupAddress") || "";
+
+  if (!lookupName) {
+    return null;
+  }
+
+  return (
+    targets.find((item) => {
+      if (!isActiveTarget(item)) return false;
+      if (item.name !== lookupName) return false;
+      if (!lookupAddress) return true;
+      const itemAddress = String(item.address || "").trim();
+      return itemAddress === lookupAddress || itemAddress.includes(lookupAddress) || lookupAddress.includes(itemAddress);
+    }) || null
+  );
+}
+
 function getLifecycleStatusLabel(status) {
   if (status === "ended") return "관리종료";
   if (status === "paused") return "일시중지";
@@ -238,12 +277,8 @@ function MicIcon() {
 }
 
 function TargetCard({ target, navigate, homePreview = false }) {
-  const detailTargetId = target.localDetailTargetId || target.id;
-  const canOpenDetail = !target.isSupabaseOnly || Boolean(target.localDetailTargetId);
-
   function goDetail() {
-    if (!canOpenDetail) return;
-    navigate(`/checker/targets/${detailTargetId}`);
+    navigate(buildCheckerTargetDetailPath(target));
   }
 
   const scheduleText = getTargetCheckDaysText(target);
@@ -303,10 +338,9 @@ function TargetCard({ target, navigate, homePreview = false }) {
         variant="ghost"
         className="full-width target-detail-button"
         onClick={goDetail}
-        disabled={!canOpenDetail}
         aria-label={`${target.name} 상세보기`}
       >
-        {canOpenDetail ? "상세보기" : "목록에서 확인"}
+        상세보기
       </Button>
     </article>
   );
@@ -765,10 +799,14 @@ export function CheckerTargets({ user, currentUser, data, navigate }) {
 }
 
 export function CheckerTargetDetail({ targetId, user, data, navigate }) {
-  const target = data.targets.find((item) => item.id === targetId && isActiveTarget(item));
+  const target = findCheckerTargetForDetail(targetId, data.targets);
 
   if (!target) {
-    return <EmptyState title="대상자를 찾을 수 없습니다" description="대상자 목록에서 다시 선택해주세요." />;
+    return (
+      <EmptyState title="대상자를 찾을 수 없습니다" description="대상자 목록에서 다시 선택해주세요.">
+        <Button onClick={() => navigate("/checker/targets")}>목록으로 돌아가기</Button>
+      </EmptyState>
+    );
   }
 
   const assignedCheckerInfo = getAssignedCheckerInfo(data.users, target);
