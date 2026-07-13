@@ -9,9 +9,9 @@ import {
   recordStatusLabels,
 } from "../data/mockData.js";
 
-export function PageHeader({ eyebrow, title, description, action }) {
+export function PageHeader({ eyebrow, title, description, action, className = "" }) {
   return (
-    <header className="page-header">
+    <header className={`page-header ${className}`.trim()}>
       <div>
         {eyebrow ? <p className="eyebrow">{eyebrow}</p> : null}
         <h1>{title}</h1>

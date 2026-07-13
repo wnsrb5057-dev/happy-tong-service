@@ -776,7 +776,7 @@ export function CheckerTargets({ user, currentUser, data, navigate }) {
         <span className="muted">{checkerTargetsState.noteMessage}</span>
       </div>
 
-      <Card className="summary-card">
+      <Card className="summary-card checker-targets-summary-card">
         <p className="eyebrow">담당 현황</p>
         <strong>전체 {displayedTargets.length}명 · 오늘 확인 필요 {todayCount}명</strong>
         <span>주의/위험 {riskCount}명</span>

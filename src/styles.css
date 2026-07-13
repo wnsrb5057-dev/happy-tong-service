@@ -8074,3 +8074,159 @@ button.upload-box {
     white-space: nowrap;
   }
 }
+
+/* UI pass: compact tabs and summary boxes */
+.app-shell-checker .checker-targets-summary-card {
+  gap: 4px;
+  padding: 14px 16px;
+}
+
+.app-shell-checker .checker-targets-summary-card strong {
+  font-size: 16px;
+  line-height: 1.35;
+}
+
+.app-shell-checker .checker-targets-summary-card span {
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.app-shell-admin .admin-checker-filter-tabs {
+  justify-content: center;
+}
+
+.app-shell-admin .admin-checker-filter-tabs button {
+  text-align: center;
+}
+
+.app-shell-admin .admin-emergency-filter-tabs,
+.app-shell-admin .admin-statistics-period-tabs {
+  width: 100%;
+  overflow: visible;
+}
+
+.app-shell-admin .admin-report-page-header .muted {
+  max-width: 34rem;
+}
+
+.app-shell-admin .admin-statistics-summary-grid .stat-card,
+.app-shell-admin .admin-report-kpi-summary-grid .stat-card {
+  min-height: auto;
+  padding: 14px 16px;
+}
+
+.app-shell-admin .admin-statistics-summary-grid .stat-card strong,
+.app-shell-admin .admin-report-kpi-summary-grid .stat-card strong {
+  font-size: 22px;
+  line-height: 1.1;
+}
+
+.app-shell-admin .admin-statistics-summary-grid .stat-card small,
+.app-shell-admin .admin-report-kpi-summary-grid .stat-card small {
+  line-height: 1.3;
+}
+
+@media (max-width: 768px) {
+  .app-shell-checker .checker-targets-summary-card {
+    padding: 12px 14px;
+  }
+
+  .app-shell-checker .checker-targets-summary-card strong {
+    font-size: 15px;
+  }
+
+  .app-shell-checker .checker-targets-summary-card span {
+    font-size: 12px;
+  }
+
+  .app-shell-admin .admin-checker-filter-tabs {
+    grid-template-columns: repeat(3, minmax(0, 108px));
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+  }
+
+  .app-shell-admin .admin-checker-filter-tabs button {
+    min-width: 0;
+    padding: 0 8px;
+    font-size: 13px;
+  }
+
+  .app-shell-admin .admin-emergency-filter-tabs {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 6px;
+    padding: 0;
+  }
+
+  .app-shell-admin .admin-emergency-filter-tabs button {
+    min-width: 0;
+    min-height: 42px;
+    padding: 6px 4px;
+    font-size: 12px;
+    line-height: 1.2;
+    white-space: normal;
+    word-break: keep-all;
+  }
+
+  .app-shell-admin .admin-statistics-period-tabs {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 6px;
+    padding: 0;
+    margin-bottom: 14px;
+  }
+
+  .app-shell-admin .admin-statistics-period-tabs button {
+    min-width: 0;
+    min-height: 42px;
+    padding: 6px 4px;
+    font-size: 12px;
+    line-height: 1.2;
+    white-space: normal;
+    word-break: keep-all;
+  }
+
+  .app-shell-admin .admin-statistics-summary-grid,
+  .app-shell-admin .admin-report-kpi-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    overflow: visible;
+    padding-bottom: 0;
+  }
+
+  .app-shell-admin .admin-statistics-summary-grid > *,
+  .app-shell-admin .admin-report-kpi-summary-grid > * {
+    min-width: 0;
+  }
+
+  .app-shell-admin .admin-statistics-summary-grid .stat-card,
+  .app-shell-admin .admin-report-kpi-summary-grid .stat-card {
+    padding: 12px 14px;
+  }
+
+  .app-shell-admin .admin-statistics-summary-grid .stat-card strong,
+  .app-shell-admin .admin-report-kpi-summary-grid .stat-card strong {
+    font-size: 20px;
+  }
+
+  .app-shell-admin .admin-report-page-header .muted {
+    max-width: 100%;
+  }
+}
+
+@media (min-width: 769px) {
+  .app-shell-admin .admin-report-kpi-summary-grid {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+
+  .app-shell-admin .admin-statistics-summary-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .app-shell-admin .admin-report-kpi-summary-grid .stat-card,
+  .app-shell-admin .admin-statistics-summary-grid .stat-card {
+    padding: 16px 18px;
+  }
+}

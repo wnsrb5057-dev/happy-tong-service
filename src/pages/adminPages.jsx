@@ -1426,7 +1426,7 @@ export function AdminCheckers({ data, actions, currentUser, navigate }) {
         <span>기록 보완 필요 {pendingCheckerCount}명 · 지원 필요 {attentionCount}명</span>
       </Card>
 
-      <div className="filter-tabs compact-filter-tabs" aria-label="체커 필터">
+      <div className="filter-tabs compact-filter-tabs admin-checker-filter-tabs" aria-label="체커 필터">
         {[
           { value: "all", label: "전체" },
           { value: "active", label: "정상" },
@@ -2699,7 +2699,7 @@ export function AdminEmergencies({ data, navigate, currentUser }) {
         <strong>긴급 확인 필요 {urgentCount}건 · 미처리 {unresolvedCount}건</strong>
       </Card>
 
-      <div className="filter-tabs emergency-filter-tabs" aria-label="이상징후 보고 필터">
+      <div className="filter-tabs emergency-filter-tabs admin-emergency-filter-tabs" aria-label="이상징후 보고 필터">
         {[
           { value: "all", label: "전체" },
           { value: "received", label: "미처리" },
@@ -3500,6 +3500,7 @@ export function AdminReportNew({ data, actions, navigate, currentUser }) {
   return (
     <>
       <PageHeader
+        className="admin-report-page-header"
         eyebrow="행정 보고서"
         title="보고서 작성 초안"
         description="해당 기간 동안 생활 확인 기록과 이상징후 보고 내역을 기준으로 운영 현황을 정리합니다."
@@ -3525,7 +3526,7 @@ export function AdminReportNew({ data, actions, navigate, currentUser }) {
         </div>
       </Card>
 
-      <div className="statistics-grid super-kpi-grid report-kpi-summary-grid">
+      <div className="statistics-grid super-kpi-grid report-kpi-summary-grid admin-report-kpi-summary-grid">
         <StatCard label="운영 대상자" value={`${displayedOperatingTargetCount}명`} tone="blue" helper="관리종료 제외" />
         <StatCard label="확인 기록" value={`${displayedActivityCount}건`} tone="green" helper={displayedReportSummary ? "기관 전체 집계" : "기간 내 집계"} />
         <StatCard label="이상징후 보고" value={`${displayedEmergencyCount}건`} tone="orange" helper={displayedReportSummary ? "기관 전체 집계" : "기간 내 보고"} />
@@ -4322,7 +4323,7 @@ export function AdminStatistics({ data, currentUser }) {
         )}
       </div>
 
-      <div className="filter-tabs compact-filter-tabs statistics-period-tabs" aria-label="통계 기간 필터">
+      <div className="filter-tabs compact-filter-tabs statistics-period-tabs admin-statistics-period-tabs" aria-label="통계 기간 필터">
         {[
           { value: "all", label: "전체" },
           { value: "today", label: "오늘" },
@@ -4340,7 +4341,7 @@ export function AdminStatistics({ data, currentUser }) {
         ))}
       </div>
 
-      <div className="stats-grid statistics-grid">
+      <div className="stats-grid statistics-grid admin-statistics-summary-grid">
         <StatCard label="전체 확인 기록" value={`${displayedTotalActivities}건`} tone="green" />
         <StatCard label="이상징후 보고" value={`${displayedEmergencyCount}건`} tone="red" />
         <StatCard label="미처리 이상징후" value={`${displayedUnresolvedEmergencyCount}건`} tone={displayedUnresolvedEmergencyCount ? "red" : "green"} />
