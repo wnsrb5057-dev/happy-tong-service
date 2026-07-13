@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { organizations } from "../data/organizations.js";
 import BrandLogo from "../components/BrandLogo.jsx";
 import { Button, SelectInput, TextArea, TextInput } from "../components/UI.jsx";
-import { authenticateUser, readAllUsers } from "../services/authService.js";
+import { authenticateSupabaseUser, authenticateUser, readAllUsers } from "../services/authService.js";
 import { appendSignupRequest, readSignupRequests } from "../services/signupRequestService.js";
 
 function formatPhoneNumber(value) {
@@ -18,18 +18,45 @@ export default function LoginPage({ onLogin, navigate }) {
   const [loginId, setLoginId] = useState("checker");
   const [password, setPassword] = useState("1234");
   const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
-  function handleSubmit(event) {
+  function isEmailLogin(value) {
+    const trimmedValue = String(value || "").trim();
+    return trimmedValue.includes("@");
+  }
+
+  async function handleSubmit(event) {
     event.preventDefault();
-    const matchedUser = authenticateUser(loginId.trim(), password);
+    const trimmedLoginId = loginId.trim();
+
+    setSubmitting(true);
+
+    if (isEmailLogin(trimmedLoginId)) {
+      const result = await authenticateSupabaseUser(trimmedLoginId, password);
+
+      if (!result.ok) {
+        setError(result.message || "아이디 또는 비밀번호를 확인해주세요.");
+        setSubmitting(false);
+        return;
+      }
+
+      setError("");
+      onLogin(result.user);
+      setSubmitting(false);
+      return;
+    }
+
+    const matchedUser = authenticateUser(trimmedLoginId, password);
 
     if (!matchedUser) {
       setError("아이디 또는 비밀번호를 확인해주세요.");
+      setSubmitting(false);
       return;
     }
 
     setError("");
     onLogin(matchedUser);
+    setSubmitting(false);
   }
 
   return (
@@ -60,8 +87,8 @@ export default function LoginPage({ onLogin, navigate }) {
             onChange={(event) => setPassword(event.target.value)}
           />
           {error ? <p className="form-error">{error}</p> : null}
-          <Button className="full-width" type="submit">
-            로그인
+          <Button className="full-width" type="submit" disabled={submitting}>
+            {submitting ? "로그인 중..." : "로그인"}
           </Button>
         </form>
 
@@ -75,6 +102,7 @@ export default function LoginPage({ onLogin, navigate }) {
           <strong>테스트 계정</strong>
           <p>체커: checker / 1234</p>
           <p>관리자: admin / 1234</p>
+          <p>총관리자: super_admin / 1234</p>
         </div>
       </section>
     </main>

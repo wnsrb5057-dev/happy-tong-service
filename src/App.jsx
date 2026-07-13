@@ -43,6 +43,7 @@ import { readAdminReports, writeAdminReports } from "./services/adminReportDataS
 import {
   buildApprovedCheckerFromRequest,
   clearCurrentUser,
+  signOutSupabaseAuth,
   readCurrentUser,
   readRegisteredUsers,
   saveCurrentUser,
@@ -111,7 +112,8 @@ export default function App() {
     );
   }
 
-  function handleLogout() {
+  async function handleLogout() {
+    await signOutSupabaseAuth();
     clearCurrentUser();
     setCurrentUser(null);
     navigate("/login", { replace: true });
