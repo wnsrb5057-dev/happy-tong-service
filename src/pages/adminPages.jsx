@@ -46,8 +46,8 @@ import {
   downloadCsv,
 } from "../utils/exportCsv.js";
 import { getSupabaseAdminDashboard } from "../services/supabaseAdminDashboardService.js";
-import { getSupabaseAdminTargets } from "../services/supabaseAdminTargetsService.js";
-import { getSupabaseAdminEmergencies } from "../services/supabaseAdminEmergenciesService.js";
+import { getSupabaseAdminTargetById, getSupabaseAdminTargets } from "../services/supabaseAdminTargetsService.js";
+import { getSupabaseAdminEmergencies, getSupabaseAdminEmergencyById } from "../services/supabaseAdminEmergenciesService.js";
 import { getSupabaseAdminActivityRecords } from "../services/supabaseAdminActivityRecordsService.js";
 import { getSupabaseAdminStatistics } from "../services/supabaseAdminStatisticsService.js";
 import { getSupabaseAdminReportSummary } from "../services/supabaseAdminReportSummaryService.js";
@@ -2160,10 +2160,66 @@ export function AdminTargets({ data, navigate, currentUser }) {
     </>
   );
 }
-export function AdminTargetDetail({ targetId, data, actions, navigate }) {
-  const target = findAdminTargetForDetail(targetId, data.targets);
+export function AdminTargetDetail({ targetId, data, actions, navigate, currentUser }) {
+  const localTarget = findAdminTargetForDetail(targetId, data.targets);
+  const adminSupabaseOrganizationId = useMemo(
+    () => resolveAdminSupabaseOrganizationId(currentUser, data),
+    [currentUser, data]
+  );
+  const [supabaseTargetState, setSupabaseTargetState] = useState(() => ({
+    loading: !localTarget && Boolean(adminSupabaseOrganizationId),
+    target: null,
+  }));
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function load() {
+      if (localTarget || !adminSupabaseOrganizationId) {
+        setSupabaseTargetState({
+          loading: false,
+          target: null,
+        });
+        return;
+      }
+
+      setSupabaseTargetState({
+        loading: true,
+        target: null,
+      });
+
+      const result = await getSupabaseAdminTargetById(adminSupabaseOrganizationId, targetId);
+
+      if (!mounted) return;
+
+      if (result.ok && result.target) {
+        setSupabaseTargetState({
+          loading: false,
+          target: result.target,
+        });
+        return;
+      }
+
+      setSupabaseTargetState({
+        loading: false,
+        target: null,
+      });
+    }
+
+    load();
+
+    return () => {
+      mounted = false;
+    };
+  }, [adminSupabaseOrganizationId, localTarget, targetId]);
+
+  const target = localTarget || supabaseTargetState.target;
 
   if (!target) {
+    if (supabaseTargetState.loading) {
+      return <EmptyState title="대상자 정보를 확인 중입니다" description="Supabase 상세 데이터를 불러오고 있습니다." />;
+    }
+
     return (
       <EmptyState title="대상자를 찾을 수 없습니다" description="대상자 관리 화면에서 다시 선택해주세요.">
         <Button onClick={() => navigate("/admin/targets")}>목록으로 돌아가기</Button>
@@ -2173,6 +2229,7 @@ export function AdminTargetDetail({ targetId, data, actions, navigate }) {
 
   const checker = checkerById(data.users, target.assignedCheckerId);
   const checkerAlert = getTargetCheckerAlert(checker);
+  const localEditableTargetId = targetById(data.targets, target.id)?.id || findLocalTargetMatchId(target, data.targets);
   const visits = data.activityRecords.filter((record) => record.targetId === target.id).sort(byLatestDate);
   const reports = data.emergencyReports.filter((report) => report.targetId === target.id).sort(byLatestDate);
   const confirmMessage = `${target.name}님을 관리 종료 처리할까요?`;
@@ -2185,17 +2242,18 @@ export function AdminTargetDetail({ targetId, data, actions, navigate }) {
   description={`${target.age}세 · ${target.gender} · ${target.address}`}
   action={
     <div className="page-header-actions">
-      <Button variant="ghost" onClick={() => navigate(`/admin/targets/${target.id}/edit`)}>
+      <Button variant="ghost" onClick={() => navigate(`/admin/targets/${localEditableTargetId}/edit`)} disabled={!localEditableTargetId}>
         정보 수정
       </Button>
       {(target.lifecycleStatus || "active") !== "ended" ? (
         <Button
   variant="ghost"
+  disabled={!localEditableTargetId}
   onClick={() => {
     const confirmed = window.confirm(confirmMessage);
     if (!confirmed) return;
 
-    actions.updateTarget(target.id, {
+    actions.updateTarget(localEditableTargetId, {
       lifecycleStatus: "ended",
     });
 
@@ -2263,6 +2321,9 @@ export function AdminTargetDetail({ targetId, data, actions, navigate }) {
           ]}
         />
       </Card>
+      {!localEditableTargetId ? (
+        <p className="notice">이 대상자는 Supabase 읽기 전용 상세로 표시되고 있어 수정과 관리 종료는 아직 지원하지 않습니다.</p>
+      ) : null}
 
       <section className="section-block">
         <SectionTitle title="최근 확인 기록" />
@@ -2701,7 +2762,60 @@ export function AdminEmergencies({ data, navigate, currentUser }) {
   );
 }
 export function AdminEmergencyDetail({ emergencyId, data, actions, currentUser, navigate }) {
-  const report = findAdminEmergencyForDetail(emergencyId, data.emergencyReports, data.targets);
+  const localReport = findAdminEmergencyForDetail(emergencyId, data.emergencyReports, data.targets);
+  const adminSupabaseOrganizationId = useMemo(
+    () => resolveAdminSupabaseOrganizationId(currentUser, data),
+    [currentUser, data]
+  );
+  const [supabaseEmergencyState, setSupabaseEmergencyState] = useState(() => ({
+    loading: !localReport && Boolean(adminSupabaseOrganizationId),
+    report: null,
+  }));
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function load() {
+      if (localReport || !adminSupabaseOrganizationId) {
+        setSupabaseEmergencyState({
+          loading: false,
+          report: null,
+        });
+        return;
+      }
+
+      setSupabaseEmergencyState({
+        loading: true,
+        report: null,
+      });
+
+      const result = await getSupabaseAdminEmergencyById(adminSupabaseOrganizationId, emergencyId);
+
+      if (!mounted) return;
+
+      if (result.ok && result.emergency) {
+        setSupabaseEmergencyState({
+          loading: false,
+          report: result.emergency,
+        });
+        return;
+      }
+
+      setSupabaseEmergencyState({
+        loading: false,
+        report: null,
+      });
+    }
+
+    load();
+
+    return () => {
+      mounted = false;
+    };
+  }, [adminSupabaseOrganizationId, emergencyId, localReport]);
+
+  const report = localReport || supabaseEmergencyState.report;
+  const localEditableEmergencyId = localReport?.id || findLocalEmergencyMatchId(report || {}, data.emergencyReports, data.targets);
   const handlingLogs = [...(Array.isArray(report?.handlingLogs) ? report.handlingLogs : [])].sort(
     (a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || ""))
   );
@@ -2715,6 +2829,10 @@ export function AdminEmergencyDetail({ emergencyId, data, actions, currentUser, 
   }));
 
   if (!report) {
+    if (supabaseEmergencyState.loading) {
+      return <EmptyState title="이상징후 보고를 확인 중입니다" description="Supabase 상세 데이터를 불러오고 있습니다." />;
+    }
+
     return (
       <EmptyState title="이상징후 보고를 찾을 수 없습니다" description="보고 목록에서 다시 선택해주세요.">
         <Button onClick={() => navigate("/admin/emergencies")}>목록으로 돌아가기</Button>
@@ -2728,6 +2846,11 @@ export function AdminEmergencyDetail({ emergencyId, data, actions, currentUser, 
   }
 
   function handleSave() {
+    if (!localEditableEmergencyId) {
+      setError("이 상세 화면은 Supabase 읽기 전용 데이터라 처리 기록 저장을 지원하지 않습니다.");
+      return;
+    }
+
     if (!form.status) {
       setError("처리 상태를 선택해주세요.");
       return;
@@ -2750,7 +2873,7 @@ export function AdminEmergencyDetail({ emergencyId, data, actions, currentUser, 
       createdBy: currentUser?.name || "관리자",
     };
 
-    actions.addEmergencyHandlingLog(report.id, nextLog);
+    actions.addEmergencyHandlingLog(localEditableEmergencyId, nextLog);
     setForm({
       status: statusMeta.value,
       memo: "",
@@ -2822,7 +2945,8 @@ export function AdminEmergencyDetail({ emergencyId, data, actions, currentUser, 
         </div>
         {error ? <p className="form-error">{error}</p> : null}
         {notice ? <p className="notice">{notice}</p> : null}
-        <Button className="full-width" onClick={handleSave}>
+        {!localEditableEmergencyId ? <p className="notice">이 상세 화면은 Supabase 읽기 전용 데이터라 처리 기록 저장은 아직 지원하지 않습니다.</p> : null}
+        <Button className="full-width" onClick={handleSave} disabled={!localEditableEmergencyId}>
           처리 기록 저장
         </Button>
         <Button variant="ghost" className="full-width" onClick={() => navigate('/admin/emergencies')}>

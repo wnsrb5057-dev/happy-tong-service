@@ -74,6 +74,9 @@ function normalizeTarget(item) {
     phone: item?.phone || "",
     guardianName: item?.guardian_name || item?.guardianName || "",
     guardianPhone: item?.guardian_phone || item?.guardianPhone || "",
+    healthStatus: item?.health_status || item?.healthStatus || "",
+    cautionNote: item?.caution_note || item?.cautionNote || "",
+    medicationNote: item?.medication_note || item?.medicationNote || "",
     assignedCheckerId: item?.checker_id || item?.checkerId || null,
     checkerName: item?.checker_name || item?.checkerName || "담당 체커 미배정",
     riskLevel,
@@ -137,4 +140,37 @@ export async function getSupabaseAdminTargets(organizationId) {
       message: error?.message || "Supabase 대상자 목록을 불러오지 못했습니다.",
     };
   }
+}
+
+export async function getSupabaseAdminTargetById(organizationId, targetId) {
+  const result = await getSupabaseAdminTargets(organizationId);
+
+  if (!result.ok) {
+    return {
+      ok: false,
+      source: result.source,
+      target: null,
+      message: result.message,
+    };
+  }
+
+  const target = Array.isArray(result.targets)
+    ? result.targets.find((item) => item.id === targetId) || null
+    : null;
+
+  if (!target) {
+    return {
+      ok: false,
+      source: "not_found",
+      target: null,
+      message: "Supabase 대상자 상세 정보를 찾을 수 없습니다.",
+    };
+  }
+
+  return {
+    ok: true,
+    source: "supabase",
+    target,
+    message: "Supabase 대상자 상세 정보를 불러왔습니다.",
+  };
 }

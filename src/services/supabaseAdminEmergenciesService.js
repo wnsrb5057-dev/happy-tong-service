@@ -40,6 +40,10 @@ function normalizeEmergency(item) {
     checkerId: item?.checker_id || item?.checkerId || null,
     checkerName: item?.checker_name || item?.checkerName || "체커 없음",
     title: item?.title || "이상징후 보고",
+    issueType: item?.issue_type || item?.issueType || item?.title || "이상징후 보고",
+    description: item?.description || item?.detail || "",
+    date: item?.date || item?.reported_at || item?.reportedAt || "",
+    urgency: item?.urgency || severity,
     severity,
     severityLabel: SEVERITY_LABELS[severity] || severity || "주의",
     status,
@@ -96,4 +100,37 @@ export async function getSupabaseAdminEmergencies(organizationId) {
       message: error?.message || "Supabase 이상징후 목록을 불러오지 못했습니다.",
     };
   }
+}
+
+export async function getSupabaseAdminEmergencyById(organizationId, emergencyId) {
+  const result = await getSupabaseAdminEmergencies(organizationId);
+
+  if (!result.ok) {
+    return {
+      ok: false,
+      source: result.source,
+      emergency: null,
+      message: result.message,
+    };
+  }
+
+  const emergency = Array.isArray(result.emergencies)
+    ? result.emergencies.find((item) => item.id === emergencyId) || null
+    : null;
+
+  if (!emergency) {
+    return {
+      ok: false,
+      source: "not_found",
+      emergency: null,
+      message: "Supabase 이상징후 상세 정보를 찾을 수 없습니다.",
+    };
+  }
+
+  return {
+    ok: true,
+    source: "supabase",
+    emergency,
+    message: "Supabase 이상징후 상세 정보를 불러왔습니다.",
+  };
 }

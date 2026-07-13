@@ -19,7 +19,7 @@ import {
 } from "../components/UI.jsx";
 import { getAssignedTargets } from "../services/targetService.js";
 import { getSupabaseCheckerHome } from "../services/supabaseCheckerHomeService.js";
-import { getSupabaseCheckerTargets } from "../services/supabaseCheckerTargetsService.js";
+import { getSupabaseCheckerTargetById, getSupabaseCheckerTargets } from "../services/supabaseCheckerTargetsService.js";
 import { getSupabaseCheckerActivityHistory } from "../services/supabaseCheckerActivityHistoryService.js";
 import { getSupabaseCheckerActivityFormTargets } from "../services/supabaseCheckerActivityFormTargetsService.js";
 import { getToday } from "../utils/statistics.js";
@@ -799,9 +799,62 @@ export function CheckerTargets({ user, currentUser, data, navigate }) {
 }
 
 export function CheckerTargetDetail({ targetId, user, data, navigate }) {
-  const target = findCheckerTargetForDetail(targetId, data.targets);
+  const localTarget = findCheckerTargetForDetail(targetId, data.targets);
+  const checkerSupabaseId = resolveCheckerSupabaseId(user);
+  const [supabaseTargetState, setSupabaseTargetState] = useState(() => ({
+    loading: !localTarget && Boolean(checkerSupabaseId),
+    target: null,
+  }));
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function load() {
+      if (localTarget || !checkerSupabaseId) {
+        setSupabaseTargetState({
+          loading: false,
+          target: null,
+        });
+        return;
+      }
+
+      setSupabaseTargetState({
+        loading: true,
+        target: null,
+      });
+
+      const result = await getSupabaseCheckerTargetById(checkerSupabaseId, targetId);
+
+      if (!mounted) return;
+
+      if (result.ok && result.target) {
+        setSupabaseTargetState({
+          loading: false,
+          target: result.target,
+        });
+        return;
+      }
+
+      setSupabaseTargetState({
+        loading: false,
+        target: null,
+      });
+    }
+
+    load();
+
+    return () => {
+      mounted = false;
+    };
+  }, [checkerSupabaseId, localTarget, targetId]);
+
+  const target = localTarget || supabaseTargetState.target;
 
   if (!target) {
+    if (supabaseTargetState.loading) {
+      return <EmptyState title="대상자 정보를 확인 중입니다" description="Supabase 상세 데이터를 불러오고 있습니다." />;
+    }
+
     return (
       <EmptyState title="대상자를 찾을 수 없습니다" description="대상자 목록에서 다시 선택해주세요.">
         <Button onClick={() => navigate("/checker/targets")}>목록으로 돌아가기</Button>
@@ -810,6 +863,7 @@ export function CheckerTargetDetail({ targetId, user, data, navigate }) {
   }
 
   const assignedCheckerInfo = getAssignedCheckerInfo(data.users, target);
+  const localDetailTargetId = localTarget?.id || findLocalTargetId(data.targets, target);
   const recentRecords = data.activityRecords
     .filter((record) => record.targetId === target.id)
     .sort((a, b) => new Date(b.date) - new Date(a.date))
@@ -895,13 +949,20 @@ export function CheckerTargetDetail({ targetId, user, data, navigate }) {
           >
             담당자에게 연락
           </Button>
-          <Button variant="danger" onClick={() => navigate(`/checker/emergency/new?targetId=${target.id}`)}>
+          <Button
+            variant="danger"
+            onClick={() => navigate(`/checker/emergency/new?targetId=${localDetailTargetId || target.id}`)}
+            disabled={!localDetailTargetId}
+          >
             이상징후 보고
           </Button>
         </div>
       </Card>
 
       <p className="notice target-detail-notice">대상자 정보는 담당 확인 업무 목적으로만 사용해야 합니다.</p>
+      {!localDetailTargetId ? (
+        <p className="notice target-detail-notice">이 대상자는 Supabase 읽기 전용 상세로 표시되고 있어 기록 작성과 보고 저장은 아직 지원하지 않습니다.</p>
+      ) : null}
 
       <section className="section-block">
         <div className="section-title">

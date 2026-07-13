@@ -475,7 +475,7 @@ if (adminTargetEditMatch) {
 }
 
 if (adminTargetMatch) {
-  return <AdminTargetDetail targetId={adminTargetMatch[1]} data={data} actions={actions} navigate={navigate} />;
+  return <AdminTargetDetail targetId={adminTargetMatch[1]} data={data} actions={actions} navigate={navigate} currentUser={user} />;
 }
 
     if (location.pathname === "/admin/activities") {
