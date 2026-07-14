@@ -2200,6 +2200,15 @@ button.upload-box {
   min-height: 42px !important;
 }
 
+.admin-checker-summary-line {
+  display: none;
+  margin: 0;
+  color: var(--body);
+  font-size: 13px;
+  line-height: 1.45;
+  font-weight: 600;
+}
+
 .admin-checker-detail-card,
 .admin-checker-assignment-card {
   display: grid;
@@ -8413,5 +8422,1207 @@ button.upload-box {
   .app-shell-admin .admin-statistics-summary-grid .stat-card,
   .app-shell-admin .admin-dashboard-kpi-grid .stat-card {
     padding: 16px 18px;
+  }
+}
+
+@media (max-width: 768px) {
+  .app-shell-admin .page-header {
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+
+  .app-shell-admin .page-header .muted {
+    line-height: 1.45;
+  }
+
+  .app-shell-admin .admin-report-page-header .header-action .btn,
+  .app-shell-admin .admin-report-page-header .header-action button {
+    min-height: 38px;
+    padding: 0 12px;
+    font-size: 12px;
+  }
+
+  .app-shell-admin .admin-emergency-filter-tabs button {
+    padding: 6px 2px;
+    font-size: 10px;
+    line-height: 1.1;
+    white-space: nowrap;
+    letter-spacing: 0;
+  }
+
+  .app-shell-admin .admin-statistics-period-tabs button {
+    padding: 6px 2px;
+    font-size: 11px;
+    line-height: 1.1;
+    white-space: nowrap;
+    letter-spacing: 0;
+  }
+
+  .app-shell-admin .statistics-grid.admin-dashboard-kpi-grid,
+  .app-shell-admin .stats-grid.statistics-grid.admin-statistics-summary-grid,
+  .app-shell-admin .statistics-grid.super-kpi-grid.report-kpi-summary-grid.admin-report-kpi-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    overflow-x: visible;
+    padding-bottom: 0;
+    scroll-snap-type: none;
+  }
+
+  .app-shell-admin .statistics-grid.admin-dashboard-kpi-grid > *,
+  .app-shell-admin .stats-grid.statistics-grid.admin-statistics-summary-grid > *,
+  .app-shell-admin .statistics-grid.super-kpi-grid.report-kpi-summary-grid.admin-report-kpi-summary-grid > * {
+    width: 100%;
+    min-width: 0;
+    flex: 1 1 auto;
+    scroll-snap-align: none;
+  }
+
+  .app-shell-admin .admin-dashboard-kpi-grid .stat-card,
+  .app-shell-admin .admin-statistics-summary-grid .stat-card,
+  .app-shell-admin .admin-report-kpi-summary-grid .stat-card {
+    min-width: 0;
+    padding: 11px 12px;
+    gap: 3px;
+  }
+
+  .app-shell-admin .admin-dashboard-kpi-grid .stat-card {
+    min-height: 96px;
+  }
+
+  .app-shell-admin .admin-dashboard-kpi-grid .stat-card strong,
+  .app-shell-admin .admin-statistics-summary-grid .stat-card strong,
+  .app-shell-admin .admin-report-kpi-summary-grid .stat-card strong {
+    font-size: 18px;
+    white-space: nowrap;
+  }
+
+  .app-shell-admin .admin-dashboard-kpi-grid .stat-card span,
+  .app-shell-admin .admin-dashboard-kpi-grid .stat-card small,
+  .app-shell-admin .admin-statistics-summary-grid .stat-card span,
+  .app-shell-admin .admin-statistics-summary-grid .stat-card small,
+  .app-shell-admin .admin-report-kpi-summary-grid .stat-card span,
+  .app-shell-admin .admin-report-kpi-summary-grid .stat-card small {
+    min-width: 0;
+    font-size: 12px;
+    line-height: 1.25;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .app-shell-admin .dashboard-donut-layout {
+    grid-template-columns: 1fr;
+    justify-items: center;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .app-shell-admin .dashboard-donut-chart {
+    width: 126px;
+    height: 126px;
+  }
+
+  .app-shell-admin .dashboard-donut-hole {
+    inset: 18px;
+    width: auto;
+    height: auto;
+  }
+
+  .app-shell-admin .dashboard-donut-hole strong {
+    font-size: 19px;
+    line-height: 1.05;
+  }
+
+  .app-shell-admin .dashboard-donut-hole span {
+    font-size: 11px;
+    line-height: 1.15;
+  }
+
+  .app-shell-admin .dashboard-donut-legend {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    width: 100%;
+    gap: 6px;
+  }
+
+  .app-shell-admin .dashboard-donut-legend-item {
+    grid-template-columns: 1fr;
+    justify-items: center;
+    text-align: center;
+    gap: 4px;
+    padding: 6px 4px;
+    border-radius: 10px;
+  }
+
+  .app-shell-admin .dashboard-donut-legend-item strong {
+    font-size: 12px;
+    line-height: 1.1;
+  }
+
+  .app-shell-admin .dashboard-donut-legend-item .muted {
+    font-size: 11px;
+    line-height: 1.1;
+  }
+}
+
+/* UI pass: spacing, tabs, desktop donut, report action copy */
+.app-shell-checker .admin-dashboard-source-note,
+.app-shell-admin .admin-dashboard-source-note {
+  display: none;
+}
+
+.app-shell-checker .summary-card,
+.app-shell-admin .summary-card {
+  margin-bottom: 6px;
+}
+
+.app-shell-checker .history-summary-card,
+.app-shell-checker .checker-targets-summary-card {
+  margin-bottom: 8px;
+}
+
+.app-shell-checker .history-search-box {
+  margin-bottom: 14px;
+}
+
+.app-shell-checker .history-filter-pills {
+  margin-bottom: 14px;
+}
+
+.app-shell-checker .stack > .card,
+.app-shell-checker .stack > .target-card,
+.app-shell-admin .stack > .card,
+.app-shell-admin .stack > .target-card {
+  margin-top: 0;
+}
+
+.app-shell-admin .filter-tabs {
+  margin: 14px 0 16px;
+  padding: 0 2px;
+  gap: 2px;
+}
+
+.app-shell-admin .filter-tabs button {
+  min-width: 80px;
+  min-height: 46px;
+  padding: 0 12px;
+}
+
+.app-shell-admin .target-filter-tabs,
+.app-shell-admin .activity-filter-tabs {
+  gap: 4px;
+  scroll-padding-left: 2px;
+  scroll-padding-right: 2px;
+}
+
+.app-shell-admin .target-filter-tabs button,
+.app-shell-admin .activity-filter-tabs button {
+  flex: 0 0 auto;
+  min-width: max-content;
+  padding: 0 14px;
+}
+
+.app-shell-admin .dashboard-donut-layout {
+  grid-template-columns: minmax(0, 152px) minmax(0, 1fr);
+  align-items: center;
+  gap: 24px;
+}
+
+.app-shell-admin .dashboard-donut-chart {
+  width: 152px;
+  height: 152px;
+}
+
+.app-shell-admin .dashboard-donut-hole {
+  inset: 24px;
+}
+
+.app-shell-admin .dashboard-donut-hole strong {
+  font-size: 22px;
+  line-height: 1;
+}
+
+.app-shell-admin .dashboard-donut-hole span {
+  font-size: 12px;
+  line-height: 1.2;
+}
+
+.app-shell-admin .dashboard-donut-legend {
+  gap: 12px;
+  align-content: center;
+}
+
+.app-shell-admin .dashboard-donut-legend-item {
+  grid-template-columns: 10px minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+}
+
+.app-shell-admin .dashboard-donut-legend-item > div {
+  display: grid;
+  gap: 2px;
+}
+
+.app-shell-admin .dashboard-donut-legend-item strong {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.15;
+}
+
+.app-shell-admin .dashboard-donut-legend-item .muted {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.2;
+}
+
+.report-primary-group,
+.report-secondary-actions {
+  display: grid;
+  gap: 6px;
+}
+
+.report-action-guides p {
+  margin: 0;
+  color: var(--body);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.report-secondary-guide {
+  margin: 0;
+  color: var(--body);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.app-shell-admin .admin-dashboard-analytics-row {
+  display: grid;
+  gap: 14px;
+}
+
+.checker-home-summary {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+@media (min-width: 769px) {
+  .app-shell-admin .summary-card {
+    margin-bottom: 10px;
+  }
+
+  .app-shell-admin .filter-tabs {
+    margin: 12px auto 20px;
+  }
+
+  .app-shell-admin .stack,
+  .app-shell-admin .form-stack {
+    gap: 16px;
+  }
+
+  .app-shell-admin .target-filter-tabs,
+  .app-shell-admin .activity-filter-tabs {
+    margin-top: 12px;
+    margin-bottom: 20px;
+  }
+
+  .app-shell-admin .target-filter-tabs + .stack,
+  .app-shell-admin .activity-filter-tabs + .stack {
+    margin-top: 2px;
+  }
+
+  .app-shell-admin .admin-dashboard-panel {
+    margin-top: 0;
+  }
+
+  .app-shell-admin .section-block {
+    margin-top: 22px;
+  }
+
+  .app-shell-admin .admin-dashboard-columns .section-block {
+    margin-top: 0;
+  }
+
+  .app-shell-admin .admin-dashboard-analytics-row {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 16px;
+    align-items: stretch;
+    margin-bottom: 6px;
+  }
+
+  .app-shell-admin .admin-dashboard-analytics-row .admin-dashboard-chart-card {
+    height: 100%;
+    min-height: 272px;
+  }
+
+  .app-shell-admin .dashboard-donut-layout {
+    grid-template-columns: minmax(0, 156px) minmax(0, 1fr);
+    gap: 28px;
+  }
+
+  .app-shell-admin .dashboard-donut-chart {
+    width: 156px;
+    height: 156px;
+  }
+
+  .app-shell-admin .dashboard-donut-hole {
+    inset: 24px;
+  }
+
+  .app-shell-admin .dashboard-donut-hole strong {
+    font-size: 22px;
+    line-height: 1;
+  }
+
+  .app-shell-admin .dashboard-donut-hole span {
+    font-size: 12px;
+    line-height: 1.2;
+  }
+
+  .app-shell-admin .dashboard-donut-legend {
+    gap: 14px;
+    align-content: center;
+  }
+
+  .app-shell-admin .dashboard-donut-legend-item {
+    grid-template-columns: 10px minmax(0, 1fr);
+    gap: 10px;
+    align-items: center;
+  }
+
+  .app-shell-admin .dashboard-donut-legend-item > div {
+    display: grid;
+    gap: 2px;
+  }
+
+  .app-shell-admin .dashboard-donut-legend-item strong {
+    margin: 0;
+    font-size: 14px;
+    line-height: 1.15;
+  }
+
+  .app-shell-admin .dashboard-donut-legend-item .muted {
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.2;
+  }
+
+  .app-shell-admin .filter-tabs {
+    gap: 4px;
+    margin: 16px 0 18px;
+  }
+
+  .app-shell-admin .target-filter-tabs,
+  .app-shell-admin .activity-filter-tabs {
+    width: fit-content;
+    max-width: min(100%, 960px);
+    margin-left: 0;
+    margin-right: 0;
+    justify-content: flex-start;
+    gap: 6px;
+    overflow: visible;
+  }
+
+  .app-shell-admin .filter-tabs button {
+    min-width: 96px;
+    min-height: 48px;
+    padding: 0 14px;
+  }
+
+  .app-shell-admin .report-actions {
+    display: grid;
+    grid-template-columns: minmax(0, 1.35fr) minmax(280px, 0.9fr);
+    gap: 16px;
+    align-items: start;
+    max-width: 880px;
+    margin-top: 22px;
+  }
+
+  .app-shell-admin .report-primary-group,
+  .app-shell-admin .report-secondary-actions {
+    padding: 16px 18px;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    background: var(--surface);
+  }
+
+  .app-shell-admin .report-primary-action {
+    width: fit-content;
+    min-width: 240px;
+    max-width: 320px;
+  }
+
+  .app-shell-admin .report-secondary-actions {
+    grid-template-columns: 1fr;
+    justify-items: start;
+  }
+
+  .app-shell-admin .report-secondary-actions .btn,
+  .app-shell-admin .report-secondary-actions button {
+    width: fit-content;
+    min-width: 180px;
+  }
+
+  .app-shell-admin .report-actions-header {
+    grid-column: 1 / -1;
+    margin-bottom: -4px;
+  }
+
+  .app-shell-admin .report-actions-header strong {
+    display: block;
+    font-size: 15px;
+    line-height: 1.2;
+    color: var(--ink);
+  }
+}
+
+@media (max-width: 768px) {
+  .app-shell-checker .admin-dashboard-source-note,
+  .app-shell-admin .admin-dashboard-source-note {
+    display: none;
+  }
+
+  .app-shell-checker .summary-card,
+  .app-shell-admin .summary-card {
+    margin-bottom: 4px;
+  }
+
+  .app-shell-checker .history-summary-card,
+  .app-shell-checker .checker-targets-summary-card {
+    margin-bottom: 6px;
+  }
+
+  .app-shell-checker .history-search-box,
+  .app-shell-checker .history-filter-pills,
+  .app-shell-admin .filter-tabs {
+    margin-bottom: 12px;
+  }
+
+  .app-shell-admin .target-filter-tabs,
+  .app-shell-admin .activity-filter-tabs {
+    gap: 0;
+    padding-bottom: 4px;
+  }
+
+  .app-shell-admin .target-filter-tabs button,
+  .app-shell-admin .activity-filter-tabs button {
+    min-width: 76px;
+    min-height: 44px;
+    padding: 0 12px;
+    font-size: 13px;
+    white-space: nowrap;
+  }
+
+  .app-shell-admin .activity-filter-tabs {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    overflow-x: visible;
+    padding: 0;
+  }
+
+  .app-shell-admin .activity-filter-tabs button {
+    min-width: 0;
+    padding: 0 6px;
+    font-size: 12px;
+  }
+
+  .app-shell-admin .target-filter-tabs {
+    display: flex;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding-bottom: 4px;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .app-shell-admin .target-filter-tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  .app-shell-admin .target-filter-tabs button {
+    flex: 0 0 auto;
+    min-width: max-content;
+    padding: 0 12px;
+  }
+
+  .app-shell-admin .dashboard-donut-legend {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px 12px;
+  }
+
+  .app-shell-admin .dashboard-donut-legend-item {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    width: auto;
+    min-width: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+  }
+
+  .app-shell-admin .dashboard-donut-legend-item > div {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 4px;
+  }
+
+  .app-shell-admin .dashboard-donut-legend-item strong,
+  .app-shell-admin .dashboard-donut-legend-item .muted {
+    font-size: 12px;
+    line-height: 1.2;
+    white-space: nowrap;
+  }
+
+  .checker-home-summary {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .checker-home-summary .summary-metric {
+    min-width: 0;
+    padding: 10px 8px;
+  }
+
+  .checker-home-summary .summary-metric strong {
+    font-size: 20px;
+  }
+
+  .checker-home-summary .summary-metric span {
+    font-size: 12px;
+    line-height: 1.2;
+    white-space: normal;
+    word-break: keep-all;
+  }
+
+  .report-action-guides p {
+    font-size: 12px;
+    line-height: 1.4;
+  }
+
+  .report-secondary-guide {
+    font-size: 12px;
+    line-height: 1.4;
+  }
+}
+
+@media (max-width: 768px) {
+  .app-shell-admin .admin-dashboard-analytics-row {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+}
+
+.app-shell-checker .checker-home-hero {
+  margin-bottom: 14px;
+}
+
+.app-shell-checker .emergency-cta {
+  margin-top: 0;
+  margin-bottom: 18px;
+}
+
+.app-shell-checker .section-block:first-of-type {
+  margin-top: 0;
+}
+
+.app-shell-checker .section-block .section-title {
+  margin-bottom: 4px;
+}
+
+.app-shell-checker .checker-targets-summary-card,
+.app-shell-checker .history-summary-card {
+  margin-bottom: 10px;
+}
+
+.app-shell-checker .checker-targets-summary-card + .stack,
+.app-shell-checker .history-filter-pills + .stack {
+  margin-top: 2px;
+}
+
+@media (min-width: 1024px) {
+  .app-shell-admin .target-filter-tabs {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    width: 100%;
+    max-width: 980px;
+    margin: 12px 0 20px;
+    gap: 0;
+    overflow: visible;
+  }
+
+  .app-shell-admin .target-filter-tabs button {
+    min-width: 0;
+    padding: 0 10px;
+  }
+
+  .app-shell-admin .activity-filter-tabs {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    width: 100%;
+    max-width: 980px;
+    margin: 12px 0 20px;
+    gap: 0;
+    overflow: visible;
+  }
+
+  .app-shell-admin .activity-filter-tabs button {
+    min-width: 0;
+    padding: 0 10px;
+  }
+
+  .app-shell-admin .stack {
+    gap: 12px;
+  }
+
+  .app-shell-admin .admin-target-card,
+  .app-shell-admin .admin-activity-card,
+  .app-shell-admin .admin-checker-card {
+    border-radius: 14px;
+  }
+
+  .app-shell-admin .admin-target-card {
+    display: grid;
+    gap: 8px;
+    max-width: 980px;
+    padding: 14px 16px;
+  }
+
+  .app-shell-admin .admin-target-content {
+    display: grid;
+    grid-template-columns: minmax(260px, 1.15fr) minmax(320px, 1.35fr) minmax(170px, auto);
+    gap: 14px;
+    align-items: start;
+  }
+
+  .app-shell-admin .admin-target-primary,
+  .app-shell-admin .admin-target-card .card-row,
+  .app-shell-admin .admin-target-meta {
+    min-width: 0;
+  }
+
+  .app-shell-admin .admin-target-card .card-row {
+    align-items: flex-start;
+    gap: 10px;
+    margin: 0;
+  }
+
+  .app-shell-admin .admin-target-card .card-row strong {
+    font-size: 16px;
+    line-height: 1.25;
+  }
+
+  .app-shell-admin .admin-target-card .card-row p {
+    margin: 2px 0 0;
+    font-size: 13px;
+    line-height: 1.4;
+  }
+
+  .app-shell-admin .admin-target-meta {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px 12px;
+    margin: 0;
+  }
+
+  .app-shell-admin .admin-target-meta-item {
+    padding: 0;
+    border: 0;
+    background: transparent;
+    gap: 2px;
+  }
+
+  .app-shell-admin .admin-target-meta-item span {
+    font-size: 11px;
+    line-height: 1.2;
+  }
+
+  .app-shell-admin .admin-target-meta-item strong {
+    font-size: 13px;
+    line-height: 1.35;
+  }
+
+  .app-shell-admin .admin-target-actions {
+    display: grid;
+    justify-items: end;
+    align-content: start;
+    gap: 10px;
+    min-width: 170px;
+  }
+
+  .app-shell-admin .admin-target-secondary-badges {
+    justify-content: flex-end;
+    margin: 0;
+    gap: 6px;
+  }
+
+  .app-shell-admin .admin-target-detail-action {
+    justify-self: end;
+    align-self: start;
+    min-height: 36px !important;
+    padding: 0 12px;
+    border-radius: 999px !important;
+    width: auto;
+  }
+
+  .app-shell-admin .admin-target-alert {
+    gap: 8px;
+    padding: 8px 10px;
+  }
+
+  .app-shell-admin .admin-target-alert strong {
+    font-size: 13px;
+    line-height: 1.35;
+  }
+
+  .app-shell-admin .admin-activity-list {
+    gap: 10px;
+  }
+
+  .app-shell-admin .admin-activity-card {
+    display: grid;
+    grid-template-columns: minmax(220px, 1fr) minmax(240px, 1.05fr) auto auto;
+    gap: 12px;
+    align-items: center;
+    padding: 12px 14px;
+  }
+
+  .app-shell-admin .admin-activity-primary,
+  .app-shell-admin .admin-activity-memo {
+    min-width: 0;
+  }
+
+  .app-shell-admin .admin-activity-primary strong {
+    font-size: 15px;
+    line-height: 1.25;
+  }
+
+  .app-shell-admin .admin-activity-primary p,
+  .app-shell-admin .admin-activity-memo {
+    margin: 2px 0 0;
+    font-size: 13px;
+    line-height: 1.35;
+  }
+
+  .app-shell-admin .admin-activity-badges {
+    justify-content: flex-end;
+    align-items: center;
+    gap: 6px;
+    margin: 0;
+  }
+
+  .app-shell-admin .admin-activity-inline-button {
+    min-height: 36px !important;
+    padding: 0 12px;
+    border-radius: 999px !important;
+    width: auto;
+    justify-self: end;
+  }
+
+  .app-shell-admin .admin-checker-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .app-shell-admin .admin-checker-card {
+    display: grid;
+    grid-template-columns: minmax(240px, 1fr) minmax(0, 1.15fr) auto;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 16px;
+  }
+
+  .app-shell-admin .admin-checker-card .card-row {
+    margin: 0;
+    align-items: center;
+  }
+
+  .app-shell-admin .admin-checker-card .card-row strong {
+    font-size: 16px;
+    line-height: 1.25;
+  }
+
+  .app-shell-admin .admin-checker-card .card-row p {
+    margin: 2px 0 0;
+    font-size: 13px;
+    line-height: 1.35;
+  }
+
+  .app-shell-admin .admin-checker-summary-line {
+    display: block;
+  }
+
+  .app-shell-admin .admin-checker-metrics {
+    display: none;
+  }
+
+.app-shell-admin .admin-checker-detail-button {
+  width: auto;
+  min-height: 36px !important;
+  padding: 0 12px;
+  border-radius: 999px !important;
+  justify-self: end;
+}
+}
+
+@media (min-width: 1024px) {
+  .app-shell-admin .admin-target-card {
+    max-width: 960px;
+    padding: 16px 18px;
+    gap: 10px;
+  }
+
+  .app-shell-admin .admin-target-content {
+    display: grid;
+    grid-template-columns: minmax(260px, 0.9fr) minmax(360px, 1fr) 160px;
+    column-gap: 24px;
+    align-items: start;
+  }
+
+  .app-shell-admin .admin-target-card .card-row {
+    display: block;
+    min-width: 0;
+    margin: 0;
+  }
+
+  .app-shell-admin .admin-target-primary {
+    min-width: 0;
+  }
+
+  .app-shell-admin .admin-target-meta {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px 14px;
+    min-width: 0;
+    margin: 0;
+  }
+
+  .app-shell-admin .admin-target-actions {
+    width: 160px;
+    min-width: 160px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    justify-content: center;
+    gap: 8px;
+    overflow: visible;
+  }
+
+  .app-shell-admin .admin-target-actions > .status-badge,
+  .app-shell-admin .admin-target-actions > .badge {
+    flex-shrink: 0;
+  }
+
+  .app-shell-admin .admin-target-detail-action {
+    min-width: 96px;
+    white-space: nowrap;
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    align-self: flex-end;
+  }
+
+  .app-shell-admin .admin-target-secondary-badges {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 4px;
+    max-width: 150px;
+    margin: 0;
+    text-align: right;
+    white-space: normal;
+    word-break: keep-all;
+  }
+
+  .app-shell-admin .admin-target-secondary-note {
+    font-size: 12px;
+    line-height: 1.35;
+    color: var(--sub);
+  }
+}
+
+@media (min-width: 1024px) {
+  .app-shell-admin .target-filter-tabs,
+  .app-shell-admin .activity-filter-tabs,
+  .app-shell-admin .admin-emergency-filter-tabs,
+  .app-shell-admin .admin-statistics-period-tabs {
+    width: 100% !important;
+    max-width: none !important;
+    margin: 12px 0 20px;
+    gap: 0;
+    overflow: visible;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .app-shell-admin .target-filter-tabs {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+  }
+
+  .app-shell-admin .activity-filter-tabs {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .app-shell-admin .admin-emergency-filter-tabs {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+
+  .app-shell-admin .admin-statistics-period-tabs {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .app-shell-admin .target-filter-tabs button,
+  .app-shell-admin .activity-filter-tabs button,
+  .app-shell-admin .admin-emergency-filter-tabs button,
+  .app-shell-admin .admin-statistics-period-tabs button {
+    width: 100%;
+    min-width: 0;
+    padding: 0 10px;
+    text-align: center;
+    white-space: nowrap;
+  }
+
+  .app-shell-admin .admin-target-card {
+    max-width: none;
+    padding: 16px 18px;
+    gap: 10px;
+  }
+
+  .app-shell-admin .admin-target-content {
+    grid-template-columns: minmax(260px, 1.15fr) minmax(280px, 1.15fr) minmax(180px, 0.72fr);
+    gap: 16px;
+    align-items: start;
+  }
+
+  .app-shell-admin .admin-target-actions {
+    min-width: 180px;
+    justify-items: end;
+    align-content: start;
+    gap: 8px;
+  }
+
+  .app-shell-admin .admin-target-secondary-badges {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    justify-content: flex-start;
+    gap: 6px;
+    width: 100%;
+    margin: 0;
+  }
+
+  .app-shell-admin .admin-target-secondary-badges .badge {
+    max-width: 100%;
+    white-space: normal;
+    text-align: right;
+    word-break: keep-all;
+  }
+
+  .app-shell-admin .admin-target-detail-action {
+    width: auto;
+    min-width: 96px;
+    justify-self: end;
+  }
+
+  .app-shell-admin .report-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 12px;
+    width: 100%;
+    max-width: none;
+    margin-top: 18px;
+  }
+
+  .app-shell-admin .report-actions-header {
+    display: none;
+  }
+
+  .app-shell-admin .report-primary-group,
+  .app-shell-admin .report-secondary-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 6px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  .app-shell-admin .report-primary-action,
+  .app-shell-admin .report-secondary-actions .btn,
+  .app-shell-admin .report-secondary-actions button {
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+  }
+
+  .app-shell-admin .report-action-guides,
+  .app-shell-admin .report-secondary-guide {
+    margin: 0;
+  }
+}
+
+.app-shell-admin .admin-dashboard-operations-row {
+  display: grid;
+  gap: 14px;
+}
+
+@media (min-width: 769px) {
+  .app-shell-admin .admin-dashboard-operations-row {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 16px;
+    align-items: stretch;
+  }
+
+  .app-shell-admin .admin-dashboard-operations-row > .admin-dashboard-panel,
+  .app-shell-admin .admin-dashboard-operations-row > .admin-dashboard-chart-card {
+    height: 100%;
+    min-height: 272px;
+    margin-top: 0;
+  }
+}
+
+@media (min-width: 1024px) {
+  .app-shell-admin .admin-dashboard-analytics-row .admin-dashboard-chart-card {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .app-shell-admin .admin-dashboard-analytics-row .admin-dashboard-chart-card > .section-title {
+    flex: 0 0 auto;
+  }
+
+  .app-shell-admin .admin-dashboard-analytics-row .dashboard-analytics-card-risk .dashboard-donut-layout,
+  .app-shell-admin .admin-dashboard-analytics-row .dashboard-analytics-card-trend .dashboard-trend-bars,
+  .app-shell-admin .admin-dashboard-analytics-row .dashboard-analytics-card-types .chart-list {
+    flex: 1;
+    min-height: 0;
+  }
+
+  .app-shell-admin .admin-dashboard-analytics-row .dashboard-analytics-card-risk .dashboard-donut-layout {
+    width: 100%;
+    max-width: 320px;
+    margin: 0 auto;
+    justify-content: center;
+    align-items: center;
+    gap: 24px;
+  }
+
+  .app-shell-admin .admin-dashboard-analytics-row .dashboard-analytics-card-risk .dashboard-donut-wrap {
+    justify-content: center;
+    align-items: center;
+  }
+
+  .app-shell-admin .admin-dashboard-analytics-row .dashboard-analytics-card-risk .dashboard-donut-legend {
+    justify-content: center;
+    align-content: center;
+  }
+
+  .app-shell-admin .admin-dashboard-analytics-row .dashboard-analytics-card-trend .dashboard-trend-bars {
+    align-content: center;
+    margin: 0;
+    padding: 8px 0 4px;
+  }
+
+  .app-shell-admin .admin-dashboard-analytics-row .dashboard-analytics-card-types .chart-list {
+    display: grid;
+    align-content: center;
+  }
+
+  .app-shell-admin .admin-dashboard-operations-row {
+    align-items: start;
+  }
+
+  .app-shell-admin .admin-dashboard-operations-row > .admin-dashboard-panel,
+  .app-shell-admin .admin-dashboard-operations-row > .admin-dashboard-chart-card {
+    min-height: 0;
+    height: auto;
+  }
+
+  .app-shell-admin .admin-dashboard-operations-row .dashboard-operations-card-status {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .app-shell-admin .admin-dashboard-operations-row .dashboard-operations-card-status > .section-title {
+    flex: 0 0 auto;
+  }
+
+  .app-shell-admin .admin-dashboard-operations-row .dashboard-operations-card-status .dashboard-status-grid {
+    gap: 10px;
+  }
+
+  .app-shell-admin .admin-dashboard-operations-row .dashboard-operations-card-status .dashboard-status-summary {
+    margin-top: 0;
+  }
+}
+
+.app-shell-admin .dashboard-analytics-card-risk .dashboard-donut-layout {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  margin: 0 auto;
+  gap: 14px;
+}
+
+.app-shell-admin .dashboard-analytics-card-risk .dashboard-donut-wrap {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+}
+
+.app-shell-admin .dashboard-analytics-card-risk .dashboard-donut-legend {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  width: 100%;
+  gap: 8px;
+  justify-items: center;
+  align-items: start;
+}
+
+.app-shell-admin .dashboard-analytics-card-risk .dashboard-donut-legend-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 4px;
+  text-align: center;
+}
+
+.app-shell-admin .dashboard-analytics-card-risk .dashboard-donut-legend-item > div {
+  display: grid;
+  gap: 2px;
+  justify-items: center;
+}
+
+.app-shell-admin .dashboard-analytics-card-risk .dashboard-donut-legend-item strong,
+.app-shell-admin .dashboard-analytics-card-risk .dashboard-donut-legend-item .muted {
+  margin: 0;
+  text-align: center;
+}
+
+@media (max-width: 768px) {
+  .app-shell-admin .dashboard-analytics-card-risk .dashboard-donut-layout {
+    gap: 12px;
+  }
+
+  .app-shell-admin .dashboard-analytics-card-risk .dashboard-donut-legend {
+    gap: 6px;
+  }
+
+  .app-shell-admin .dashboard-analytics-card-risk .dashboard-donut-legend-item strong,
+  .app-shell-admin .dashboard-analytics-card-risk .dashboard-donut-legend-item .muted {
+    font-size: 12px;
+    line-height: 1.25;
   }
 }
