@@ -558,7 +558,7 @@ export function CheckerHome({ user, currentUser, data, navigate, emergencySent }
         <div className="checker-home-hero-copy">
           <p className="eyebrow">체커 홈</p>
           <h1>{`${user.name.split(" ")[0]}님, 오늘 확인 일정입니다`}</h1>
-          <p className="muted">오늘 일정과 미작성 기록을 먼저 확인하세요.</p>
+          <p className="muted">{`오늘 일정과 미작성 기록을 먼저 확인하세요. 오늘 확인 완료 ${displayedHome.todayCompletedCount}건.`}</p>
         </div>
         <div className="checker-home-hero-art" aria-hidden="true">
   <img
@@ -579,10 +579,6 @@ export function CheckerHome({ user, currentUser, data, navigate, emergencySent }
           <div className="summary-metric">
             <strong>{displayedHome.todayCompletedCount}</strong>
             <span>오늘 확인 완료</span>
-          </div>
-          <div className="summary-metric">
-            <strong>{displayedHome.unresolvedEmergencyCount}</strong>
-            <span>미처리 이상징후</span>
           </div>
         </div>
       </section>
