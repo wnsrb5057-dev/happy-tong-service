@@ -1639,6 +1639,63 @@ button.upload-box {
   z-index: 1;
 }
 
+.checker-pwa-notice {
+  margin-top: 12px;
+  margin-bottom: 20px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  display: grid;
+  gap: 10px;
+}
+
+.checker-pwa-notice-info {
+  border-color: #d7e5ff;
+  background: linear-gradient(180deg, #ffffff 0%, #f6f9ff 100%);
+}
+
+.checker-pwa-notice-warning {
+  border-color: #f1d39f;
+  background: linear-gradient(180deg, #fffdf8 0%, #fff7ea 100%);
+}
+
+.checker-pwa-notice-success {
+  border-color: #bfe2cd;
+  background: linear-gradient(180deg, #fbfffc 0%, #f1fbf4 100%);
+}
+
+.checker-pwa-notice-neutral {
+  border-color: #d9dde5;
+  background: linear-gradient(180deg, #ffffff 0%, #f8f9fb 100%);
+}
+
+.checker-pwa-notice-copy {
+  display: grid;
+  gap: 4px;
+}
+
+.checker-pwa-notice-title {
+  font-size: 16px;
+  line-height: 1.35;
+  color: var(--ink);
+}
+
+.checker-pwa-notice-copy .muted {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.checker-pwa-notice-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.checker-pwa-notice-actions .button,
+.checker-pwa-notice-actions button {
+  min-height: 40px;
+}
+
 .emergency-cta {
   margin-top: 14px;
 }
@@ -8995,6 +9052,14 @@ button.upload-box {
     line-height: 1.2;
     white-space: normal;
     word-break: keep-all;
+  }
+
+  .checker-pwa-notice {
+    padding: 12px 14px;
+  }
+
+  .checker-pwa-notice-title {
+    font-size: 15px;
   }
 
   .report-action-guides p {
