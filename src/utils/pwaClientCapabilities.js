@@ -151,6 +151,14 @@ export function detectNotificationPermission() {
   };
 }
 
+export function normalizeNotificationPermission(permission) {
+  if (permission === "granted" || permission === "denied" || permission === "default") {
+    return permission;
+  }
+
+  return "unsupported";
+}
+
 export function detectPushSupport() {
   const win = getSafeWindow();
   const nav = getSafeNavigator();
@@ -165,6 +173,49 @@ export function detectPushSupport() {
     notificationSupported,
     isPushSupported: serviceWorkerSupported && pushManagerSupported && notificationSupported,
   };
+}
+
+export async function requestNotificationPermissionSafely() {
+  const win = getSafeWindow();
+  if (!win || typeof win.Notification === "undefined" || typeof win.Notification.requestPermission !== "function") {
+    return {
+      isSupported: false,
+      permission: "unsupported",
+      changed: false,
+      error: "Notification API is not supported.",
+    };
+  }
+
+  const beforePermission = normalizeNotificationPermission(win.Notification.permission);
+
+  if (beforePermission === "granted" || beforePermission === "denied") {
+    return {
+      isSupported: true,
+      permission: beforePermission,
+      changed: false,
+      error: null,
+    };
+  }
+
+  try {
+    // This helper must only be called from an explicit user click action.
+    const requestedPermission = await win.Notification.requestPermission();
+    const normalizedPermission = normalizeNotificationPermission(requestedPermission);
+
+    return {
+      isSupported: true,
+      permission: normalizedPermission,
+      changed: beforePermission !== normalizedPermission,
+      error: null,
+    };
+  } catch (error) {
+    return {
+      isSupported: true,
+      permission: beforePermission === "unsupported" ? "default" : beforePermission,
+      changed: false,
+      error: error instanceof Error ? error.message : "Notification permission request failed.",
+    };
+  }
 }
 
 export function detectInstallPromptSupport() {
