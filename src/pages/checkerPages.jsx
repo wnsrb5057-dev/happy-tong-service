@@ -22,9 +22,26 @@ import { getSupabaseCheckerHome } from "../services/supabaseCheckerHomeService.j
 import { getSupabaseCheckerTargetById, getSupabaseCheckerTargets } from "../services/supabaseCheckerTargetsService.js";
 import { getSupabaseCheckerActivityHistory } from "../services/supabaseCheckerActivityHistoryService.js";
 import { getSupabaseCheckerActivityFormTargets } from "../services/supabaseCheckerActivityFormTargetsService.js";
+import {
+  getNotificationCtaForRole,
+  getPwaOnboardingState,
+  requestNotificationPermissionSafely,
+} from "../utils/pwaClientCapabilities.js";
 import { getToday } from "../utils/statistics.js";
 import ElderAvatarIcon from "../components/ElderAvatarIcon.jsx";
 import heroGrandmother from "../assets/happytong-hero-grandmother.png";
+
+const CHECKER_PWA_NOTICE_DISMISSED_KEY = "checkerPwaNoticeDismissed";
+const CHECKER_PWA_VISIBLE_STATES = new Set([
+  "unsupported",
+  "browser_only",
+  "installable",
+  "installed_no_permission",
+  "installed_permission_default",
+  "installed_permission_denied",
+  "subscription_missing",
+  "subscription_error",
+]);
 
 function isActiveTarget(target) {
   return (target.lifecycleStatus || "active") !== "ended";
@@ -551,6 +568,137 @@ export function CheckerHome({ user, currentUser, data, navigate, emergencySent }
   const displayedTodayTargets = Array.isArray(displayedHome.todayTargets) ? displayedHome.todayTargets : [];
   const displayedRecentActivities = Array.isArray(displayedHome.recentActivities) ? displayedHome.recentActivities : [];
   const displayedRecentEmergencies = Array.isArray(displayedHome.recentEmergencies) ? displayedHome.recentEmergencies : [];
+  const [pwaOnboardingState, setPwaOnboardingState] = useState(null);
+  const [pwaNoticeLoading, setPwaNoticeLoading] = useState(false);
+  const [hidePwaNotice, setHidePwaNotice] = useState(() => {
+    if (typeof window === "undefined") return false;
+    try {
+      return window.localStorage.getItem(CHECKER_PWA_NOTICE_DISMISSED_KEY) === "true";
+    } catch (_error) {
+      return false;
+    }
+  });
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function loadPwaState() {
+      try {
+        const result = await getPwaOnboardingState("checker");
+        if (!mounted) return;
+        setPwaOnboardingState(result);
+      } catch (_error) {
+        if (!mounted) return;
+        setPwaOnboardingState({
+          state: "subscription_error",
+          role: "checker",
+          canUsePush: false,
+          shouldShowInstallGuide: false,
+          shouldShowNotificationGuide: true,
+          isStandalone: false,
+          permission: "unsupported",
+          platform: null,
+          pushSupport: null,
+          subscription: null,
+          message: "PWA 상태를 확인하는 중 문제가 발생했습니다.",
+        });
+      }
+    }
+
+    loadPwaState();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+
+    if (typeof navigator === "undefined" || !navigator.serviceWorker?.ready) {
+      return () => {
+        mounted = false;
+      };
+    }
+
+    navigator.serviceWorker.ready
+      .then(async () => {
+        if (!mounted) {
+          return;
+        }
+
+        await refreshPwaOnboardingState();
+      })
+      .catch(() => {});
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const pwaCta = pwaOnboardingState
+    ? getNotificationCtaForRole("checker", pwaOnboardingState.state)
+    : null;
+  const shouldRenderPwaNotice = Boolean(
+    pwaOnboardingState &&
+    pwaCta &&
+    CHECKER_PWA_VISIBLE_STATES.has(pwaOnboardingState.state) &&
+    !(hidePwaNotice && pwaCta.secondaryActionLabel === "나중에 하기")
+  );
+
+  async function refreshPwaOnboardingState() {
+    try {
+      const result = await getPwaOnboardingState("checker");
+      setPwaOnboardingState(result);
+    } catch (_error) {
+      setPwaOnboardingState({
+        state: "subscription_error",
+        role: "checker",
+        canUsePush: false,
+        shouldShowInstallGuide: false,
+        shouldShowNotificationGuide: true,
+        isStandalone: false,
+        permission: "unsupported",
+        platform: null,
+        pushSupport: null,
+        subscription: null,
+        message: "PWA 상태를 확인하는 중 문제가 발생했습니다.",
+      });
+    }
+  }
+
+  async function handlePwaPrimaryAction() {
+    if (!pwaCta?.primaryActionLabel || pwaNoticeLoading) {
+      return;
+    }
+
+    if (pwaCta.primaryActionLabel !== "알림 허용하기") {
+      return;
+    }
+
+    setPwaNoticeLoading(true);
+
+    try {
+      await requestNotificationPermissionSafely();
+      await refreshPwaOnboardingState();
+    } finally {
+      setPwaNoticeLoading(false);
+    }
+  }
+
+  function handlePwaSecondaryAction() {
+    if (pwaCta?.secondaryActionLabel !== "나중에 하기") {
+      return;
+    }
+
+    try {
+      window.localStorage.setItem(CHECKER_PWA_NOTICE_DISMISSED_KEY, "true");
+    } catch (_error) {
+      // no-op
+    }
+
+    setHidePwaNotice(true);
+  }
 
   return (
     <>
@@ -582,6 +730,33 @@ export function CheckerHome({ user, currentUser, data, navigate, emergencySent }
           </div>
         </div>
       </section>
+
+      {shouldRenderPwaNotice ? (
+        <Card className={`checker-pwa-notice checker-pwa-notice-${pwaCta.tone || "info"}`}>
+          <div className="checker-pwa-notice-copy">
+            <strong className="checker-pwa-notice-title">{pwaCta.title}</strong>
+            <p className="muted">{pwaCta.description}</p>
+          </div>
+          <div className="checker-pwa-notice-actions">
+            {pwaCta.primaryActionLabel ? (
+              <Button
+                type="button"
+                onClick={handlePwaPrimaryAction}
+                disabled={pwaNoticeLoading || pwaCta.primaryActionLabel !== "알림 허용하기"}
+              >
+                {pwaNoticeLoading && pwaCta.primaryActionLabel === "알림 허용하기"
+                  ? "확인 중..."
+                  : pwaCta.primaryActionLabel}
+              </Button>
+            ) : null}
+            {pwaCta.secondaryActionLabel ? (
+              <Button type="button" variant="ghost" onClick={handlePwaSecondaryAction}>
+                {pwaCta.secondaryActionLabel}
+              </Button>
+            ) : null}
+          </div>
+        </Card>
+      ) : null}
 
       <div className="admin-dashboard-source-note">
         <span className={`badge ${checkerHomeState.source === "supabase" ? "super-source-supabase" : "super-source-local"}`}>

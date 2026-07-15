@@ -267,7 +267,7 @@ export async function getCurrentPushSubscription() {
   }
 
   const nav = getSafeNavigator();
-  if (!nav?.serviceWorker?.ready) {
+  if (!nav?.serviceWorker) {
     return {
       hasSubscription: false,
       subscription: null,
@@ -276,7 +276,18 @@ export async function getCurrentPushSubscription() {
   }
 
   try {
-    const registration = await nav.serviceWorker.ready;
+    const registration = typeof nav.serviceWorker.getRegistration === "function"
+      ? await nav.serviceWorker.getRegistration()
+      : null;
+
+    if (!registration) {
+      return {
+        hasSubscription: false,
+        subscription: null,
+        error: null,
+      };
+    }
+
     if (!registration?.pushManager || typeof registration.pushManager.getSubscription !== "function") {
       return {
         hasSubscription: false,
@@ -306,6 +317,7 @@ export async function getPwaOnboardingState(role = null) {
   const permissionState = detectNotificationPermission();
   const pushSupport = detectPushSupport();
   const installPrompt = detectInstallPromptSupport();
+  const canUseNotificationFlowInBrowser = !platform.isIOS && !platform.isMobile;
 
   let subscription = null;
   let state = "browser_only";
@@ -313,9 +325,9 @@ export async function getPwaOnboardingState(role = null) {
   let shouldShowInstallGuide = false;
   let shouldShowNotificationGuide = false;
 
-  if (!pushSupport.isPushSupported) {
+  if (!pushSupport.serviceWorkerSupported || !pushSupport.notificationSupported) {
     state = "unsupported";
-  } else if (!displayMode.isStandalone) {
+  } else if (!displayMode.isStandalone && !canUseNotificationFlowInBrowser) {
     if (installPrompt.maySupportBeforeInstallPrompt || platform.isIOS) {
       state = "installable";
       shouldShowInstallGuide = true;
@@ -331,16 +343,21 @@ export async function getPwaOnboardingState(role = null) {
   } else if (permissionState.permission === "denied") {
     state = "installed_permission_denied";
   } else if (permissionState.permission === "granted") {
-    canUsePush = true;
-    subscription = await getCurrentPushSubscription();
+    canUsePush = pushSupport.isPushSupported;
 
-    if (subscription.error) {
-      state = "subscription_error";
-    } else if (subscription.hasSubscription) {
-      state = "subscribed";
+    if (!pushSupport.pushManagerSupported) {
+      state = "installed_permission_granted";
     } else {
-      state = "subscription_missing";
-      shouldShowNotificationGuide = true;
+      subscription = await getCurrentPushSubscription();
+
+      if (subscription.error) {
+        state = "subscription_error";
+      } else if (subscription.hasSubscription) {
+        state = "subscribed";
+      } else {
+        state = "subscription_missing";
+        shouldShowNotificationGuide = true;
+      }
     }
   } else {
     state = "installed_no_permission";
