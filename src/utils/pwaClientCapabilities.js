@@ -379,11 +379,14 @@ export async function getPwaOnboardingState(role = null) {
   };
 }
 
-export function getNotificationCtaForRole(role, state) {
+export function getNotificationCtaForRole(role, state, context = null) {
+  const platform = context?.platform || null;
+  const isStandalone = Boolean(context?.isStandalone);
+
   if (state === "unsupported") {
     return {
-      title: "현재 브라우저에서는 알림 기능을 바로 사용할 수 없습니다.",
-      description: "다른 브라우저나 모바일 홈 화면 추가 후 다시 시도해 주세요.",
+      title: "현재 환경에서는 알림 기능을 사용할 수 없습니다.",
+      description: "Chrome, Edge 또는 홈 화면에 추가한 모바일 앱에서 다시 시도해주세요.",
       primaryActionLabel: null,
       secondaryActionLabel: null,
       tone: "neutral",
@@ -401,21 +404,31 @@ export function getNotificationCtaForRole(role, state) {
   }
 
   if (role === "checker") {
+    if ((state === "installable" || state === "browser_only") && platform?.isIOS && platform?.isSafari && !isStandalone) {
+      return {
+        title: "iPhone에서는 홈 화면에 추가한 뒤 알림을 사용할 수 있습니다.",
+        description: "Safari 공유 버튼을 누르고 '홈 화면에 추가'를 선택한 뒤 다시 실행해주세요.",
+        primaryActionLabel: null,
+        secondaryActionLabel: null,
+        tone: "info",
+      };
+    }
+
     if (state === "installable" || state === "browser_only") {
       return {
-        title: "해피통서비스를 홈 화면에 추가해 주세요.",
-        description: "오늘 확인 일정과 미작성 기록을 놓치지 않도록 알림을 받을 수 있습니다.",
-        primaryActionLabel: "앱 설치하기",
+        title: "확인 기록 알림을 켜주세요.",
+        description: "오늘 확인 기록을 놓치지 않도록 필요한 때에 알려드립니다.",
+        primaryActionLabel: "알림 켜기",
         secondaryActionLabel: "나중에 하기",
-        tone: "info",
+        tone: "warning",
       };
     }
 
     if (state === "installed_permission_default" || state === "installed_no_permission") {
       return {
-        title: "알림을 허용해 주세요.",
-        description: "오늘 확인 기록을 작성하지 않았을 때 알려드릴 수 있습니다.",
-        primaryActionLabel: "알림 허용하기",
+        title: "확인 기록 알림을 켜주세요.",
+        description: "오늘 확인 기록을 놓치지 않도록 필요한 때에 알려드립니다.",
+        primaryActionLabel: "알림 켜기",
         secondaryActionLabel: null,
         tone: "warning",
       };
@@ -518,7 +531,7 @@ export function getNotificationCtaForRole(role, state) {
     title: "PWA 설치 및 알림 상태를 확인해 주세요.",
     description: "현재 기기와 브라우저 상태에 따라 설치 또는 알림 설정이 필요할 수 있습니다.",
     primaryActionLabel: state === "installable" || state === "browser_only" ? "앱 설치하기" : null,
-    secondaryActionLabel: state === "installed_permission_default" || state === "installed_no_permission" ? "알림 허용하기" : null,
+    secondaryActionLabel: state === "installed_permission_default" || state === "installed_no_permission" ? "알림 켜기" : null,
     tone: "info",
   };
 }

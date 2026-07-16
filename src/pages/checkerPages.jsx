@@ -636,7 +636,7 @@ export function CheckerHome({ user, currentUser, data, navigate, emergencySent }
   }, []);
 
   const pwaCta = pwaOnboardingState
-    ? getNotificationCtaForRole("checker", pwaOnboardingState.state)
+    ? getNotificationCtaForRole("checker", pwaOnboardingState.state, pwaOnboardingState)
     : null;
   const shouldRenderPwaNotice = Boolean(
     pwaOnboardingState &&
@@ -671,7 +671,7 @@ export function CheckerHome({ user, currentUser, data, navigate, emergencySent }
       return;
     }
 
-    if (pwaCta.primaryActionLabel !== "알림 허용하기") {
+    if (pwaCta.primaryActionLabel !== "알림 허용하기" && pwaCta.primaryActionLabel !== "알림 켜기") {
       return;
     }
 
@@ -741,15 +741,20 @@ export function CheckerHome({ user, currentUser, data, navigate, emergencySent }
               <Button
                 type="button"
                 onClick={handlePwaPrimaryAction}
-                disabled={pwaNoticeLoading || pwaCta.primaryActionLabel !== "알림 허용하기"}
+                disabled={
+                  pwaNoticeLoading ||
+                  (pwaCta.primaryActionLabel !== "알림 허용하기" && pwaCta.primaryActionLabel !== "알림 켜기")
+                }
+                className="checker-pwa-notice-button"
               >
-                {pwaNoticeLoading && pwaCta.primaryActionLabel === "알림 허용하기"
+                {pwaNoticeLoading &&
+                (pwaCta.primaryActionLabel === "알림 허용하기" || pwaCta.primaryActionLabel === "알림 켜기")
                   ? "확인 중..."
                   : pwaCta.primaryActionLabel}
               </Button>
             ) : null}
             {pwaCta.secondaryActionLabel ? (
-              <Button type="button" variant="ghost" onClick={handlePwaSecondaryAction}>
+              <Button type="button" variant="ghost" onClick={handlePwaSecondaryAction} className="checker-pwa-notice-button">
                 {pwaCta.secondaryActionLabel}
               </Button>
             ) : null}
