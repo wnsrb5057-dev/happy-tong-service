@@ -16,6 +16,16 @@ export function getVapidPublicKey() {
   };
 }
 
+export function getVapidPublicKeyStatus() {
+  const result = getVapidPublicKey();
+
+  return {
+    exists: result.exists,
+    keyLength: result.key ? result.key.length : 0,
+    error: result.error,
+  };
+}
+
 export function urlBase64ToUint8Array(base64String) {
   if (!base64String || typeof base64String !== "string") {
     throw new Error("A valid base64 string is required.");
