@@ -424,7 +424,7 @@ export function getNotificationCtaForRole(role, state) {
     if (state === "installed_permission_granted") {
       return {
         title: "알림 권한이 허용되었습니다.",
-        description: "알림 수신 연결은 다음 단계에서 준비됩니다.",
+        description: "이제 홈 화면에서 오늘 확인 일정에 집중하실 수 있습니다.",
         primaryActionLabel: null,
         secondaryActionLabel: null,
         tone: "success",
@@ -434,7 +434,7 @@ export function getNotificationCtaForRole(role, state) {
     if (state === "subscription_missing") {
       return {
         title: "알림 권한이 허용되었습니다.",
-        description: "푸시 알림 수신 연결은 다음 단계에서 준비됩니다.",
+        description: "이제 홈 화면에서 오늘 확인 일정에 집중하실 수 있습니다.",
         primaryActionLabel: null,
         secondaryActionLabel: null,
         tone: "neutral",
@@ -476,7 +476,7 @@ export function getNotificationCtaForRole(role, state) {
     if (state === "installed_permission_granted") {
       return {
         title: "알림 권한이 허용되었습니다.",
-        description: "알림 수신 연결은 다음 단계에서 준비됩니다.",
+        description: "이제 주요 업무 화면에서 필요한 정보를 바로 확인할 수 있습니다.",
         primaryActionLabel: null,
         secondaryActionLabel: null,
         tone: "success",
@@ -486,7 +486,7 @@ export function getNotificationCtaForRole(role, state) {
     if (state === "subscription_missing") {
       return {
         title: "알림 권한이 허용되었습니다.",
-        description: "푸시 알림 수신 연결은 다음 단계에서 준비됩니다.",
+        description: "이제 주요 업무 화면에서 필요한 정보를 바로 확인할 수 있습니다.",
         primaryActionLabel: null,
         secondaryActionLabel: null,
         tone: "neutral",

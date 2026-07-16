@@ -39,10 +39,7 @@ const CHECKER_PWA_VISIBLE_STATES = new Set([
   "installed_no_permission",
   "installed_permission_default",
   "installed_permission_denied",
-  "installed_permission_granted",
-  "subscription_missing",
   "subscription_error",
-  "subscribed",
 ]);
 
 function isActiveTarget(target) {
@@ -641,10 +638,6 @@ export function CheckerHome({ user, currentUser, data, navigate, emergencySent }
   const pwaCta = pwaOnboardingState
     ? getNotificationCtaForRole("checker", pwaOnboardingState.state)
     : null;
-  const isCompactPwaNotice = Boolean(
-    pwaOnboardingState &&
-    ["installed_permission_granted", "subscription_missing", "subscribed"].includes(pwaOnboardingState.state)
-  );
   const shouldRenderPwaNotice = Boolean(
     pwaOnboardingState &&
     pwaCta &&
@@ -738,7 +731,7 @@ export function CheckerHome({ user, currentUser, data, navigate, emergencySent }
       </section>
 
       {shouldRenderPwaNotice ? (
-        <Card className={`checker-pwa-notice ${isCompactPwaNotice ? "checker-pwa-notice-compact" : ""} checker-pwa-notice-${pwaCta.tone || "info"}`}>
+        <Card className={`checker-pwa-notice checker-pwa-notice-${pwaCta.tone || "info"}`}>
           <div className="checker-pwa-notice-copy">
             <strong className="checker-pwa-notice-title">{pwaCta.title}</strong>
             <p className="muted">{pwaCta.description}</p>
