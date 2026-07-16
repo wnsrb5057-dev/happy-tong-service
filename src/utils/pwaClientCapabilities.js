@@ -411,7 +411,7 @@ export function getNotificationCtaForRole(role, state) {
       };
     }
 
-    if (state === "installed_permission_default" || state === "installed_no_permission" || state === "subscription_missing") {
+    if (state === "installed_permission_default" || state === "installed_no_permission") {
       return {
         title: "알림을 허용해 주세요.",
         description: "오늘 확인 기록을 작성하지 않았을 때 알려드릴 수 있습니다.",
@@ -421,7 +421,27 @@ export function getNotificationCtaForRole(role, state) {
       };
     }
 
-    if (state === "subscribed" || state === "installed_permission_granted") {
+    if (state === "installed_permission_granted") {
+      return {
+        title: "알림 권한이 허용되었습니다.",
+        description: "알림 수신 연결은 다음 단계에서 준비됩니다.",
+        primaryActionLabel: null,
+        secondaryActionLabel: null,
+        tone: "success",
+      };
+    }
+
+    if (state === "subscription_missing") {
+      return {
+        title: "알림 권한이 허용되었습니다.",
+        description: "푸시 알림 수신 연결은 다음 단계에서 준비됩니다.",
+        primaryActionLabel: null,
+        secondaryActionLabel: null,
+        tone: "neutral",
+      };
+    }
+
+    if (state === "subscribed") {
       return {
         title: "알림 수신 준비가 완료되었습니다.",
         description: "오늘 확인 일정과 미작성 기록 알림을 받을 수 있습니다.",
@@ -443,7 +463,7 @@ export function getNotificationCtaForRole(role, state) {
       };
     }
 
-    if (state === "installed_permission_default" || state === "installed_no_permission" || state === "subscription_missing") {
+    if (state === "installed_permission_default" || state === "installed_no_permission") {
       return {
         title: "이상징후 알림을 허용해 주세요.",
         description: "새 이상징후가 접수되면 바로 확인할 수 있도록 알림을 받을 수 있습니다.",
@@ -453,7 +473,27 @@ export function getNotificationCtaForRole(role, state) {
       };
     }
 
-    if (state === "subscribed" || state === "installed_permission_granted") {
+    if (state === "installed_permission_granted") {
+      return {
+        title: "알림 권한이 허용되었습니다.",
+        description: "알림 수신 연결은 다음 단계에서 준비됩니다.",
+        primaryActionLabel: null,
+        secondaryActionLabel: null,
+        tone: "success",
+      };
+    }
+
+    if (state === "subscription_missing") {
+      return {
+        title: "알림 권한이 허용되었습니다.",
+        description: "푸시 알림 수신 연결은 다음 단계에서 준비됩니다.",
+        primaryActionLabel: null,
+        secondaryActionLabel: null,
+        tone: "neutral",
+      };
+    }
+
+    if (state === "subscribed") {
       return {
         title: "이상징후 알림 수신 준비가 완료되었습니다.",
         description: "새 이상징후 접수 알림을 받을 수 있습니다.",

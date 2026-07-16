@@ -1646,6 +1646,13 @@ button.upload-box {
   border-radius: 16px;
   display: grid;
   gap: 10px;
+  align-items: start;
+}
+
+.checker-pwa-notice-compact {
+  padding: 12px 14px;
+  gap: 6px;
+  border-radius: 14px;
 }
 
 .checker-pwa-notice-info {
@@ -1679,21 +1686,41 @@ button.upload-box {
   color: var(--ink);
 }
 
+.checker-pwa-notice-compact .checker-pwa-notice-title {
+  font-size: 15px;
+}
+
 .checker-pwa-notice-copy .muted {
   margin: 0;
   font-size: 13px;
   line-height: 1.45;
 }
 
+.checker-pwa-notice-compact .checker-pwa-notice-copy .muted {
+  font-size: 12px;
+  line-height: 1.4;
+}
+
 .checker-pwa-notice-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+  align-items: center;
 }
 
 .checker-pwa-notice-actions .button,
 .checker-pwa-notice-actions button {
   min-height: 40px;
+  padding-inline: 14px;
+}
+
+.checker-pwa-notice-compact .checker-pwa-notice-actions {
+  margin-top: 2px;
+}
+
+.checker-pwa-notice-compact .checker-pwa-notice-actions .button,
+.checker-pwa-notice-compact .checker-pwa-notice-actions button {
+  min-height: 36px;
 }
 
 .emergency-cta {
