@@ -284,3 +284,47 @@ export async function createAndSerializePushSubscription() {
     };
   }
 }
+
+export async function savePushSubscriptionToServer(payload) {
+  const win = getSafeWindow();
+
+  if (!win || typeof win.fetch !== "function") {
+    return {
+      success: false,
+      saved: false,
+      error: "Fetch API is not supported.",
+    };
+  }
+
+  try {
+    const response = await win.fetch("/api/push/subscribe", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    const result = await response.json().catch(() => null);
+
+    if (!response.ok) {
+      return {
+        success: false,
+        saved: false,
+        error: result?.error || "Failed to save push subscription.",
+      };
+    }
+
+    return {
+      success: Boolean(result?.success),
+      saved: Boolean(result?.saved),
+      error: null,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      saved: false,
+      error: error instanceof Error ? error.message : "Failed to save push subscription.",
+    };
+  }
+}
