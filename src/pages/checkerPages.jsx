@@ -27,6 +27,7 @@ import {
   getPwaOnboardingState,
   requestNotificationPermissionSafely,
 } from "../utils/pwaClientCapabilities.js";
+import { createAndSerializePushSubscription } from "../utils/pushSubscriptionClient.js";
 import { getToday } from "../utils/statistics.js";
 import ElderAvatarIcon from "../components/ElderAvatarIcon.jsx";
 import heroGrandmother from "../assets/happytong-hero-grandmother.png";
@@ -569,6 +570,8 @@ export function CheckerHome({ user, currentUser, data, navigate, emergencySent }
   const displayedRecentEmergencies = Array.isArray(displayedHome.recentEmergencies) ? displayedHome.recentEmergencies : [];
   const [pwaOnboardingState, setPwaOnboardingState] = useState(null);
   const [pwaNoticeLoading, setPwaNoticeLoading] = useState(false);
+  const [pushSubscriptionStatus, setPushSubscriptionStatus] = useState("idle");
+  const [pushSubscriptionError, setPushSubscriptionError] = useState(null);
   const [hidePwaNotice, setHidePwaNotice] = useState(() => {
     if (typeof window === "undefined") return false;
     try {
@@ -680,9 +683,28 @@ export function CheckerHome({ user, currentUser, data, navigate, emergencySent }
     }
 
     setPwaNoticeLoading(true);
+    setPushSubscriptionError(null);
+    setPushSubscriptionStatus("idle");
 
     try {
-      await requestNotificationPermissionSafely();
+      const permissionResult = await requestNotificationPermissionSafely();
+
+      if (permissionResult.permission === "granted") {
+        setPushSubscriptionStatus("creating");
+
+        const subscriptionResult = await createAndSerializePushSubscription();
+
+        if (subscriptionResult.success) {
+          setPushSubscriptionStatus("success");
+          setPushSubscriptionError(null);
+        } else {
+          setPushSubscriptionStatus("error");
+          setPushSubscriptionError(subscriptionResult.error || "push-subscription-create-failed");
+        }
+      } else {
+        setPushSubscriptionStatus("idle");
+      }
+
       await refreshPwaOnboardingState();
     } finally {
       setPwaNoticeLoading(false);
@@ -758,12 +780,14 @@ export function CheckerHome({ user, currentUser, data, navigate, emergencySent }
                 }
                 className="checker-pwa-notice-button"
               >
-                {pwaNoticeLoading &&
-                (
-                  pwaCta.primaryActionLabel === "알림 허용하기" ||
-                  pwaCta.primaryActionLabel === "알림 켜기" ||
-                  pwaCta.primaryActionLabel === "켜기"
-                )
+                {pushSubscriptionStatus === "creating"
+                  ? "연결 중..."
+                  : pwaNoticeLoading &&
+                    (
+                      pwaCta.primaryActionLabel === "알림 허용하기" ||
+                      pwaCta.primaryActionLabel === "알림 켜기" ||
+                      pwaCta.primaryActionLabel === "켜기"
+                    )
                   ? "확인 중..."
                   : pwaCta.primaryActionLabel}
               </Button>
@@ -775,6 +799,12 @@ export function CheckerHome({ user, currentUser, data, navigate, emergencySent }
             ) : null}
           </div>
         </Card>
+      ) : null}
+
+      {pushSubscriptionStatus === "error" && pushSubscriptionError ? (
+        <p className="notice checker-pwa-notice-feedback">
+          알림 연결을 완료하지 못했습니다. 잠시 후 다시 시도해주세요.
+        </p>
       ) : null}
 
       <div className="admin-dashboard-source-note">

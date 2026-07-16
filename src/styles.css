@@ -1766,6 +1766,14 @@ button.upload-box {
   color: var(--muted);
 }
 
+.checker-pwa-notice-feedback {
+  margin-top: -6px;
+  margin-bottom: 14px;
+  padding: 10px 12px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
 .checker-pwa-notice-compact .checker-pwa-notice-actions {
   margin-top: 2px;
 }
