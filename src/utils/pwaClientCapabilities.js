@@ -406,8 +406,8 @@ export function getNotificationCtaForRole(role, state, context = null) {
   if (role === "checker") {
     if ((state === "installable" || state === "browser_only") && platform?.isIOS && platform?.isSafari && !isStandalone) {
       return {
-        title: "iPhone에서는 홈 화면에 추가한 뒤 알림을 사용할 수 있습니다.",
-        description: "Safari 공유 버튼을 누르고 '홈 화면에 추가'를 선택한 뒤 다시 실행해주세요.",
+        title: "iPhone 알림 사용 안내",
+        description: "Safari에서 '홈 화면에 추가' 후 다시 열어주세요.",
         primaryActionLabel: null,
         secondaryActionLabel: null,
         tone: "info",
@@ -416,21 +416,21 @@ export function getNotificationCtaForRole(role, state, context = null) {
 
     if (state === "installable" || state === "browser_only") {
       return {
-        title: "확인 기록 알림을 켜주세요.",
-        description: "오늘 확인 기록을 놓치지 않도록 필요한 때에 알려드립니다.",
-        primaryActionLabel: "알림 켜기",
+        title: "확인 기록 알림",
+        description: "놓치지 않도록 필요한 때에 알려드려요.",
+        primaryActionLabel: "켜기",
         secondaryActionLabel: "나중에 하기",
-        tone: "warning",
+        tone: "info",
       };
     }
 
     if (state === "installed_permission_default" || state === "installed_no_permission") {
       return {
-        title: "확인 기록 알림을 켜주세요.",
-        description: "오늘 확인 기록을 놓치지 않도록 필요한 때에 알려드립니다.",
-        primaryActionLabel: "알림 켜기",
+        title: "확인 기록 알림",
+        description: "놓치지 않도록 필요한 때에 알려드려요.",
+        primaryActionLabel: "켜기",
         secondaryActionLabel: null,
-        tone: "warning",
+        tone: "info",
       };
     }
 

@@ -671,7 +671,11 @@ export function CheckerHome({ user, currentUser, data, navigate, emergencySent }
       return;
     }
 
-    if (pwaCta.primaryActionLabel !== "알림 허용하기" && pwaCta.primaryActionLabel !== "알림 켜기") {
+    if (
+      pwaCta.primaryActionLabel !== "알림 허용하기" &&
+      pwaCta.primaryActionLabel !== "알림 켜기" &&
+      pwaCta.primaryActionLabel !== "켜기"
+    ) {
       return;
     }
 
@@ -731,10 +735,13 @@ export function CheckerHome({ user, currentUser, data, navigate, emergencySent }
       </section>
 
       {shouldRenderPwaNotice ? (
-        <Card className={`checker-pwa-notice checker-pwa-notice-${pwaCta.tone || "info"}`}>
-          <div className="checker-pwa-notice-copy">
-            <strong className="checker-pwa-notice-title">{pwaCta.title}</strong>
-            <p className="muted">{pwaCta.description}</p>
+        <Card className={`checker-pwa-notice checker-pwa-notice-inline checker-pwa-notice-${pwaCta.tone || "info"}`}>
+          <div className="checker-pwa-notice-main">
+            <span className="checker-pwa-notice-icon" aria-hidden="true">🔔</span>
+            <div className="checker-pwa-notice-copy">
+              <strong className="checker-pwa-notice-title">{pwaCta.title}</strong>
+              <p className="checker-pwa-notice-description">{pwaCta.description}</p>
+            </div>
           </div>
           <div className="checker-pwa-notice-actions">
             {pwaCta.primaryActionLabel ? (
@@ -743,18 +750,26 @@ export function CheckerHome({ user, currentUser, data, navigate, emergencySent }
                 onClick={handlePwaPrimaryAction}
                 disabled={
                   pwaNoticeLoading ||
-                  (pwaCta.primaryActionLabel !== "알림 허용하기" && pwaCta.primaryActionLabel !== "알림 켜기")
+                  (
+                    pwaCta.primaryActionLabel !== "알림 허용하기" &&
+                    pwaCta.primaryActionLabel !== "알림 켜기" &&
+                    pwaCta.primaryActionLabel !== "켜기"
+                  )
                 }
                 className="checker-pwa-notice-button"
               >
                 {pwaNoticeLoading &&
-                (pwaCta.primaryActionLabel === "알림 허용하기" || pwaCta.primaryActionLabel === "알림 켜기")
+                (
+                  pwaCta.primaryActionLabel === "알림 허용하기" ||
+                  pwaCta.primaryActionLabel === "알림 켜기" ||
+                  pwaCta.primaryActionLabel === "켜기"
+                )
                   ? "확인 중..."
                   : pwaCta.primaryActionLabel}
               </Button>
             ) : null}
             {pwaCta.secondaryActionLabel ? (
-              <Button type="button" variant="ghost" onClick={handlePwaSecondaryAction} className="checker-pwa-notice-button">
+              <Button type="button" variant="ghost" onClick={handlePwaSecondaryAction} className="checker-pwa-notice-button checker-pwa-notice-button-secondary">
                 {pwaCta.secondaryActionLabel}
               </Button>
             ) : null}
