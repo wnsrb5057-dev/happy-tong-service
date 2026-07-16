@@ -23,11 +23,12 @@ import { getSupabaseCheckerTargetById, getSupabaseCheckerTargets } from "../serv
 import { getSupabaseCheckerActivityHistory } from "../services/supabaseCheckerActivityHistoryService.js";
 import { getSupabaseCheckerActivityFormTargets } from "../services/supabaseCheckerActivityFormTargetsService.js";
 import {
+  detectDevicePlatform,
   getNotificationCtaForRole,
   getPwaOnboardingState,
   requestNotificationPermissionSafely,
 } from "../utils/pwaClientCapabilities.js";
-import { createAndSerializePushSubscription } from "../utils/pushSubscriptionClient.js";
+import { createAndSerializePushSubscription, savePushSubscriptionToServer } from "../utils/pushSubscriptionClient.js";
 import { getToday } from "../utils/statistics.js";
 import ElderAvatarIcon from "../components/ElderAvatarIcon.jsx";
 import heroGrandmother from "../assets/happytong-hero-grandmother.png";
@@ -572,6 +573,8 @@ export function CheckerHome({ user, currentUser, data, navigate, emergencySent }
   const [pwaNoticeLoading, setPwaNoticeLoading] = useState(false);
   const [pushSubscriptionStatus, setPushSubscriptionStatus] = useState("idle");
   const [pushSubscriptionError, setPushSubscriptionError] = useState(null);
+  const [pushSaveStatus, setPushSaveStatus] = useState("idle");
+  const [pushSaveError, setPushSaveError] = useState(null);
   const [hidePwaNotice, setHidePwaNotice] = useState(() => {
     if (typeof window === "undefined") return false;
     try {
@@ -648,6 +651,30 @@ export function CheckerHome({ user, currentUser, data, navigate, emergencySent }
     !(hidePwaNotice && pwaCta.secondaryActionLabel === "나중에 하기")
   );
 
+  function buildPushSubscriptionPayload(serializedSubscription) {
+    const activeUser = currentUser || user || {};
+    const platform = detectDevicePlatform();
+    const userAgent = typeof navigator !== "undefined" ? navigator.userAgent || "" : "";
+    const browserName = platform.isChrome
+      ? "Chrome"
+      : platform.isSafari
+        ? "Safari"
+        : /edg/i.test(userAgent)
+          ? "Edge"
+          : "Unknown";
+
+    return {
+      userId: activeUser.id || "",
+      authUserId: activeUser.authUserId || activeUser.auth_user_id || null,
+      organizationId: activeUser.organizationId || activeUser.organization_id || null,
+      role: activeUser.role || "checker",
+      subscription: serializedSubscription,
+      userAgent: userAgent || null,
+      browserName,
+      deviceType: platform.isMobile ? "mobile" : "desktop",
+    };
+  }
+
   async function refreshPwaOnboardingState() {
     try {
       const result = await getPwaOnboardingState("checker");
@@ -685,6 +712,8 @@ export function CheckerHome({ user, currentUser, data, navigate, emergencySent }
     setPwaNoticeLoading(true);
     setPushSubscriptionError(null);
     setPushSubscriptionStatus("idle");
+    setPushSaveError(null);
+    setPushSaveStatus("idle");
 
     try {
       const permissionResult = await requestNotificationPermissionSafely();
@@ -697,6 +726,27 @@ export function CheckerHome({ user, currentUser, data, navigate, emergencySent }
         if (subscriptionResult.success) {
           setPushSubscriptionStatus("success");
           setPushSubscriptionError(null);
+
+          const payload = subscriptionResult.serialized
+            ? buildPushSubscriptionPayload(subscriptionResult.serialized)
+            : null;
+
+          if (!payload?.userId) {
+            setPushSaveStatus("error");
+            setPushSaveError("push-subscription-save-user-missing");
+          } else if (payload.subscription) {
+            setPushSaveStatus("saving");
+
+            const saveResult = await savePushSubscriptionToServer(payload);
+
+            if (saveResult.success && saveResult.saved) {
+              setPushSaveStatus("success");
+              setPushSaveError(null);
+            } else {
+              setPushSaveStatus("error");
+              setPushSaveError(saveResult.error || "push-subscription-save-failed");
+            }
+          }
         } else {
           setPushSubscriptionStatus("error");
           setPushSubscriptionError(subscriptionResult.error || "push-subscription-create-failed");
@@ -801,9 +851,11 @@ export function CheckerHome({ user, currentUser, data, navigate, emergencySent }
         </Card>
       ) : null}
 
-      {pushSubscriptionStatus === "error" && pushSubscriptionError ? (
+      {(pushSubscriptionStatus === "error" && pushSubscriptionError) || (pushSaveStatus === "error" && pushSaveError) ? (
         <p className="notice checker-pwa-notice-feedback">
-          알림 연결을 완료하지 못했습니다. 잠시 후 다시 시도해주세요.
+          {pushSaveStatus === "error"
+            ? "알림 설정을 저장하지 못했습니다. 잠시 후 다시 시도해주세요."
+            : "알림 연결을 완료하지 못했습니다. 잠시 후 다시 시도해주세요."}
         </p>
       ) : null}
 
