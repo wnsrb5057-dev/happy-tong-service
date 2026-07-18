@@ -830,7 +830,7 @@ export function CheckerHome({ user, currentUser, data, navigate, emergencySent }
                 }
                 className="checker-pwa-notice-button"
               >
-                {pushSubscriptionStatus === "creating"
+                {pushSaveStatus === "saving" || pushSubscriptionStatus === "creating"
                   ? "연결 중..."
                   : pwaNoticeLoading &&
                     (

@@ -293,6 +293,7 @@ export async function savePushSubscriptionToServer(payload) {
       success: false,
       saved: false,
       error: "Fetch API is not supported.",
+      code: null,
     };
   }
 
@@ -312,6 +313,7 @@ export async function savePushSubscriptionToServer(payload) {
         success: false,
         saved: false,
         error: result?.error || "Failed to save push subscription.",
+        code: result?.code || null,
       };
     }
 
@@ -319,12 +321,14 @@ export async function savePushSubscriptionToServer(payload) {
       success: Boolean(result?.success),
       saved: Boolean(result?.saved),
       error: null,
+      code: null,
     };
   } catch (error) {
     return {
       success: false,
       saved: false,
       error: error instanceof Error ? error.message : "Failed to save push subscription.",
+      code: null,
     };
   }
 }
