@@ -1,27 +1,7 @@
-import { normalizeTargetDate, runCheckerReminderJob } from "./_checkerReminderService.js";
+import { runCheckerReminderJob } from "../push/_checkerReminderService.js";
 
 function isNonEmptyString(value) {
   return typeof value === "string" && value.trim().length > 0;
-}
-
-function parseRequestBody(body) {
-  if (!body) {
-    return {};
-  }
-
-  if (typeof body === "string") {
-    try {
-      return JSON.parse(body);
-    } catch (_error) {
-      return null;
-    }
-  }
-
-  if (typeof body === "object") {
-    return body;
-  }
-
-  return null;
 }
 
 function respondWithError(res, status, code, error) {
@@ -42,7 +22,7 @@ function getBearerToken(value) {
   return trimmed.startsWith(prefix) ? trimmed.slice(prefix.length).trim() : null;
 }
 
-function isAuthorizedRequest(req) {
+function isCronSecretAuthorized(req) {
   const secret = process.env.CRON_SECRET;
 
   if (!isNonEmptyString(secret)) {
@@ -54,14 +34,38 @@ function isAuthorizedRequest(req) {
   return headerSecret === secret || bearerSecret === secret;
 }
 
+function isVercelCronRequest(req) {
+  const userAgent = isNonEmptyString(req.headers["user-agent"]) ? req.headers["user-agent"].toLowerCase() : "";
+  const hasScheduleHeader = isNonEmptyString(req.headers["x-vercel-cron-schedule"]);
+  return userAgent.includes("vercel-cron") || hasScheduleHeader;
+}
+
+function parseDryRun(value) {
+  if (value === true || value === "true") {
+    return true;
+  }
+
+  if (value === false || value === "false" || value === undefined) {
+    return false;
+  }
+
+  return false;
+}
+
 export default async function handler(req, res) {
-  if (req.method !== "POST") {
-    res.setHeader("Allow", "POST");
+  if (req.method !== "GET") {
+    res.setHeader("Allow", "GET");
     return respondWithError(res, 405, "METHOD_NOT_ALLOWED", "Method not allowed.");
   }
 
+  let source = null;
+
   try {
-    if (!isAuthorizedRequest(req)) {
+    if (isVercelCronRequest(req)) {
+      source = "vercel-cron";
+    } else if (isCronSecretAuthorized(req)) {
+      source = "manual-secret";
+    } else {
       return respondWithError(res, 401, "UNAUTHORIZED", "Unauthorized.");
     }
   } catch (error) {
@@ -72,20 +76,11 @@ export default async function handler(req, res) {
     return respondWithError(res, 401, "UNAUTHORIZED", "Unauthorized.");
   }
 
-  const body = parseRequestBody(req.body);
-  if (body === null) {
-    return respondWithError(res, 400, "INVALID_JSON", "Invalid request body.");
-  }
-
-  const targetDate = normalizeTargetDate(body.date);
-  if (!targetDate) {
-    return respondWithError(res, 400, "INVALID_JSON", "Invalid request body.");
-  }
-
   try {
     const result = await runCheckerReminderJob({
-      date: targetDate,
-      dryRun: body.dryRun === true,
+      date: req.query?.date,
+      dryRun: parseDryRun(req.query?.dryRun),
+      source,
     });
 
     return res.status(200).json(result);

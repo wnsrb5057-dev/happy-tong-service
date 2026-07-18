@@ -218,3 +218,21 @@ dryRun:
 1. 체커 대상자/기록 테이블과 실제 미완료 판별 로직 연결
 2. 수동 호출 검증 완료
 3. Vercel Cron 연결
+
+## Vercel Cron 연결
+
+- Cron 경로: `/api/cron/checker-reminders`
+- schedule: `0 8 * * *`
+- 의미: 매일 UTC 08:00, 한국시간 오후 5시 실행
+
+주의:
+
+- Vercel Cron은 production deployment 기준으로 동작합니다.
+- 기존 수동 테스트는 계속 `POST /api/push/send-checker-reminders`를 사용합니다.
+
+## Cron 배포 후 확인 방법
+
+1. Vercel deployment가 Ready 상태인지 확인
+2. Vercel Logs에서 `/api/cron/checker-reminders` 호출 확인
+3. `push_notification_logs`에 `checker_daily_reminder` 기록이 생성되는지 확인
+4. 같은 날짜 재실행 시 `skipped`가 증가하는지 확인
