@@ -2,6 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 
 const ALLOWED_ROLES = new Set(["checker", "admin", "super_admin"]);
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const USER_SELECT_COLUMNS = "id, auth_user_id, organization_id, role, username, email, status";
 
 function getSupabaseAdminClient() {
   const supabaseUrl = process.env.SUPABASE_URL;
@@ -55,16 +56,95 @@ function normalizeOptionalUuid(value) {
   return isUuid(value) ? value.trim() : "__invalid__";
 }
 
-function buildPayload(body) {
+async function resolveUserByQuery(query, resolveBy) {
+  const { data, error } = await query;
+
+  if (error) {
+    console.error("[push/subscribe] USER_RESOLVE_FAILED", {
+      resolveBy,
+      code: error.code || null,
+      message: error.message || "Unknown Supabase error",
+    });
+
+    throw new Error("USER_RESOLVE_FAILED");
+  }
+
+  const rows = Array.isArray(data) ? data : [];
+  if (!rows.length) {
+    return null;
+  }
+
+  const activeMatch = rows.find((row) => String(row?.status || "").toLowerCase() === "active");
+  return activeMatch || rows[0] || null;
+}
+
+async function resolvePushUser(supabase, { userId, authUserId, username, email, role }) {
+  if (isUuid(userId)) {
+    const directMatch = await resolveUserByQuery(
+      supabase.from("users").select(USER_SELECT_COLUMNS).eq("id", userId.trim()).limit(1),
+      "userId"
+    );
+
+    if (directMatch) {
+      return directMatch;
+    }
+  }
+
+  if (isUuid(authUserId)) {
+    const authMatch = await resolveUserByQuery(
+      supabase.from("users").select(USER_SELECT_COLUMNS).eq("auth_user_id", authUserId.trim()).limit(1),
+      "authUserId"
+    );
+
+    if (authMatch) {
+      return authMatch;
+    }
+  }
+
+  if (isNonEmptyString(email)) {
+    const emailMatch = await resolveUserByQuery(
+      supabase.from("users").select(USER_SELECT_COLUMNS).eq("email", email.trim()).limit(1),
+      "email"
+    );
+
+    if (emailMatch) {
+      return emailMatch;
+    }
+  }
+
+  if (isNonEmptyString(username) && ALLOWED_ROLES.has(role)) {
+    const usernameMatch = await resolveUserByQuery(
+      supabase
+        .from("users")
+        .select(USER_SELECT_COLUMNS)
+        .eq("username", username.trim())
+        .eq("role", role)
+        .limit(5),
+      "username"
+    );
+
+    if (usernameMatch) {
+      return usernameMatch;
+    }
+  }
+
+  return null;
+}
+
+function buildPayload(body, resolvedUser) {
   const subscription = body?.subscription || {};
   const normalizedAuthUserId = normalizeOptionalUuid(body.authUserId);
   const normalizedOrganizationId = normalizeOptionalUuid(body.organizationId);
 
   return {
-    user_id: body.userId.trim(),
-    auth_user_id: normalizedAuthUserId === "__invalid__" ? null : normalizedAuthUserId,
-    organization_id: normalizedOrganizationId === "__invalid__" ? null : normalizedOrganizationId,
-    role: body.role,
+    user_id: resolvedUser.id,
+    auth_user_id:
+      resolvedUser.auth_user_id ||
+      (normalizedAuthUserId === "__invalid__" ? null : normalizedAuthUserId),
+    organization_id:
+      resolvedUser.organization_id ||
+      (normalizedOrganizationId === "__invalid__" ? null : normalizedOrganizationId),
+    role: resolvedUser.role || body.role,
     endpoint: subscription.endpoint.trim(),
     p256dh: subscription.p256dh.trim(),
     auth: subscription.auth.trim(),
@@ -100,6 +180,9 @@ export default async function handler(req, res) {
   const subscription = body.subscription || {};
   const normalizedAuthUserId = normalizeOptionalUuid(body.authUserId);
   const normalizedOrganizationId = normalizeOptionalUuid(body.organizationId);
+  const hasUsername = isNonEmptyString(body.username);
+  const hasEmail = isNonEmptyString(body.email);
+  const hasAuthUserId = isNonEmptyString(body.authUserId);
 
   if (
     !isNonEmptyString(body.userId) ||
@@ -114,21 +197,25 @@ export default async function handler(req, res) {
     return respondWithError(res, 400, "INVALID_ROLE", "Invalid push subscription payload.");
   }
 
-  if (!isUuid(body.userId)) {
+  if (!isUuid(body.userId) && !isUuid(body.authUserId) && !hasUsername && !hasEmail) {
     return respondWithError(res, 400, "INVALID_USER_ID", "Invalid push subscription payload.");
-  }
-
-  if (normalizedAuthUserId === "__invalid__") {
-    return respondWithError(res, 400, "INVALID_AUTH_USER_ID", "Invalid push subscription payload.");
-  }
-
-  if (normalizedOrganizationId === "__invalid__") {
-    return respondWithError(res, 400, "INVALID_ORGANIZATION_ID", "Invalid push subscription payload.");
   }
 
   try {
     const supabase = getSupabaseAdminClient();
-    const payload = buildPayload(body);
+    const resolvedUser = await resolvePushUser(supabase, {
+      userId: body.userId,
+      authUserId: normalizedAuthUserId === "__invalid__" ? null : body.authUserId,
+      username: body.username,
+      email: body.email,
+      role,
+    });
+
+    if (!resolvedUser) {
+      return respondWithError(res, 400, "USER_NOT_FOUND", "Invalid push subscription payload.");
+    }
+
+    const payload = buildPayload(body, resolvedUser);
 
     const { error } = await supabase
       .from("push_subscriptions")
@@ -141,7 +228,16 @@ export default async function handler(req, res) {
       console.error("[push/subscribe] SUPABASE_UPSERT_FAILED", {
         code: error.code || null,
         message: error.message || "Unknown Supabase error",
+        resolveBy: isUuid(body.userId)
+          ? "userId"
+          : hasAuthUserId && isUuid(body.authUserId)
+            ? "authUserId"
+            : hasEmail
+              ? "email"
+              : "username",
         hasUserId: Boolean(body.userId),
+        hasUsername,
+        hasEmail,
       });
 
       return respondWithError(res, 500, "SUPABASE_UPSERT_FAILED", "Failed to save push subscription.");
@@ -156,9 +252,15 @@ export default async function handler(req, res) {
       return respondWithError(res, 500, "MISSING_ENV", "Failed to save push subscription.");
     }
 
+    if (error instanceof Error && error.message === "USER_RESOLVE_FAILED") {
+      return respondWithError(res, 500, "USER_RESOLVE_FAILED", "Failed to resolve push subscription user.");
+    }
+
     console.error("[push/subscribe] UNEXPECTED_ERROR", {
       message: error instanceof Error ? error.message : "Unknown server error",
       hasUserId: Boolean(body.userId),
+      hasUsername,
+      hasEmail,
     });
 
     return respondWithError(res, 500, "SUPABASE_UPSERT_FAILED", "Failed to save push subscription.");

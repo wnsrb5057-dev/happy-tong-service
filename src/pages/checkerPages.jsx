@@ -668,6 +668,8 @@ export function CheckerHome({ user, currentUser, data, navigate, emergencySent }
       authUserId: activeUser.authUserId || activeUser.auth_user_id || null,
       organizationId: activeUser.organizationId || activeUser.organization_id || null,
       role: activeUser.role || "checker",
+      username: activeUser.username || null,
+      email: activeUser.email || null,
       subscription: serializedSubscription,
       userAgent: userAgent || null,
       browserName,
