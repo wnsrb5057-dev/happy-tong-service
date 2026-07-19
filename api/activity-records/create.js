@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const DEBUG_VERSION = "activity-create-target-direct-v2";
 
 function createCodeError(code, message = code) {
   const error = new Error(message);
@@ -45,6 +46,7 @@ function respondWithError(res, status, code, error) {
     success: false,
     error,
     code,
+    debugVersion: DEBUG_VERSION,
   });
 }
 
@@ -384,6 +386,7 @@ export default async function handler(req, res) {
       success: true,
       saved: true,
       recordId: data?.id || null,
+      debugVersion: DEBUG_VERSION,
     });
   } catch (error) {
     const code = error instanceof Error && error.code ? error.code : "INTERNAL_ERROR";
