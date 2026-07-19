@@ -242,6 +242,42 @@
 - **MVP 안정성 기준으로는 B안 우선 검토**
 - 향후 RLS가 충분히 정리되면 프론트 직접 insert도 검토 가능
 
+## API 초안 메모
+
+현재 단계 기준으로는 아래 구조를 권장합니다.
+
+- 서버 API 경로: `/api/activity-records/create`
+- 방식: Vercel Serverless Function + `service_role` insert
+- 목적: mock 로그인 / Supabase UUID 혼재 상황에서 서버가 `checker / target / organization` UUID를 보정한 뒤 `public.activity_records`에 저장
+
+초안 요청 body 후보:
+
+```json
+{
+  "organizationId": "uuid 또는 문자열 후보",
+  "targetId": "uuid 또는 문자열 후보",
+  "checkerId": "uuid 또는 문자열 후보",
+  "checkerUserId": "uuid 또는 문자열 후보",
+  "targetName": "문자열 optional",
+  "checkerUsername": "문자열 optional",
+  "checkerEmail": "문자열 optional",
+  "checkType": "external_check",
+  "checkedAt": "ISO string optional",
+  "checkItems": ["문자열 배열 optional"],
+  "conditionSummary": "문자열 optional",
+  "memo": "문자열 optional",
+  "hasIssue": true,
+  "issueLevel": "문자열 optional",
+  "issueSummary": "문자열 optional"
+}
+```
+
+메모:
+
+- 아직 UI 연결은 하지 않음
+- 기존 `localStorage` 저장 흐름은 그대로 유지
+- 초기 전환 단계에서는 API 저장 성공 후에도 fallback 전략을 유지하는 것이 안전함
+
 ## 권장 전환 단계
 
 1. DB 테이블 / 컬럼 점검
