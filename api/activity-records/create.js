@@ -1,7 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-const DEBUG_VERSION = "activity-create-target-direct-v2";
+const DEBUG_VERSION = "activity-create-organization-resolve-v3";
 
 function createCodeError(code, message = code) {
   const error = new Error(message);
@@ -204,19 +204,17 @@ async function resolveOrganization(supabase, candidateOrganizationId) {
     .from("organizations")
     .select("id")
     .eq("id", candidateOrganizationId)
-    .limit(1);
+    .maybeSingle();
 
   if (error) {
-    console.error("[activity-records/create] ORGANIZATION_RESOLVE_FAILED", {
+    console.error("[activity-records/create] ORGANIZATION_QUERY_FAILED", {
       code: error.code || null,
       message: error.message || "Unknown Supabase error",
-      hasOrganizationId: Boolean(candidateOrganizationId),
     });
-    throw createCodeError("INTERNAL_ERROR");
+    throw createCodeError("ORGANIZATION_QUERY_FAILED");
   }
 
-  const rows = Array.isArray(data) ? data : [];
-  return rows[0] || null;
+  return data || null;
 }
 
 function normalizeCheckedAt(value) {
@@ -319,6 +317,19 @@ export default async function handler(req, res) {
     }
 
     if (
+      resolvedChecker.organization_id &&
+      resolvedTarget.organization_id &&
+      resolvedChecker.organization_id !== resolvedTarget.organization_id
+    ) {
+      return respondWithError(
+        res,
+        400,
+        "CHECKER_TARGET_ORGANIZATION_MISMATCH",
+        "Failed to save activity record."
+      );
+    }
+
+    if (
       isUuid(normalizedOrganizationId) &&
       resolvedTarget.organization_id &&
       resolvedTarget.organization_id !== normalizedOrganizationId
@@ -331,24 +342,42 @@ export default async function handler(req, res) {
       );
     }
 
-    const organizationCandidate =
-      (isUuid(normalizedOrganizationId) ? normalizedOrganizationId : null) ||
-      resolvedChecker.organization_id ||
-      resolvedTarget.organization_id ||
-      null;
+    const requestedOrganizationId = isUuid(normalizedOrganizationId) ? normalizedOrganizationId : null;
+    let resolvedOrganization = null;
+    let resolvedOrganizationId = null;
 
-    const resolvedOrganization = await resolveOrganization(supabase, organizationCandidate);
+    if (requestedOrganizationId) {
+      resolvedOrganization = await resolveOrganization(supabase, requestedOrganizationId);
+      if (resolvedOrganization) {
+        resolvedOrganizationId = resolvedOrganization.id;
+      }
+    }
+
+    if (!resolvedOrganization && isUuid(resolvedTarget.organization_id)) {
+      resolvedOrganization = await resolveOrganization(supabase, resolvedTarget.organization_id);
+      if (resolvedOrganization) {
+        resolvedOrganizationId = resolvedOrganization.id;
+      }
+    }
+
+    if (!resolvedOrganization && isUuid(resolvedChecker.organization_id)) {
+      resolvedOrganization = await resolveOrganization(supabase, resolvedChecker.organization_id);
+      if (resolvedOrganization) {
+        resolvedOrganizationId = resolvedOrganization.id;
+      }
+    }
+
     if (!resolvedOrganization) {
       return respondWithError(res, 400, "ORGANIZATION_NOT_FOUND", "Failed to save activity record.");
     }
 
     if (
-      resolvedChecker.organization_id && resolvedChecker.organization_id !== resolvedOrganization.id
+      resolvedChecker.organization_id && resolvedChecker.organization_id !== resolvedOrganizationId
     ) {
       return respondWithError(res, 400, "ORGANIZATION_NOT_FOUND", "Failed to save activity record.");
     }
 
-    if (resolvedTarget.organization_id && resolvedTarget.organization_id !== resolvedOrganization.id) {
+    if (resolvedTarget.organization_id && resolvedTarget.organization_id !== resolvedOrganizationId) {
       return respondWithError(
         res,
         400,
@@ -357,7 +386,7 @@ export default async function handler(req, res) {
       );
     }
 
-    const insertPayload = buildInsertPayload(body, resolvedOrganization.id, resolvedTarget, resolvedChecker);
+    const insertPayload = buildInsertPayload(body, resolvedOrganizationId, resolvedTarget, resolvedChecker);
 
     const { data, error } = await supabase
       .from("activity_records")
