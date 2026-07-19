@@ -136,16 +136,14 @@ async function resolveTarget(supabase, body, organizationId) {
   const baseSelect = "id, organization_id, name";
 
   if (isUuid(targetId)) {
-    let query = supabase.from("targets").select(baseSelect).eq("id", targetId).limit(1);
-
-    if (organizationId) {
-      query = query.eq("organization_id", organizationId);
-    }
-
-    const { data, error } = await query;
+    const { data, error } = await supabase
+      .from("targets")
+      .select(baseSelect)
+      .eq("id", targetId)
+      .maybeSingle();
 
     if (error) {
-      console.error("[activity-records/create] TARGET_RESOLVE_FAILED", {
+      console.error("[activity-records/create] TARGET_QUERY_FAILED", {
         resolveBy: "targetId",
         code: error.code || null,
         message: error.message || "Unknown Supabase error",
@@ -153,12 +151,11 @@ async function resolveTarget(supabase, body, organizationId) {
         hasTargetName: Boolean(targetName),
         hasOrganizationId: Boolean(organizationId),
       });
-      throw createCodeError("INTERNAL_ERROR");
+      throw createCodeError("TARGET_QUERY_FAILED");
     }
 
-    const rows = Array.isArray(data) ? data : [];
-    if (rows.length) {
-      return rows[0];
+    if (data) {
+      return data;
     }
   }
 
@@ -172,7 +169,7 @@ async function resolveTarget(supabase, body, organizationId) {
     const { data, error } = await query;
 
     if (error) {
-      console.error("[activity-records/create] TARGET_RESOLVE_FAILED", {
+      console.error("[activity-records/create] TARGET_QUERY_FAILED", {
         resolveBy: "targetName",
         code: error.code || null,
         message: error.message || "Unknown Supabase error",
@@ -180,7 +177,7 @@ async function resolveTarget(supabase, body, organizationId) {
         hasTargetName: Boolean(targetName),
         hasOrganizationId: Boolean(organizationId),
       });
-      throw createCodeError("INTERNAL_ERROR");
+      throw createCodeError("TARGET_QUERY_FAILED");
     }
 
     const rows = Array.isArray(data) ? data : [];
@@ -319,6 +316,19 @@ export default async function handler(req, res) {
       return respondWithError(res, 400, "TARGET_NOT_FOUND", "Failed to save activity record.");
     }
 
+    if (
+      isUuid(normalizedOrganizationId) &&
+      resolvedTarget.organization_id &&
+      resolvedTarget.organization_id !== normalizedOrganizationId
+    ) {
+      return respondWithError(
+        res,
+        400,
+        "TARGET_ORGANIZATION_MISMATCH",
+        "Failed to save activity record."
+      );
+    }
+
     const organizationCandidate =
       (isUuid(normalizedOrganizationId) ? normalizedOrganizationId : null) ||
       resolvedChecker.organization_id ||
@@ -331,10 +341,18 @@ export default async function handler(req, res) {
     }
 
     if (
-      (resolvedChecker.organization_id && resolvedChecker.organization_id !== resolvedOrganization.id) ||
-      (resolvedTarget.organization_id && resolvedTarget.organization_id !== resolvedOrganization.id)
+      resolvedChecker.organization_id && resolvedChecker.organization_id !== resolvedOrganization.id
     ) {
       return respondWithError(res, 400, "ORGANIZATION_NOT_FOUND", "Failed to save activity record.");
+    }
+
+    if (resolvedTarget.organization_id && resolvedTarget.organization_id !== resolvedOrganization.id) {
+      return respondWithError(
+        res,
+        400,
+        "TARGET_ORGANIZATION_MISMATCH",
+        "Failed to save activity record."
+      );
     }
 
     const insertPayload = buildInsertPayload(body, resolvedOrganization.id, resolvedTarget, resolvedChecker);
