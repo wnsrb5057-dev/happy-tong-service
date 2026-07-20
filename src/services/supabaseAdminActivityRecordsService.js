@@ -1,5 +1,13 @@
 import { isSupabaseConfigured, supabase } from "./supabaseClient.js";
 
+function optionalBoolean(value) {
+  if (value === true || value === false) {
+    return value;
+  }
+
+  return undefined;
+}
+
 const CHECK_TYPE_LABELS = {
   visit: "방문",
   phone: "전화",
@@ -33,6 +41,7 @@ const RESULT_STATUS_LABELS = {
 function normalizeRecord(item) {
   const checkType = item?.check_type || item?.checkType || "phone";
   const resultStatus = item?.result_status || item?.resultStatus || "normal";
+  const hasIssue = optionalBoolean(item?.has_issue ?? item?.hasIssue);
 
   return {
     id: item?.id || "",
@@ -46,10 +55,10 @@ function normalizeRecord(item) {
     checkTypeLabel: CHECK_TYPE_LABELS[checkType] || checkType || "전화",
     resultStatus,
     resultStatusLabel: RESULT_STATUS_LABELS[resultStatus] || resultStatus || "이상 없음",
-    hasIssue: Boolean(item?.has_issue ?? item?.hasIssue ?? false),
-    has_issue: Boolean(item?.has_issue ?? item?.hasIssue ?? false),
-    issueLevel: item?.issue_level || item?.issueLevel || "none",
-    issue_level: item?.issue_level || item?.issueLevel || "none",
+    hasIssue,
+    has_issue: hasIssue,
+    issueLevel: item?.issue_level || item?.issueLevel || "",
+    issue_level: item?.issue_level || item?.issueLevel || "",
     checkItems: item?.check_items || item?.checkItems || [],
     check_items: item?.check_items || item?.checkItems || [],
     status: item?.status || resultStatus || "completed",
@@ -59,6 +68,26 @@ function normalizeRecord(item) {
     checkedAt: item?.checked_at || item?.checkedAt || null,
     createdAt: item?.created_at || item?.createdAt || item?.checked_at || item?.checkedAt || null,
   };
+}
+
+async function enrichActivityRecordColumns(records) {
+  const ids = records.map((record) => record.id).filter(Boolean);
+
+  if (!ids.length) {
+    return records;
+  }
+
+  const { data, error } = await supabase
+    .from("activity_records")
+    .select("id, has_issue, issue_level, check_items, status, condition_summary, memo")
+    .in("id", ids);
+
+  if (error || !Array.isArray(data)) {
+    return records;
+  }
+
+  const extraById = new Map(data.map((item) => [item.id, item]));
+  return records.map((record) => normalizeRecord({ ...record, ...(extraById.get(record.id) || {}) }));
 }
 
 export async function getSupabaseAdminActivityRecords(organizationId) {
@@ -92,7 +121,7 @@ export async function getSupabaseAdminActivityRecords(organizationId) {
     return {
       ok: true,
       source: "supabase",
-      records: Array.isArray(data) ? data.map(normalizeRecord) : [],
+      records: Array.isArray(data) ? await enrichActivityRecordColumns(data.map(normalizeRecord)) : [],
       message: "Supabase 확인기록 목록을 불러왔습니다.",
     };
   } catch (error) {

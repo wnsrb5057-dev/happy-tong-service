@@ -261,7 +261,7 @@ function getCheckerHistoryHasIssue(record) {
   }
 
   return Boolean(
-    ["need_check", "urgent", "warning", "high", "danger", "caution", "emergency"].includes(record.issueLevel || record.issue_level) ||
+    ["danger", "high", "warning", "caution", "urgent", "emergency", "issue", "need_check", "needed", "abnormal"].includes(record.issueLevel || record.issue_level) ||
       ["caution", "emergency", "warning", "high", "danger"].includes(record.resultStatus) ||
       record.riskLevel === "danger" ||
       record.riskLevel === "high" ||
@@ -315,10 +315,28 @@ function normalizeCheckerHistorySummary(text) {
     .replaceAll("supportNeed:unknown", "지원 필요 여부 미확인")
     .replaceAll("supportNeed:needed", "지원 필요")
     .replaceAll("supportNeed:none", "지원 필요 없음")
+    .replaceAll("lifeTrace:issue", "생활 흔적 확인 필요")
+    .replaceAll("contactAvailable:unknown", "연락 가능 여부 미확인")
+    .replaceAll("adminNeed:needed", "관리자 확인 필요")
+    .replaceAll("callStatus:completed", "통화 완료")
     .replaceAll("위험도: none", "위험도 없음")
     .replaceAll("위험도:none", "위험도 없음")
     .replaceAll("issueLevel: none", "이상징후 없음")
     .replaceAll("issueLevel:none", "이상징후 없음");
+}
+
+function formatCheckerHistoryCheckItems(checkItems) {
+  if (!checkItems) {
+    return "";
+  }
+
+  const items = Array.isArray(checkItems)
+    ? checkItems
+    : typeof checkItems === "object"
+      ? Object.entries(checkItems).map(([key, value]) => `${key}:${value}`)
+      : [];
+
+  return normalizeCheckerHistorySummary(items.filter(Boolean).join(", "));
 }
 
 function formatCheckerHistoryDate(value) {
@@ -1971,6 +1989,7 @@ export function ActivityHistory({ user, currentUser, data, saved }) {
               record.targetAddress ||
               getCheckItemText(record.checkType || record.type || "external", record.checkItems)
           );
+          const checkItemsText = formatCheckerHistoryCheckItems(record.checkItems ?? record.check_items);
           const historyTarget = record.isSupabaseOnly
             ? {
                 label: record.targetName || "대상자 정보 없음",
@@ -2005,6 +2024,7 @@ export function ActivityHistory({ user, currentUser, data, saved }) {
                   <p>대상자 주소: {record.targetAddress || historyTarget.label}</p>
                   {!record.isSupabaseOnly ? <p>건강 상태: {activityHealthLabels[record.healthStatus] ?? "양호"}</p> : null}
                   {!record.isSupabaseOnly ? <p>{getCheckItemText(record.checkType || record.type || "external", record.checkItems)}</p> : null}
+                  {checkItemsText ? <p>확인 항목: {checkItemsText}</p> : null}
                   <p>{normalizeCheckerHistorySummary(record.memo) || "작성된 메모가 없습니다."}</p>
                   {record.issueSummary ? <p className="danger-text">{normalizeCheckerHistorySummary(record.issueSummary)}</p> : null}
                 </div>

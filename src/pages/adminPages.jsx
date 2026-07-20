@@ -635,12 +635,30 @@ function normalizeAdminActivitySummary(text) {
     .replaceAll("supportNeed:unknown", "지원 필요 여부 미확인")
     .replaceAll("supportNeed:needed", "지원 필요")
     .replaceAll("supportNeed:none", "지원 불필요")
+    .replaceAll("lifeTrace:issue", "생활 흔적 확인 필요")
+    .replaceAll("contactAvailable:unknown", "연락 가능 여부 미확인")
+    .replaceAll("adminNeed:needed", "관리자 확인 필요")
+    .replaceAll("callStatus:completed", "통화 완료")
     .replaceAll("위험도: none", "위험도 없음")
     .replaceAll("위험도:none", "위험도 없음")
     .replaceAll("확인 유형: call", "확인 유형: 전화 확인")
     .replaceAll("확인 유형: phone", "확인 유형: 전화 확인")
     .replaceAll("체크 유형: call", "체크 유형: 전화 확인")
     .replaceAll("체크 유형: phone", "체크 유형: 전화 확인");
+}
+
+function formatAdminActivityCheckItems(checkItems) {
+  if (!checkItems) {
+    return "";
+  }
+
+  const items = Array.isArray(checkItems)
+    ? checkItems
+    : typeof checkItems === "object"
+      ? Object.entries(checkItems).map(([key, value]) => `${key}:${value}`)
+      : [];
+
+  return normalizeAdminActivitySummary(items.filter(Boolean).join(", "));
 }
 
 function normalizeLocalAdminActivityRecord(record, targets, users) {
@@ -679,11 +697,11 @@ function getAdminActivityHasIssue(record) {
     return false;
   }
 
-  if (["danger", "high", "warning", "urgent", "caution", "emergency"].includes(riskValue)) {
+  if (["danger", "high", "warning", "caution", "urgent", "emergency", "issue", "need_check", "needed", "abnormal"].includes(riskValue)) {
     return true;
   }
 
-  if (["none", "normal", "good"].includes(riskValue)) {
+  if (["none", "normal", "good", "completed", "ok"].includes(riskValue)) {
     return false;
   }
 
@@ -2504,6 +2522,7 @@ export function AdminActivities({ data, currentUser }) {
           const detailSummary = normalizeAdminActivitySummary(
             record.conditionSummary || record.condition_summary || record.issueSummary || record.memo
           );
+          const checkItemsText = formatAdminActivityCheckItems(record.checkItems ?? record.check_items);
 
           return (
           <Card key={record.id} className="admin-activity-card">
@@ -2543,6 +2562,7 @@ export function AdminActivities({ data, currentUser }) {
               <p>체크 유형: {checkTypeLabel}</p>
               <p>결과 상태: {getDisplayRecordStatus(record) || "상태 없음"}</p>
               {detailSummary ? <p>확인 내용: {detailSummary}</p> : null}
+              {checkItemsText ? <p>확인 항목: {checkItemsText}</p> : null}
               <p>생성일: {formatSafeDateLabel(record.createdAt)}</p>
               {record.issueSummary ? <p className="danger-text">{normalizeAdminActivitySummary(record.issueSummary)}</p> : null}
             </div>

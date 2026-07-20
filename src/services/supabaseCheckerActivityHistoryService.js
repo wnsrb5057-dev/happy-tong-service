@@ -1,6 +1,16 @@
 import { isSupabaseConfigured, supabase } from "./supabaseClient.js";
 
+function optionalBoolean(value) {
+  if (value === true || value === false) {
+    return value;
+  }
+
+  return undefined;
+}
+
 function normalizeRecord(item) {
+  const hasIssue = optionalBoolean(item?.has_issue ?? item?.hasIssue);
+
   return {
     id: item?.id || "",
     organizationId: item?.organization_id || item?.organizationId || "",
@@ -12,10 +22,10 @@ function normalizeRecord(item) {
     targetAddress: item?.target_address || item?.targetAddress || "-",
     checkType: item?.check_type || item?.checkType || "phone",
     resultStatus: item?.result_status || item?.resultStatus || "normal",
-    hasIssue: Boolean(item?.has_issue ?? item?.hasIssue ?? false),
-    has_issue: Boolean(item?.has_issue ?? item?.hasIssue ?? false),
-    issueLevel: item?.issue_level || item?.issueLevel || "none",
-    issue_level: item?.issue_level || item?.issueLevel || "none",
+    hasIssue,
+    has_issue: hasIssue,
+    issueLevel: item?.issue_level || item?.issueLevel || "",
+    issue_level: item?.issue_level || item?.issueLevel || "",
     checkItems: item?.check_items || item?.checkItems || [],
     check_items: item?.check_items || item?.checkItems || [],
     status: item?.status || "completed",
@@ -26,6 +36,26 @@ function normalizeRecord(item) {
     createdAt: item?.created_at || item?.createdAt || item?.checked_at || item?.checkedAt || null,
     isSupabaseOnly: true,
   };
+}
+
+async function enrichActivityRecordColumns(records) {
+  const ids = records.map((record) => record.id).filter(Boolean);
+
+  if (!ids.length) {
+    return records;
+  }
+
+  const { data, error } = await supabase
+    .from("activity_records")
+    .select("id, has_issue, issue_level, check_items, status, condition_summary, memo")
+    .in("id", ids);
+
+  if (error || !Array.isArray(data)) {
+    return records;
+  }
+
+  const extraById = new Map(data.map((item) => [item.id, item]));
+  return records.map((record) => normalizeRecord({ ...record, ...(extraById.get(record.id) || {}) }));
 }
 
 export async function getSupabaseCheckerActivityHistory(checkerId) {
@@ -59,7 +89,7 @@ export async function getSupabaseCheckerActivityHistory(checkerId) {
     return {
       ok: true,
       source: "supabase",
-      records: Array.isArray(data) ? data.map(normalizeRecord) : [],
+      records: Array.isArray(data) ? await enrichActivityRecordColumns(data.map(normalizeRecord)) : [],
       message: "Supabase 체커 확인기록을 불러왔습니다.",
     };
   } catch (error) {
