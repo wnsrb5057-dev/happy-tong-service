@@ -252,7 +252,16 @@ function normalizeCheckerHistoryCheckType(checkType) {
 }
 
 function getCheckerHistoryHasIssue(record) {
+  const summary = String(record.conditionSummary || record.condition_summary || record.memo || "");
+  const issueLevel = record.issueLevel || record.issue_level || "";
+  const issueValues = ["urgent", "emergency", "danger", "high", "warning", "caution", "issue", "need_check", "needed", "abnormal"];
+  const normalValues = ["none", "normal", "good", "ok"];
+
   if (record.hasIssue === true || record.has_issue === true) {
+    return true;
+  }
+
+  if (issueValues.includes(issueLevel)) {
     return true;
   }
 
@@ -260,9 +269,32 @@ function getCheckerHistoryHasIssue(record) {
     return false;
   }
 
+  if (normalValues.includes(issueLevel)) {
+    return false;
+  }
+
+  if (
+    summary.includes("이상징후: 있음") ||
+    summary.includes("결과: 확인 필요") ||
+    summary.includes("위험도: urgent") ||
+    summary.includes("위험도: need_check") ||
+    summary.includes("위험도: warning") ||
+    summary.includes("위험도: caution")
+  ) {
+    return true;
+  }
+
+  if (
+    summary.includes("위험도: none") ||
+    summary.includes("위험도 없음") ||
+    summary.includes("이상 없음") ||
+    summary.includes("이상징후 없음")
+  ) {
+    return false;
+  }
+
   return Boolean(
-    ["danger", "high", "warning", "caution", "urgent", "emergency", "issue", "need_check", "needed", "abnormal"].includes(record.issueLevel || record.issue_level) ||
-      ["caution", "emergency", "warning", "high", "danger"].includes(record.resultStatus) ||
+    ["caution", "emergency", "warning", "high", "danger"].includes(record.resultStatus) ||
       record.riskLevel === "danger" ||
       record.riskLevel === "high" ||
       record.riskLevel === "warning"
@@ -1978,9 +2010,7 @@ export function ActivityHistory({ user, currentUser, data, saved }) {
         {records.length ? records.map((record) => {
           const hasIssue = getCheckerHistoryHasIssue(record);
           const recordStatusValue = getCheckerHistoryRecordStatusValue(record);
-          const resultStatusLabel = hasIssue
-            ? getCheckerHistoryResultStatusLabel(record.resultStatus || record.status)
-            : "이상징후 없음";
+          const resultStatusLabel = hasIssue ? "확인 필요" : "이상징후 없음";
           const summaryText = normalizeCheckerHistorySummary(
             record.conditionSummary ||
               record.condition_summary ||

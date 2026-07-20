@@ -597,6 +597,10 @@ function formatRecordDisplayDate(record) {
 }
 
 function getDisplayRecordStatus(record) {
+  if (getAdminActivityHasIssue(record)) {
+    return "확인 필요";
+  }
+
   const rawStatus = record?.resultStatus || record?.status || "";
   if (!rawStatus) return "";
   if (rawStatus === "normal") return "이상 없음";
@@ -688,8 +692,14 @@ function getRecordIssueState(record) {
 function getAdminActivityHasIssue(record) {
   const summary = String(record?.conditionSummary || record?.condition_summary || record?.memo || "");
   const riskValue = record?.riskLevel || record?.risk_level || record?.issueLevel || record?.issue_level || "";
+  const issueValues = ["urgent", "emergency", "danger", "high", "warning", "caution", "issue", "need_check", "needed", "abnormal"];
+  const normalValues = ["none", "normal", "good", "ok"];
 
   if (record?.hasIssue === true || record?.has_issue === true) {
+    return true;
+  }
+
+  if (issueValues.includes(riskValue)) {
     return true;
   }
 
@@ -697,12 +707,19 @@ function getAdminActivityHasIssue(record) {
     return false;
   }
 
-  if (["danger", "high", "warning", "caution", "urgent", "emergency", "issue", "need_check", "needed", "abnormal"].includes(riskValue)) {
-    return true;
+  if (normalValues.includes(riskValue)) {
+    return false;
   }
 
-  if (["none", "normal", "good", "completed", "ok"].includes(riskValue)) {
-    return false;
+  if (
+    summary.includes("이상징후: 있음") ||
+    summary.includes("결과: 확인 필요") ||
+    summary.includes("위험도: urgent") ||
+    summary.includes("위험도: need_check") ||
+    summary.includes("위험도: warning") ||
+    summary.includes("위험도: caution")
+  ) {
+    return true;
   }
 
   if (
