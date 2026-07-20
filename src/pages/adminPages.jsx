@@ -665,6 +665,61 @@ function formatAdminActivityCheckItems(checkItems) {
   return normalizeAdminActivitySummary(items.filter(Boolean).join(", "));
 }
 
+function getAdminActivityRecordDateKey(record) {
+  return String(record?.checkedAt || record?.checked_at || record?.createdAt || record?.created_at || record?.date || "").slice(0, 10);
+}
+
+function getAdminActivityRecordTargetKey(record, targets) {
+  if (record?.targetName) {
+    return `name:${record.targetName}`;
+  }
+
+  const localTargetName = targets.find((target) => target.id === record?.targetId)?.name;
+  return localTargetName ? `name:${localTargetName}` : `id:${record?.targetId || record?.target_id || ""}`;
+}
+
+function getAdminActivityRecordMergeKey(record, targets) {
+  return [
+    getAdminActivityRecordDateKey(record),
+    getAdminActivityRecordTargetKey(record, targets),
+    getAdminActivityCheckTypeLabel(record?.checkType || record?.check_type || record?.type),
+  ].join("|");
+}
+
+function mergeAdminActivityRecord(localRecord, supabaseRecord) {
+  return {
+    ...localRecord,
+    ...supabaseRecord,
+    targetName: supabaseRecord.targetName || localRecord.targetName,
+    targetAddress: supabaseRecord.targetAddress || localRecord.targetAddress,
+    checkerName: supabaseRecord.checkerName || localRecord.checkerName,
+    memo: supabaseRecord.memo || localRecord.memo,
+    conditionSummary: supabaseRecord.conditionSummary || localRecord.conditionSummary,
+    condition_summary: supabaseRecord.condition_summary || localRecord.condition_summary,
+    hasIssue: supabaseRecord.hasIssue ?? supabaseRecord.has_issue ?? localRecord.hasIssue,
+    has_issue: supabaseRecord.has_issue ?? supabaseRecord.hasIssue ?? localRecord.has_issue,
+    issueLevel: supabaseRecord.issueLevel || supabaseRecord.issue_level || localRecord.issueLevel,
+    issue_level: supabaseRecord.issue_level || supabaseRecord.issueLevel || localRecord.issue_level,
+    checkItems: supabaseRecord.checkItems?.length ? supabaseRecord.checkItems : supabaseRecord.check_items || localRecord.checkItems,
+    check_items: supabaseRecord.check_items?.length ? supabaseRecord.check_items : supabaseRecord.checkItems || localRecord.check_items,
+  };
+}
+
+function mergeAdminActivityRecords(localRecords, supabaseRecords, targets) {
+  const mergedByKey = new Map();
+
+  localRecords.forEach((record) => {
+    mergedByKey.set(getAdminActivityRecordMergeKey(record, targets), record);
+  });
+
+  supabaseRecords.forEach((record) => {
+    const key = getAdminActivityRecordMergeKey(record, targets);
+    mergedByKey.set(key, mergeAdminActivityRecord(mergedByKey.get(key) || {}, record));
+  });
+
+  return Array.from(mergedByKey.values());
+}
+
 function normalizeLocalAdminActivityRecord(record, targets, users) {
   const resultStatus = record?.resultStatus || record?.status || "normal";
   const checkType = getCheckType(record);
@@ -2477,10 +2532,17 @@ export function AdminActivities({ data, currentUser }) {
     };
   }, [adminSupabaseOrganizationId, currentUser, localRecords]);
 
-  const resolvedRecords =
-    Array.isArray(supabaseRecordsState.records) && supabaseRecordsState.records.length
+  const supabaseActivityRecords =
+    supabaseRecordsState.source === "supabase" && Array.isArray(supabaseRecordsState.records)
       ? supabaseRecordsState.records
-      : localRecords;
+      : [];
+  const resolvedRecords = useMemo(
+    () =>
+      supabaseActivityRecords.length
+        ? mergeAdminActivityRecords(localRecords, supabaseActivityRecords, targets)
+        : localRecords,
+    [localRecords, supabaseActivityRecords, targets]
+  );
   const records = [...resolvedRecords].sort((a, b) => {
     const aTime = a?.checkedAt || a?.date || a?.createdAt ? new Date(a?.checkedAt || a?.date || a?.createdAt).getTime() : 0;
     const bTime = b?.checkedAt || b?.date || b?.createdAt ? new Date(b?.checkedAt || b?.date || b?.createdAt).getTime() : 0;
@@ -2540,6 +2602,9 @@ export function AdminActivities({ data, currentUser }) {
             record.conditionSummary || record.condition_summary || record.issueSummary || record.memo
           );
           const checkItemsText = formatAdminActivityCheckItems(record.checkItems ?? record.check_items);
+          const memoText = normalizeAdminActivitySummary(
+            record.memo || record.note || record.description || record.conditionSummary || record.condition_summary
+          );
 
           return (
           <Card key={record.id} className="admin-activity-card">
@@ -2580,6 +2645,7 @@ export function AdminActivities({ data, currentUser }) {
               <p>결과 상태: {getDisplayRecordStatus(record) || "상태 없음"}</p>
               {detailSummary ? <p>확인 내용: {detailSummary}</p> : null}
               {checkItemsText ? <p>확인 항목: {checkItemsText}</p> : null}
+              {memoText ? <p>메모: {memoText}</p> : null}
               <p>생성일: {formatSafeDateLabel(record.createdAt)}</p>
               {record.issueSummary ? <p className="danger-text">{normalizeAdminActivitySummary(record.issueSummary)}</p> : null}
             </div>

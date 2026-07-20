@@ -95,6 +95,38 @@ async function enrichActivityRecordColumns(records) {
   return records.map((record) => normalizeRecord({ ...record, ...(extraById.get(record.id) || {}) }));
 }
 
+async function getDirectActivityRecords(organizationId) {
+  const { data, error } = await supabase
+    .from("activity_records")
+    .select("id, organization_id, target_id, checker_id, check_type, checked_at, created_at, has_issue, issue_level, check_items, status, condition_summary, memo")
+    .eq("organization_id", organizationId)
+    .order("checked_at", { ascending: false });
+
+  if (error || !Array.isArray(data)) {
+    return [];
+  }
+
+  return data;
+}
+
+function mergeActivityRecords(rpcItems, directItems) {
+  const mergedById = new Map();
+
+  rpcItems.forEach((item) => {
+    if (item?.id) {
+      mergedById.set(item.id, item);
+    }
+  });
+
+  directItems.forEach((item) => {
+    if (item?.id) {
+      mergedById.set(item.id, { ...(mergedById.get(item.id) || {}), ...item });
+    }
+  });
+
+  return Array.from(mergedById.values());
+}
+
 export async function getSupabaseAdminActivityRecords(organizationId) {
   if (!isSupabaseConfigured || !supabase) {
     return {
@@ -123,10 +155,13 @@ export async function getSupabaseAdminActivityRecords(organizationId) {
       throw error;
     }
 
+    const directRecords = await getDirectActivityRecords(organizationId);
+    const mergedRecords = mergeActivityRecords(Array.isArray(data) ? data : [], directRecords);
+
     return {
       ok: true,
       source: "supabase",
-      records: Array.isArray(data) ? await enrichActivityRecordColumns(data.map(normalizeRecord)) : [],
+      records: await enrichActivityRecordColumns(mergedRecords.map(normalizeRecord)),
       message: "Supabase 확인기록 목록을 불러왔습니다.",
     };
   } catch (error) {

@@ -371,6 +371,60 @@ function formatCheckerHistoryCheckItems(checkItems) {
   return normalizeCheckerHistorySummary(items.filter(Boolean).join(", "));
 }
 
+function getCheckerActivityRecordDateKey(record) {
+  return String(record?.checkedAt || record?.checked_at || record?.createdAt || record?.created_at || record?.date || "").slice(0, 10);
+}
+
+function getCheckerActivityRecordTargetKey(record, targets) {
+  if (record?.targetName) {
+    return `name:${record.targetName}`;
+  }
+
+  const localTargetName = targets.find((target) => target.id === record?.targetId)?.name;
+  return localTargetName ? `name:${localTargetName}` : `id:${record?.targetId || record?.target_id || ""}`;
+}
+
+function getCheckerActivityRecordMergeKey(record, targets) {
+  return [
+    getCheckerActivityRecordDateKey(record),
+    getCheckerActivityRecordTargetKey(record, targets),
+    normalizeCheckerHistoryCheckType(record?.checkType || record?.check_type || record?.type),
+  ].join("|");
+}
+
+function mergeCheckerActivityRecord(localRecord, supabaseRecord) {
+  return {
+    ...localRecord,
+    ...supabaseRecord,
+    targetName: supabaseRecord.targetName || localRecord.targetName,
+    targetAddress: supabaseRecord.targetAddress || localRecord.targetAddress,
+    memo: supabaseRecord.memo || localRecord.memo,
+    conditionSummary: supabaseRecord.conditionSummary || localRecord.conditionSummary,
+    condition_summary: supabaseRecord.condition_summary || localRecord.condition_summary,
+    hasIssue: supabaseRecord.hasIssue ?? supabaseRecord.has_issue ?? localRecord.hasIssue,
+    has_issue: supabaseRecord.has_issue ?? supabaseRecord.hasIssue ?? localRecord.has_issue,
+    issueLevel: supabaseRecord.issueLevel || supabaseRecord.issue_level || localRecord.issueLevel,
+    issue_level: supabaseRecord.issue_level || supabaseRecord.issueLevel || localRecord.issue_level,
+    checkItems: supabaseRecord.checkItems?.length ? supabaseRecord.checkItems : supabaseRecord.check_items || localRecord.checkItems,
+    check_items: supabaseRecord.check_items?.length ? supabaseRecord.check_items : supabaseRecord.checkItems || localRecord.check_items,
+  };
+}
+
+function mergeCheckerActivityRecords(localRecords, supabaseRecords, targets) {
+  const mergedByKey = new Map();
+
+  localRecords.forEach((record) => {
+    mergedByKey.set(getCheckerActivityRecordMergeKey(record, targets), record);
+  });
+
+  supabaseRecords.forEach((record) => {
+    const key = getCheckerActivityRecordMergeKey(record, targets);
+    mergedByKey.set(key, mergeCheckerActivityRecord(mergedByKey.get(key) || {}, record));
+  });
+
+  return Array.from(mergedByKey.values());
+}
+
 function formatCheckerHistoryDate(value) {
   if (!value) return "날짜 정보 없음";
 
@@ -1897,12 +1951,17 @@ export function ActivityHistory({ user, currentUser, data, saved }) {
     };
   }, [activeUser, checkerSupabaseId, localAllRecords]);
 
-  const allRecords =
-    activityHistoryState.source === "supabase"
-      ? Array.isArray(activityHistoryState.records)
-        ? activityHistoryState.records
-        : []
-      : localAllRecords;
+  const supabaseHistoryRecords =
+    activityHistoryState.source === "supabase" && Array.isArray(activityHistoryState.records)
+      ? activityHistoryState.records
+      : [];
+  const allRecords = useMemo(
+    () =>
+      supabaseHistoryRecords.length
+        ? mergeCheckerActivityRecords(localAllRecords, supabaseHistoryRecords, data.targets)
+        : localAllRecords,
+    [data.targets, localAllRecords, supabaseHistoryRecords]
+  );
   const records = useMemo(() => {
     const keyword = searchTerm.trim().toLowerCase();
     return allRecords.filter((record) => {
@@ -2020,6 +2079,9 @@ export function ActivityHistory({ user, currentUser, data, saved }) {
               getCheckItemText(record.checkType || record.type || "external", record.checkItems)
           );
           const checkItemsText = formatCheckerHistoryCheckItems(record.checkItems ?? record.check_items);
+          const memoText = normalizeCheckerHistorySummary(
+            record.memo || record.note || record.description || record.conditionSummary || record.condition_summary
+          );
           const historyTarget = record.isSupabaseOnly
             ? {
                 label: record.targetName || "대상자 정보 없음",
@@ -2055,7 +2117,7 @@ export function ActivityHistory({ user, currentUser, data, saved }) {
                   {!record.isSupabaseOnly ? <p>건강 상태: {activityHealthLabels[record.healthStatus] ?? "양호"}</p> : null}
                   {!record.isSupabaseOnly ? <p>{getCheckItemText(record.checkType || record.type || "external", record.checkItems)}</p> : null}
                   {checkItemsText ? <p>확인 항목: {checkItemsText}</p> : null}
-                  <p>{normalizeCheckerHistorySummary(record.memo) || "작성된 메모가 없습니다."}</p>
+                  <p>{memoText || "작성된 메모가 없습니다."}</p>
                   {record.issueSummary ? <p className="danger-text">{normalizeCheckerHistorySummary(record.issueSummary)}</p> : null}
                 </div>
               ) : null}
