@@ -1,7 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 
 const UUID_LIKE_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const DEBUG_VERSION = "activity-create-uuid-like-v5";
 
 function createCodeError(code, message = code) {
   const error = new Error(message);
@@ -41,32 +40,12 @@ function parseRequestBody(body) {
   return null;
 }
 
-function respondWithError(res, status, code, error, extra = null) {
+function respondWithError(res, status, code, error) {
   return res.status(status).json({
     success: false,
     error,
     code,
-    debugVersion: DEBUG_VERSION,
-    ...(extra || {}),
   });
-}
-
-function getSupabaseHost() {
-  const supabaseUrl = process.env.SUPABASE_URL;
-
-  if (!supabaseUrl) {
-    return null;
-  }
-
-  try {
-    return new URL(supabaseUrl).host;
-  } catch (_error) {
-    return null;
-  }
-}
-
-function getLast4(value) {
-  return isNonEmptyString(value) ? value.trim().slice(-4) : null;
 }
 
 function getSupabaseAdminClient() {
@@ -128,13 +107,8 @@ async function resolveChecker(supabase, body) {
 
     if (error) {
       console.error("[activity-records/create] CHECKER_RESOLVE_FAILED", {
-        resolveBy: item.resolveBy,
         code: error.code || null,
         message: error.message || "Unknown Supabase error",
-        hasCheckerId: Boolean(checkerId),
-        hasCheckerUserId: Boolean(checkerUserId),
-        hasCheckerEmail: Boolean(checkerEmail),
-        hasCheckerUsername: Boolean(checkerUsername),
       });
       throw createCodeError("INTERNAL_ERROR");
     }
@@ -165,12 +139,8 @@ async function resolveTarget(supabase, body, organizationId) {
 
     if (error) {
       console.error("[activity-records/create] TARGET_QUERY_FAILED", {
-        resolveBy: "targetId",
         code: error.code || null,
         message: error.message || "Unknown Supabase error",
-        hasTargetId: Boolean(targetId),
-        hasTargetName: Boolean(targetName),
-        hasOrganizationId: Boolean(organizationId),
       });
       throw createCodeError("TARGET_QUERY_FAILED");
     }
@@ -191,12 +161,8 @@ async function resolveTarget(supabase, body, organizationId) {
 
     if (error) {
       console.error("[activity-records/create] TARGET_QUERY_FAILED", {
-        resolveBy: "targetName",
         code: error.code || null,
         message: error.message || "Unknown Supabase error",
-        hasTargetId: Boolean(targetId),
-        hasTargetName: Boolean(targetName),
-        hasOrganizationId: Boolean(organizationId),
       });
       throw createCodeError("TARGET_QUERY_FAILED");
     }
@@ -210,7 +176,7 @@ async function resolveTarget(supabase, body, organizationId) {
   return null;
 }
 
-async function resolveOrganization(supabase, candidateOrganizationId, debugState = null) {
+async function resolveOrganization(supabase, candidateOrganizationId) {
   if (!candidateOrganizationId) {
     return null;
   }
@@ -225,12 +191,6 @@ async function resolveOrganization(supabase, candidateOrganizationId, debugState
     .eq("id", candidateOrganizationId)
     .maybeSingle();
 
-  if (debugState) {
-    debugState.organizationDirectQueryAttempted = true;
-    debugState.organizationQueryErrorCode = error?.code || null;
-    debugState.organizationQueryErrorMessage = error?.message || null;
-  }
-
   if (error) {
     console.error("[activity-records/create] ORGANIZATION_QUERY_FAILED", {
       code: error.code || null,
@@ -240,69 +200,6 @@ async function resolveOrganization(supabase, candidateOrganizationId, debugState
   }
 
   return data || null;
-}
-
-async function getOrganizationDebugCounts(supabase, organizationId) {
-  const result = {
-    organizationsCountAvailable: null,
-    matchingOrganizationCount: null,
-  };
-
-  const { count: organizationsCount, error: organizationsCountError } = await supabase
-    .from("organizations")
-    .select("id", { count: "exact", head: true });
-
-  if (organizationsCountError) {
-    console.error("[activity-records/create] ORGANIZATIONS_COUNT_FAILED", {
-      code: organizationsCountError.code || null,
-      message: organizationsCountError.message || "Unknown Supabase error",
-    });
-  } else {
-    result.organizationsCountAvailable = organizationsCount;
-  }
-
-  if (organizationId) {
-    const { count: matchingCount, error: matchingCountError } = await supabase
-      .from("organizations")
-      .select("id", { count: "exact", head: true })
-      .eq("id", organizationId);
-
-    if (matchingCountError) {
-      console.error("[activity-records/create] ORGANIZATION_MATCHING_COUNT_FAILED", {
-        code: matchingCountError.code || null,
-        message: matchingCountError.message || "Unknown Supabase error",
-      });
-    } else {
-      result.matchingOrganizationCount = matchingCount;
-    }
-  }
-
-  return result;
-}
-
-async function buildOrganizationNotFoundDebug(supabase, debugState) {
-  const counts = await getOrganizationDebugCounts(supabase, debugState.organizationId);
-
-  return {
-    debug: {
-      supabaseHost: getSupabaseHost(),
-      organizationIdProvided: Boolean(debugState.organizationId),
-      organizationIdLooksUuid: isUuidLike(debugState.organizationId),
-      organizationIdLength: debugState.organizationId ? debugState.organizationId.length : 0,
-      organizationIdLast4: getLast4(debugState.organizationId) || "",
-      organizationDirectQueryAttempted: debugState.organizationDirectQueryAttempted,
-      organizationQueryErrorCode: debugState.organizationQueryErrorCode,
-      organizationQueryErrorMessage: debugState.organizationQueryErrorMessage,
-      organizationsCountAvailable: counts.organizationsCountAvailable,
-      matchingOrganizationCount: counts.matchingOrganizationCount,
-      targetOrganizationIdProvided: Boolean(debugState.targetOrganizationId),
-      targetOrganizationIdLast4: getLast4(debugState.targetOrganizationId),
-      checkerOrganizationIdProvided: Boolean(debugState.checkerOrganizationId),
-      checkerOrganizationIdLast4: getLast4(debugState.checkerOrganizationId),
-      fallbackFromTargetAttempted: debugState.fallbackFromTargetAttempted,
-      fallbackFromCheckerAttempted: debugState.fallbackFromCheckerAttempted,
-    },
-  };
 }
 
 function normalizeCheckedAt(value) {
@@ -433,26 +330,15 @@ export default async function handler(req, res) {
     const requestedOrganizationId = isUuidLike(normalizedOrganizationId) ? normalizedOrganizationId : null;
     let resolvedOrganization = null;
     let resolvedOrganizationId = null;
-    const organizationDebugState = {
-      organizationId: normalizedOrganizationId,
-      targetOrganizationId: resolvedTarget.organization_id || null,
-      checkerOrganizationId: resolvedChecker.organization_id || null,
-      organizationDirectQueryAttempted: false,
-      organizationQueryErrorCode: null,
-      organizationQueryErrorMessage: null,
-      fallbackFromTargetAttempted: false,
-      fallbackFromCheckerAttempted: false,
-    };
 
     if (requestedOrganizationId) {
-      resolvedOrganization = await resolveOrganization(supabase, requestedOrganizationId, organizationDebugState);
+      resolvedOrganization = await resolveOrganization(supabase, requestedOrganizationId);
       if (resolvedOrganization) {
         resolvedOrganizationId = resolvedOrganization.id;
       }
     }
 
     if (!resolvedOrganization && isUuidLike(resolvedTarget.organization_id)) {
-      organizationDebugState.fallbackFromTargetAttempted = true;
       resolvedOrganization = await resolveOrganization(supabase, resolvedTarget.organization_id);
       if (resolvedOrganization) {
         resolvedOrganizationId = resolvedOrganization.id;
@@ -460,7 +346,6 @@ export default async function handler(req, res) {
     }
 
     if (!resolvedOrganization && isUuidLike(resolvedChecker.organization_id)) {
-      organizationDebugState.fallbackFromCheckerAttempted = true;
       resolvedOrganization = await resolveOrganization(supabase, resolvedChecker.organization_id);
       if (resolvedOrganization) {
         resolvedOrganizationId = resolvedOrganization.id;
@@ -468,26 +353,22 @@ export default async function handler(req, res) {
     }
 
     if (!resolvedOrganization) {
-      const organizationDebug = await buildOrganizationNotFoundDebug(supabase, organizationDebugState);
       return respondWithError(
         res,
         400,
         "ORGANIZATION_NOT_FOUND",
-        "Failed to save activity record.",
-        organizationDebug
+        "Failed to save activity record."
       );
     }
 
     if (
       resolvedChecker.organization_id && resolvedChecker.organization_id !== resolvedOrganizationId
     ) {
-      const organizationDebug = await buildOrganizationNotFoundDebug(supabase, organizationDebugState);
       return respondWithError(
         res,
         400,
         "ORGANIZATION_NOT_FOUND",
-        "Failed to save activity record.",
-        organizationDebug
+        "Failed to save activity record."
       );
     }
 
@@ -512,9 +393,6 @@ export default async function handler(req, res) {
       console.error("[activity-records/create] ACTIVITY_RECORD_INSERT_FAILED", {
         code: error.code || null,
         message: error.message || "Unknown Supabase error",
-        hasOrganizationId: Boolean(resolvedOrganization?.id),
-        hasTargetId: Boolean(resolvedTarget?.id),
-        hasCheckerId: Boolean(resolvedChecker?.id),
       });
 
       return respondWithError(
@@ -529,7 +407,6 @@ export default async function handler(req, res) {
       success: true,
       saved: true,
       recordId: data?.id || null,
-      debugVersion: DEBUG_VERSION,
     });
   } catch (error) {
     const code = error instanceof Error && error.code ? error.code : "INTERNAL_ERROR";
@@ -541,9 +418,6 @@ export default async function handler(req, res) {
     console.error("[activity-records/create] INTERNAL_ERROR", {
       code,
       message: error instanceof Error ? error.message : "Unknown server error",
-      hasOrganizationId: Boolean(trimOrNull(body?.organizationId)),
-      hasTargetId: Boolean(trimOrNull(body?.targetId)),
-      hasCheckerId: Boolean(trimOrNull(body?.checkerId) || trimOrNull(body?.checkerUserId)),
     });
 
     return respondWithError(res, 500, code === "INTERNAL_ERROR" ? "INTERNAL_ERROR" : code, "Failed to save activity record.");
