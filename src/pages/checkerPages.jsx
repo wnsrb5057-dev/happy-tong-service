@@ -146,6 +146,14 @@ function getCheckItemLabels(checkItems) {
     .map(([key, value]) => `${key}:${value}`);
 }
 
+function getActivitySaveIssueLevel(issueLevel, hasIssue) {
+  if (!hasIssue) {
+    return "none";
+  }
+
+  return issueLevel && issueLevel !== "none" ? issueLevel : "warning";
+}
+
 function buildCheckerTargetDetailPath(target) {
   const routeTargetId = target.localDetailTargetId || target.id;
   const searchParams = new URLSearchParams();
@@ -244,9 +252,16 @@ function normalizeCheckerHistoryCheckType(checkType) {
 }
 
 function getCheckerHistoryHasIssue(record) {
+  if (record.hasIssue === true || record.has_issue === true) {
+    return true;
+  }
+
+  if (record.hasIssue === false || record.has_issue === false) {
+    return false;
+  }
+
   return Boolean(
-    record.hasIssue ||
-      ["need_check", "urgent", "warning", "high", "danger"].includes(record.issueLevel) ||
+    ["need_check", "urgent", "warning", "high", "danger", "caution", "emergency"].includes(record.issueLevel || record.issue_level) ||
       ["caution", "emergency", "warning", "high", "danger"].includes(record.resultStatus) ||
       record.riskLevel === "danger" ||
       record.riskLevel === "high" ||
@@ -1525,6 +1540,7 @@ export function ActivityNew({ user, currentUser, data, actions, navigate, initia
     }
 
     const hasIssue = form.issueLevel !== "none";
+    const savedIssueLevel = getActivitySaveIssueLevel(form.issueLevel, hasIssue);
     const memo = form.memo.trim();
     const issueSummary = form.issueSummary.trim();
 
@@ -1541,7 +1557,7 @@ export function ActivityNew({ user, currentUser, data, actions, navigate, initia
       healthStatus: form.issueLevel === "urgent" ? "danger" : form.issueLevel === "need_check" ? "caution" : "good",
       memo,
       hasIssue,
-      issueLevel: form.issueLevel,
+      issueLevel: savedIssueLevel,
       issueSummary: hasIssue ? issueSummary || "이상징후 확인 필요" : "",
       status: "completed",
       createdAt: now,
@@ -1557,12 +1573,13 @@ export function ActivityNew({ user, currentUser, data, actions, navigate, initia
       checkerEmail: activeUser.email || null,
       checkType: form.checkType,
       checkedAt: now,
-      checkItems: getCheckItemLabels(checkItems),
-      conditionSummary: hasIssue ? issueSummary || "이상징후 확인 필요" : null,
+      checkItems,
+      conditionSummary: `확인 유형: ${getCheckerHistoryCheckTypeLabel(form.checkType)} / 결과: ${hasIssue ? "확인 필요" : "이상징후 없음"} / 이상징후: ${hasIssue ? "있음" : "없음"} / 위험도: ${savedIssueLevel} / 확인 항목: ${getCheckItemLabels(checkItems).join(", ")}`,
       memo,
       hasIssue,
-      issueLevel: form.issueLevel,
+      issueLevel: savedIssueLevel,
       issueSummary: hasIssue ? issueSummary || "이상징후 확인 필요" : "",
+      status: "completed",
     };
 
     actions.addActivityRecord(localRecord);

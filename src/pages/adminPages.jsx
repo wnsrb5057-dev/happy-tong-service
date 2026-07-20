@@ -675,8 +675,16 @@ function getAdminActivityHasIssue(record) {
     return true;
   }
 
+  if (record?.hasIssue === false || record?.has_issue === false) {
+    return false;
+  }
+
   if (["danger", "high", "warning", "urgent", "caution", "emergency"].includes(riskValue)) {
     return true;
+  }
+
+  if (["none", "normal", "good"].includes(riskValue)) {
+    return false;
   }
 
   if (

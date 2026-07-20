@@ -20,6 +20,18 @@ function trimOrNull(value) {
   return isNonEmptyString(value) ? value.trim() : null;
 }
 
+function normalizeBoolean(value) {
+  if (typeof value === "boolean") {
+    return value;
+  }
+
+  if (typeof value === "string") {
+    return value.toLowerCase() === "true";
+  }
+
+  return Boolean(value);
+}
+
 function parseRequestBody(body) {
   if (!body) {
     return null;
@@ -259,15 +271,54 @@ function normalizeCheckType(value) {
   return trimOrNull(value) || "생활 확인";
 }
 
+function normalizeHasIssue(body) {
+  return normalizeBoolean(body.hasIssue ?? body.has_issue);
+}
+
+function normalizeIssueLevel(body) {
+  const explicitIssueLevel = trimOrNull(body.issueLevel ?? body.issue_level);
+  const hasIssue = normalizeHasIssue(body);
+
+  if (explicitIssueLevel && !(hasIssue && explicitIssueLevel === "none")) {
+    return explicitIssueLevel;
+  }
+
+  return hasIssue ? "warning" : "none";
+}
+
+function normalizeCheckItemsForInsert(value) {
+  if (Array.isArray(value)) {
+    return value;
+  }
+
+  if (value && typeof value === "object") {
+    return value;
+  }
+
+  return [];
+}
+
+function normalizeRecordStatus(value) {
+  return trimOrNull(value) || "completed";
+}
+
 function buildInsertPayload(body, resolvedOrganizationId, resolvedTarget, resolvedChecker) {
+  const checkItems = body.checkItems ?? body.check_items;
+  const checkedAt = normalizeCheckedAt(body.checkedAt);
+
   return {
     organization_id: resolvedOrganizationId,
     target_id: resolvedTarget.id,
     checker_id: resolvedChecker.id,
     check_type: normalizeCheckType(body.checkType),
-    checked_at: normalizeCheckedAt(body.checkedAt),
+    checked_at: checkedAt,
     condition_summary: summarizeCondition(body),
     memo: trimOrNull(body.memo),
+    has_issue: normalizeHasIssue(body),
+    issue_level: normalizeIssueLevel(body),
+    check_items: normalizeCheckItemsForInsert(checkItems),
+    status: normalizeRecordStatus(body.status),
+    created_at: checkedAt,
   };
 }
 
