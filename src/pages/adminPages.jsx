@@ -603,6 +603,46 @@ function getDisplayRecordStatus(record) {
   return record?.resultStatusLabel || recordStatusLabels[rawStatus] || rawStatus;
 }
 
+function getAdminActivityCheckTypeLabel(checkType) {
+  const labels = {
+    call: "전화 확인",
+    phone: "전화 확인",
+    visit: "방문 확인",
+    home_visit: "방문 확인",
+    external_check: "외부 확인",
+    outside: "외부 확인",
+    trash_check: "문전 확인",
+    door_check: "문전 확인",
+  };
+
+  return labels[checkType] || activityTypeLabels[checkType] || checkTypeLabels[checkType] || checkType || "확인";
+}
+
+function normalizeAdminActivitySummary(text) {
+  if (!text) {
+    return "";
+  }
+
+  return String(text)
+    .replaceAll("external_check", "외부 확인")
+    .replaceAll("home_visit", "방문 확인")
+    .replaceAll("trash_check", "문전 확인")
+    .replaceAll("door_check", "문전 확인")
+    .replaceAll("callStatus:missed", "통화 미연결")
+    .replaceAll("callStatus:connected", "통화 연결")
+    .replaceAll("welfareStatus:issue", "생활상태 확인 필요")
+    .replaceAll("welfareStatus:normal", "생활상태 양호")
+    .replaceAll("supportNeed:unknown", "지원 필요 여부 미확인")
+    .replaceAll("supportNeed:needed", "지원 필요")
+    .replaceAll("supportNeed:none", "지원 불필요")
+    .replaceAll("위험도: none", "위험도 없음")
+    .replaceAll("위험도:none", "위험도 없음")
+    .replaceAll("확인 유형: call", "확인 유형: 전화 확인")
+    .replaceAll("확인 유형: phone", "확인 유형: 전화 확인")
+    .replaceAll("체크 유형: call", "체크 유형: 전화 확인")
+    .replaceAll("체크 유형: phone", "체크 유형: 전화 확인");
+}
+
 function normalizeLocalAdminActivityRecord(record, targets, users) {
   const resultStatus = record?.resultStatus || record?.status || "normal";
   const checkType = getCheckType(record);
@@ -614,8 +654,7 @@ function normalizeLocalAdminActivityRecord(record, targets, users) {
     targetAddress: targetById(targets, record.targetId)?.address || "-",
     checkerName: checkerName(users, record.checkerId),
     checkType,
-    checkTypeLabel:
-      activityTypeLabels[checkType] || checkTypeLabels[checkType] || checkType,
+    checkTypeLabel: getAdminActivityCheckTypeLabel(checkType),
     resultStatus,
     resultStatusLabel: recordStatusLabels[resultStatus] || resultStatus || "이상 없음",
     checkedAt: record.checkedAt || record.date || record.createdAt || null,
@@ -626,6 +665,30 @@ function normalizeLocalAdminActivityRecord(record, targets, users) {
 function getRecordIssueState(record) {
   const resultStatus = record?.resultStatus || record?.status || "normal";
   return resultStatus === "caution" || resultStatus === "emergency";
+}
+
+function getAdminActivityHasIssue(record) {
+  const summary = String(record?.conditionSummary || record?.condition_summary || record?.memo || "");
+  const riskValue = record?.riskLevel || record?.risk_level || record?.issueLevel || record?.issue_level || "";
+
+  if (record?.hasIssue === true || record?.has_issue === true) {
+    return true;
+  }
+
+  if (["danger", "high", "warning", "urgent", "caution", "emergency"].includes(riskValue)) {
+    return true;
+  }
+
+  if (
+    summary.includes("위험도: none") ||
+    summary.includes("위험도 없음") ||
+    summary.includes("이상 없음") ||
+    summary.includes("이상징후 없음")
+  ) {
+    return false;
+  }
+
+  return getRecordIssueState(record);
 }
 
 function getCheckerAreaValue(checker) {
@@ -2381,7 +2444,7 @@ export function AdminActivities({ data, currentUser }) {
     return bTime - aTime;
   });
   const filteredRecords = records.filter((record) => {
-    if (filter === "issue") return record.hasIssue || record.issueLevel === "need_check" || record.issueLevel === "urgent" || getRecordIssueState(record);
+    if (filter === "issue") return getAdminActivityHasIssue(record);
     if (filter === "pending") return (record.resultStatus || record.status) !== "completed";
     if (filter === "today") return (record.date || String(record.checkedAt || "").slice(0, 10)) === today;
     return true;
@@ -2405,7 +2468,7 @@ export function AdminActivities({ data, currentUser }) {
       <Card className="summary-card">
         <p className="eyebrow">기록 현황</p>
         <strong>전체 {records.length}건 · 오늘 {records.filter((record) => (record.date || String(record.checkedAt || "").slice(0, 10)) === today).length}건</strong>
-        <span>이상징후 포함 {records.filter((record) => record.hasIssue || record.issueLevel === "need_check" || record.issueLevel === "urgent" || getRecordIssueState(record)).length}건 · 미완료 {records.filter((record) => (record.resultStatus || record.status) !== "completed").length}건</span>
+        <span>이상징후 포함 {records.filter((record) => getAdminActivityHasIssue(record)).length}건 · 미완료 {records.filter((record) => (record.resultStatus || record.status) !== "completed").length}건</span>
       </Card>
 
       <div className="filter-tabs activity-filter-tabs" aria-label="확인 기록 필터">
@@ -2427,23 +2490,30 @@ export function AdminActivities({ data, currentUser }) {
 </div>
 
       <div className="stack admin-activity-list">
-        {filteredRecords.map((record) => (
+        {filteredRecords.map((record) => {
+          const hasIssue = getAdminActivityHasIssue(record);
+          const checkTypeLabel = getAdminActivityCheckTypeLabel(getCheckType(record));
+          const detailSummary = normalizeAdminActivitySummary(
+            record.conditionSummary || record.condition_summary || record.issueSummary || record.memo
+          );
+
+          return (
           <Card key={record.id} className="admin-activity-card">
           <div className="admin-activity-primary">
             <strong>{record.targetName || targetName(targets, record.targetId)}</strong>
             <p className="muted">
-              {formatRecordDisplayDate(record)} · {record.checkerName || checkerName(users, record.checkerId)} · {record.checkTypeLabel || activityTypeLabels[getCheckType(record)]}
+              {formatRecordDisplayDate(record)} · {record.checkerName || checkerName(users, record.checkerId)} · {checkTypeLabel}
             </p>
           </div>
         
           <p className="muted admin-activity-memo">
-            {truncateText(record.targetAddress || record.memo || "상세 메모 없음")}
+            {truncateText(record.targetAddress || detailSummary || "상세 메모 없음")}
           </p>
         
           <div className="badge-row compact-badges admin-activity-badges">
-            <StatusBadge type="health" value={getRecordIssueState(record) ? "caution" : record.healthStatus || "good"} />
-            <span className={record.hasIssue || record.issueLevel !== "none" || getRecordIssueState(record) ? "badge badge-risk-danger" : "badge badge-muted"}>
-              {record.hasIssue || record.issueLevel !== "none" || getRecordIssueState(record) ? "이상징후 있음" : "이상징후 없음"}
+            <StatusBadge type="health" value={hasIssue ? "caution" : record.healthStatus || "good"} />
+            <span className={hasIssue ? "badge badge-risk-danger" : "badge badge-muted"}>
+              {hasIssue ? "이상징후 있음" : "이상징후 없음"}
             </span>
             {(record.resultStatus || record.status) && (record.resultStatus || record.status) !== "normal" ? (
               <StatusBadge type="record" value={record.resultStatus || record.status} />
@@ -2462,14 +2532,16 @@ export function AdminActivities({ data, currentUser }) {
             <div className="detail-box admin-activity-detail-box">
               <p>대상자 주소: {record.targetAddress || "-"}</p>
               <p>체커: {record.checkerName || checkerName(users, record.checkerId)}</p>
-              <p>체크 유형: {record.checkTypeLabel || activityTypeLabels[getCheckType(record)]}</p>
+              <p>체크 유형: {checkTypeLabel}</p>
               <p>결과 상태: {getDisplayRecordStatus(record) || "상태 없음"}</p>
+              {detailSummary ? <p>확인 내용: {detailSummary}</p> : null}
               <p>생성일: {formatSafeDateLabel(record.createdAt)}</p>
-              {record.issueSummary ? <p className="danger-text">{record.issueSummary}</p> : null}
+              {record.issueSummary ? <p className="danger-text">{normalizeAdminActivitySummary(record.issueSummary)}</p> : null}
             </div>
           ) : null}
         </Card>
-        ))}
+          );
+        })}
       </div>
     </>
   );
