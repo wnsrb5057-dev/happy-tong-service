@@ -1,7 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-const DEBUG_VERSION = "activity-create-organization-debug-v4";
+const UUID_LIKE_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const DEBUG_VERSION = "activity-create-uuid-like-v5";
 
 function createCodeError(code, message = code) {
   const error = new Error(message);
@@ -13,8 +13,8 @@ function isNonEmptyString(value) {
   return typeof value === "string" && value.trim().length > 0;
 }
 
-function isUuid(value) {
-  return isNonEmptyString(value) && UUID_PATTERN.test(value.trim());
+function isUuidLike(value) {
+  return isNonEmptyString(value) && UUID_LIKE_PATTERN.test(value.trim());
 }
 
 function trimOrNull(value) {
@@ -95,17 +95,17 @@ async function resolveChecker(supabase, body) {
 
   const queries = [];
 
-  if (isUuid(checkerId)) {
+  if (isUuidLike(checkerId)) {
     queries.push({
       resolveBy: "checkerId",
-      query: supabase.from("users").select(baseSelect).eq("id", checkerId).eq("role", "checker").limit(1),
+      query: supabase.from("users").select(baseSelect).eq("id", checkerId).eq("role", "checker").maybeSingle(),
     });
   }
 
-  if (isUuid(checkerUserId) && checkerUserId !== checkerId) {
+  if (isUuidLike(checkerUserId) && checkerUserId !== checkerId) {
     queries.push({
       resolveBy: "checkerUserId",
-      query: supabase.from("users").select(baseSelect).eq("id", checkerUserId).eq("role", "checker").limit(1),
+      query: supabase.from("users").select(baseSelect).eq("id", checkerUserId).eq("role", "checker").maybeSingle(),
     });
   }
 
@@ -139,7 +139,7 @@ async function resolveChecker(supabase, body) {
       throw createCodeError("INTERNAL_ERROR");
     }
 
-    const rows = Array.isArray(data) ? data : [];
+    const rows = Array.isArray(data) ? data : data ? [data] : [];
     if (!rows.length) {
       continue;
     }
@@ -156,7 +156,7 @@ async function resolveTarget(supabase, body, organizationId) {
   const targetName = trimOrNull(body.targetName);
   const baseSelect = "id, organization_id, name";
 
-  if (isUuid(targetId)) {
+  if (isUuidLike(targetId)) {
     const { data, error } = await supabase
       .from("targets")
       .select(baseSelect)
@@ -215,7 +215,7 @@ async function resolveOrganization(supabase, candidateOrganizationId, debugState
     return null;
   }
 
-  if (!isUuid(candidateOrganizationId)) {
+  if (!isUuidLike(candidateOrganizationId)) {
     return null;
   }
 
@@ -287,7 +287,7 @@ async function buildOrganizationNotFoundDebug(supabase, debugState) {
     debug: {
       supabaseHost: getSupabaseHost(),
       organizationIdProvided: Boolean(debugState.organizationId),
-      organizationIdLooksUuid: isUuid(debugState.organizationId),
+      organizationIdLooksUuid: isUuidLike(debugState.organizationId),
       organizationIdLength: debugState.organizationId ? debugState.organizationId.length : 0,
       organizationIdLast4: getLast4(debugState.organizationId) || "",
       organizationDirectQueryAttempted: debugState.organizationDirectQueryAttempted,
@@ -395,7 +395,7 @@ export default async function handler(req, res) {
     }
 
     const targetLookupOrganizationId =
-      (isUuid(normalizedOrganizationId) ? normalizedOrganizationId : null) ||
+      (isUuidLike(normalizedOrganizationId) ? normalizedOrganizationId : null) ||
       resolvedChecker.organization_id ||
       null;
 
@@ -418,7 +418,7 @@ export default async function handler(req, res) {
     }
 
     if (
-      isUuid(normalizedOrganizationId) &&
+      isUuidLike(normalizedOrganizationId) &&
       resolvedTarget.organization_id &&
       resolvedTarget.organization_id !== normalizedOrganizationId
     ) {
@@ -430,7 +430,7 @@ export default async function handler(req, res) {
       );
     }
 
-    const requestedOrganizationId = isUuid(normalizedOrganizationId) ? normalizedOrganizationId : null;
+    const requestedOrganizationId = isUuidLike(normalizedOrganizationId) ? normalizedOrganizationId : null;
     let resolvedOrganization = null;
     let resolvedOrganizationId = null;
     const organizationDebugState = {
@@ -451,7 +451,7 @@ export default async function handler(req, res) {
       }
     }
 
-    if (!resolvedOrganization && isUuid(resolvedTarget.organization_id)) {
+    if (!resolvedOrganization && isUuidLike(resolvedTarget.organization_id)) {
       organizationDebugState.fallbackFromTargetAttempted = true;
       resolvedOrganization = await resolveOrganization(supabase, resolvedTarget.organization_id);
       if (resolvedOrganization) {
@@ -459,7 +459,7 @@ export default async function handler(req, res) {
       }
     }
 
-    if (!resolvedOrganization && isUuid(resolvedChecker.organization_id)) {
+    if (!resolvedOrganization && isUuidLike(resolvedChecker.organization_id)) {
       organizationDebugState.fallbackFromCheckerAttempted = true;
       resolvedOrganization = await resolveOrganization(supabase, resolvedChecker.organization_id);
       if (resolvedOrganization) {
