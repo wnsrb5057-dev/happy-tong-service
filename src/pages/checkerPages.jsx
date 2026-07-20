@@ -22,6 +22,7 @@ import { getSupabaseCheckerHome } from "../services/supabaseCheckerHomeService.j
 import { getSupabaseCheckerTargetById, getSupabaseCheckerTargets } from "../services/supabaseCheckerTargetsService.js";
 import { getSupabaseCheckerActivityHistory } from "../services/supabaseCheckerActivityHistoryService.js";
 import { getSupabaseCheckerActivityFormTargets } from "../services/supabaseCheckerActivityFormTargetsService.js";
+import { createSupabaseActivityRecord } from "../services/supabaseActivityRecordsWriteService.js";
 import {
   detectDevicePlatform,
   getNotificationCtaForRole,
@@ -137,6 +138,12 @@ function findLocalTargetId(targets, supabaseTarget) {
 
   const nameMatch = targets.find((target) => target.name === supabaseTarget?.name);
   return nameMatch?.id || "";
+}
+
+function getCheckItemLabels(checkItems) {
+  return Object.entries(checkItems || {})
+    .filter(([, value]) => Boolean(value))
+    .map(([key, value]) => `${key}:${value}`);
 }
 
 function buildCheckerTargetDetailPath(target) {
@@ -1450,7 +1457,7 @@ export function ActivityNew({ user, currentUser, data, actions, navigate, initia
     const issueSummary = form.issueSummary.trim();
 
     const now = new Date().toISOString();
-    actions.addActivityRecord({
+    const localRecord = {
       id: `record-${Date.now()}`,
       targetId: selectedTarget.localDetailTargetId,
       checkerId: user.id,
@@ -1467,6 +1474,32 @@ export function ActivityNew({ user, currentUser, data, actions, navigate, initia
       status: "completed",
       createdAt: now,
       updatedAt: now,
+    };
+    const supabasePayload = {
+      organizationId: activeUser.organizationId || activeUser.organization_id || selectedTarget.organizationId || selectedTarget.organization_id || null,
+      targetId: selectedTarget.id || selectedTarget.localDetailTargetId,
+      targetName: selectedTarget.name || null,
+      checkerId: activeUser.id || null,
+      checkerUserId: checkerSupabaseId || activeUser.supabaseUserId || activeUser.supabase_user_id || null,
+      checkerUsername: activeUser.username || null,
+      checkerEmail: activeUser.email || null,
+      checkType: form.checkType,
+      checkedAt: now,
+      checkItems: getCheckItemLabels(checkItems),
+      conditionSummary: hasIssue ? issueSummary || "이상징후 확인 필요" : null,
+      memo,
+      hasIssue,
+      issueLevel: form.issueLevel,
+      issueSummary: hasIssue ? issueSummary || "이상징후 확인 필요" : "",
+    };
+
+    actions.addActivityRecord(localRecord);
+    void createSupabaseActivityRecord(supabasePayload).then((result) => {
+      if (!result.success) {
+        console.warn("[checker-activity-new] SUPABASE_ACTIVITY_RECORD_SYNC_FAILED", {
+          code: result.code || null,
+        });
+      }
     });
     navigate("/checker/activity/history?saved=1");
   }
