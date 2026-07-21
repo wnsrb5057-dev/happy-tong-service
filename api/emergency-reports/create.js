@@ -204,22 +204,32 @@ function normalizeReportedAt(value) {
   return parsed.toISOString();
 }
 
-function normalizeSeverity(body) {
-  const value = trimOrNull(body.severity ?? body.issueLevel);
+function normalizeEmergencySeverity(value) {
+  const normalized = String(value || "").trim().toLowerCase();
 
-  if (value === "high") {
+  if (["urgent", "emergency", "danger", "high", "critical"].includes(normalized)) {
     return "urgent";
   }
 
-  if (value === "low" || value === "medium" || value === "need_check") {
+  if (["caution", "warning", "need_check", "issue", "needed", "abnormal", "low", "medium"].includes(normalized)) {
     return "caution";
   }
 
-  return value || "caution";
+  if (["normal", "none", "good", "ok"].includes(normalized)) {
+    return "normal";
+  }
+
+  return "caution";
 }
 
-function normalizeStatus(value) {
-  return trimOrNull(value) || "received";
+function normalizeEmergencyStatus(value) {
+  const normalized = String(value || "").trim().toLowerCase();
+
+  if (["received", "checking", "contacted", "visiting", "completed"].includes(normalized)) {
+    return normalized;
+  }
+
+  return "received";
 }
 
 function buildInsertPayload(body, resolvedOrganizationId, resolvedTarget, resolvedChecker) {
@@ -233,8 +243,8 @@ function buildInsertPayload(body, resolvedOrganizationId, resolvedTarget, resolv
     target_id: resolvedTarget.id,
     checker_id: resolvedChecker?.id || null,
     type,
-    severity: normalizeSeverity(body),
-    status: normalizeStatus(body.status),
+    severity: normalizeEmergencySeverity(body.severity ?? body.issueLevel),
+    status: normalizeEmergencyStatus(body.status),
     title,
     description: trimOrNull(body.description ?? body.content ?? body.memo) || "",
     reported_at: reportedAt,
