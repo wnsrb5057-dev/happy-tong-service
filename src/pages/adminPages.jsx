@@ -52,6 +52,11 @@ import { getSupabaseAdminActivityRecords } from "../services/supabaseAdminActivi
 import { getSupabaseAdminStatistics } from "../services/supabaseAdminStatisticsService.js";
 import { getSupabaseAdminReportSummary } from "../services/supabaseAdminReportSummaryService.js";
 import { updateSupabaseEmergencyStatus } from "../services/supabaseEmergencyStatusUpdateService.js";
+import {
+  createSupabaseTarget,
+  updateSupabaseTarget,
+  updateSupabaseTargetStatus,
+} from "../services/supabaseTargetsWriteService.js";
 
 function getToday() {
   const now = new Date();
@@ -2386,6 +2391,20 @@ export function AdminTargetDetail({ targetId, data, actions, navigate, currentUs
       lifecycleStatus: "ended",
     });
 
+    void updateSupabaseTargetStatus({
+      targetId: target.id,
+      organizationId: target.organizationId || target.organization_id || adminSupabaseOrganizationId || null,
+      lifecycleStatus: "ended",
+      status: "ended",
+      reason: "관리종료",
+    }).then((result) => {
+      if (!result.success) {
+        console.warn("[admin-target-detail] SUPABASE_TARGET_STATUS_SYNC_FAILED", {
+          code: result.code || null,
+        });
+      }
+    });
+
     navigate("/admin/targets");
   }}
 >
@@ -3870,6 +3889,10 @@ export function AdminReportPreview({ data, currentUser }) {
 
 export function AdminTargetEdit({ targetId, data, actions, navigate }) {
   const target = data.targets.find((item) => item.id === targetId);
+  const adminSupabaseOrganizationId = useMemo(
+    () => resolveAdminSupabaseOrganizationId(null, data),
+    [data]
+  );
   const checkerOptions = data.users.filter((user) => user.role === "checker");
   const dayOptions = ["월", "화", "수", "목", "금", "토", "일"];
   const initialCheckDays = Array.isArray(target?.checkDays)
@@ -3943,7 +3966,7 @@ export function AdminTargetEdit({ targetId, data, actions, navigate }) {
       return;
     }
 
-    actions.updateTarget(target.id, {
+    const targetUpdates = {
       name: trimmedName,
       age: parsedAge,
       gender: form.gender,
@@ -3959,6 +3982,21 @@ export function AdminTargetEdit({ targetId, data, actions, navigate }) {
       medicationNote: form.medicationNote.trim(),
       guardianName: form.guardianName.trim(),
       guardianPhone: form.guardianPhone.trim(),
+    };
+
+    actions.updateTarget(target.id, targetUpdates);
+    void updateSupabaseTarget({
+      targetId: target.id,
+      organizationId: target.organizationId || target.organization_id || adminSupabaseOrganizationId || null,
+      ...targetUpdates,
+      healthNote: targetUpdates.healthStatus,
+      lifecycleStatus: target.lifecycleStatus || "active",
+    }).then((result) => {
+      if (!result.success) {
+        console.warn("[admin-target-edit] SUPABASE_TARGET_SYNC_FAILED", {
+          code: result.code || null,
+        });
+      }
     });
 
     navigate(`/admin/targets/${target.id}`);
@@ -4117,6 +4155,10 @@ export function AdminTargetEdit({ targetId, data, actions, navigate }) {
 }
 
 export function AdminTargetNew({ data, actions, navigate }) {
+  const adminSupabaseOrganizationId = useMemo(
+    () => resolveAdminSupabaseOrganizationId(null, data),
+    [data]
+  );
   const checkerOptions = data.users.filter((user) => user.role === "checker");
   const dayOptions = ["월", "화", "수", "목", "금", "토", "일"];
   const [form, setForm] = useState(() => ({
@@ -4200,6 +4242,32 @@ export function AdminTargetNew({ data, actions, navigate }) {
     };
 
     actions.addTarget(newTarget);
+    void createSupabaseTarget({
+      organizationId: adminSupabaseOrganizationId,
+      assignedCheckerId: newTarget.assignedCheckerId,
+      name: newTarget.name,
+      age: newTarget.age,
+      gender: newTarget.gender,
+      phone: newTarget.phone || null,
+      address: newTarget.address,
+      riskLevel: newTarget.riskLevel,
+      defaultCheckType: newTarget.defaultCheckType,
+      checkDays: newTarget.checkDays,
+      checkTime: newTarget.checkTime,
+      healthNote: newTarget.healthStatus,
+      healthStatus: newTarget.healthStatus,
+      cautionNote: newTarget.cautionNote,
+      medicationNote: newTarget.medicationNote,
+      guardianName: newTarget.guardianName,
+      guardianPhone: newTarget.guardianPhone,
+      lifecycleStatus: newTarget.lifecycleStatus,
+    }).then((result) => {
+      if (!result.success) {
+        console.warn("[admin-target-new] SUPABASE_TARGET_SYNC_FAILED", {
+          code: result.code || null,
+        });
+      }
+    });
     navigate(`/admin/targets/${newTarget.id}`);
   }
 
