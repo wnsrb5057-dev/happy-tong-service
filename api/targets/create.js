@@ -99,18 +99,80 @@ async function resolveOrganization(supabase, organizationId) {
   return data || null;
 }
 
-async function resolveAssignedCheckerId(supabase, checkerId) {
-  if (!checkerId) return { checkerId: null, warning: null };
-  if (!isUuidLike(checkerId)) return { checkerId: null, warning: "ASSIGNED_CHECKER_NOT_FOUND" };
+function uniqueValues(values) {
+  return [...new Set(values.map((value) => trimOrNull(value)).filter(Boolean))];
+}
+
+function getCheckerNameCandidates(value) {
+  const rawName = trimOrNull(value);
+  if (!rawName) return [];
+
+  const withoutRoleSuffix = rawName.replace(/\s*체커$/u, "").trim();
+  return uniqueValues([rawName, withoutRoleSuffix]);
+}
+
+function getAssignedCheckerLookup(body) {
+  return {
+    id: trimOrNull(body.assignedCheckerId ?? body.assigned_checker_id ?? body.checkerId ?? body.checker_id),
+    email: trimOrNull(body.assignedCheckerEmail ?? body.checkerEmail ?? body.email),
+    username: trimOrNull(body.assignedCheckerUsername ?? body.checkerUsername ?? body.username),
+    names: uniqueValues([
+      ...getCheckerNameCandidates(body.assignedCheckerName),
+      ...getCheckerNameCandidates(body.checkerName),
+      ...getCheckerNameCandidates(body.assignedChecker),
+      ...getCheckerNameCandidates(body.checker),
+    ]),
+  };
+}
+
+function pickCheckerRow(rows, organizationId) {
+  if (!Array.isArray(rows) || !rows.length) return null;
+
+  return (
+    rows.find((row) => row.organization_id === organizationId && (row.status || "active") === "active") ||
+    rows.find((row) => row.organization_id === organizationId) ||
+    rows.find((row) => (row.status || "active") === "active") ||
+    rows[0]
+  );
+}
+
+async function findCheckerByColumn(supabase, organizationId, column, value) {
+  const candidate = trimOrNull(value);
+  if (!candidate) return null;
 
   const { data, error } = await supabase
     .from("users")
-    .select("id")
-    .eq("id", checkerId)
-    .maybeSingle();
+    .select("id, organization_id, role, status")
+    .eq(column, candidate)
+    .eq("role", "checker")
+    .limit(5);
 
   if (error) throw createCodeError("ASSIGNED_CHECKER_NOT_FOUND");
-  return data?.id ? { checkerId: data.id, warning: null } : { checkerId: null, warning: "ASSIGNED_CHECKER_NOT_FOUND" };
+  return pickCheckerRow(data, organizationId);
+}
+
+async function resolveAssignedCheckerId(supabase, body, organizationId) {
+  const lookup = getAssignedCheckerLookup(body);
+
+  if (!lookup.id && !lookup.email && !lookup.username && !lookup.names.length) {
+    return { checkerId: null, warning: null };
+  }
+
+  if (isUuidLike(lookup.id)) {
+    const row = await findCheckerByColumn(supabase, organizationId, "id", lookup.id);
+    if (row?.id) return { checkerId: row.id, warning: null };
+  }
+
+  const emailRow = await findCheckerByColumn(supabase, organizationId, "email", lookup.email);
+  if (emailRow?.id) return { checkerId: emailRow.id, warning: null };
+
+  const usernameCandidates = uniqueValues([lookup.username, ...lookup.names]);
+  for (const username of usernameCandidates) {
+    const usernameRow = await findCheckerByColumn(supabase, organizationId, "username", username);
+    if (usernameRow?.id) return { checkerId: usernameRow.id, warning: null };
+  }
+
+  return { checkerId: null, warning: "ASSIGNED_CHECKER_NOT_FOUND" };
 }
 
 function buildInsertPayload(body, organizationId, assignedCheckerId) {
@@ -157,8 +219,7 @@ export default async function handler(req, res) {
     const organization = await resolveOrganization(supabase, organizationId);
     if (!organization) return respondWithError(res, 400, "ORGANIZATION_NOT_FOUND");
 
-    const assignedCheckerCandidate = trimOrNull(body.assignedCheckerId ?? body.assigned_checker_id ?? body.checkerId);
-    const assignedChecker = await resolveAssignedCheckerId(supabase, assignedCheckerCandidate);
+    const assignedChecker = await resolveAssignedCheckerId(supabase, body, organization.id);
     const insertPayload = buildInsertPayload(body, organization.id, assignedChecker.checkerId);
 
     const { data, error } = await supabase

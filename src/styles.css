@@ -9797,3 +9797,38 @@ button.upload-box {
     line-height: 1.25;
   }
 }
+
+.app-shell-admin .admin-target-card {
+  border-radius: 12px;
+}
+
+.app-shell-admin .admin-target-card-ended {
+  background: #f8fafc;
+  border-color: #d8e0ea;
+}
+
+.app-shell-admin .admin-target-card-ended .admin-target-primary,
+.app-shell-admin .admin-target-card-ended .admin-target-meta {
+  opacity: 0.78;
+}
+
+.app-shell-admin .admin-target-card .admin-target-actions {
+  align-items: flex-end;
+}
+
+.app-shell-admin .admin-target-card .admin-target-secondary-badges {
+  align-items: flex-end;
+  text-align: right;
+}
+
+@media (max-width: 720px) {
+  .app-shell-admin .admin-target-card .admin-target-content {
+    grid-template-columns: 1fr;
+  }
+
+  .app-shell-admin .admin-target-card .admin-target-actions,
+  .app-shell-admin .admin-target-card .admin-target-secondary-badges {
+    align-items: flex-start;
+    text-align: left;
+  }
+}

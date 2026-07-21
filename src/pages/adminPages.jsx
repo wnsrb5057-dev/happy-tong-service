@@ -156,6 +156,20 @@ function getAssignedCheckerForTarget(target, users) {
   );
 }
 
+function buildAssignedCheckerPayload(users, assignedCheckerId, fallbackTarget = {}) {
+  const resolvedCheckerId = assignedCheckerId || fallbackTarget.assignedCheckerId || fallbackTarget.assigned_checker_id || "";
+  const checker = checkerById(users, resolvedCheckerId) || getAssignedCheckerForTarget(fallbackTarget, users);
+
+  return {
+    assignedCheckerId: resolvedCheckerId,
+    checkerId: resolvedCheckerId,
+    assignedCheckerName: checker?.name || fallbackTarget.checkerName || "",
+    checkerName: checker?.name || fallbackTarget.checkerName || "",
+    checkerUsername: checker?.username || fallbackTarget.checkerUsername || "",
+    checkerEmail: checker?.email || fallbackTarget.checkerEmail || "",
+  };
+}
+
 const SUPABASE_ADMIN_ORGANIZATION_ID_MAP = {
   "org-eunpyeong-care": "11111111-1111-1111-1111-111111111111",
   "org-chungju-pungdong": "22222222-2222-2222-2222-222222222222",
@@ -2267,10 +2281,9 @@ export function AdminTargets({ data, navigate, currentUser }) {
 
       <div className="stack">
         {filteredTargets.length ? filteredTargets.map((target) => (
-          <article className={`target-card admin-target-card risk-card-${target.riskLevel}`} key={target.id}>
+          <article className={`target-card admin-target-card risk-card-${target.riskLevel} ${(target.lifecycleStatus || "active") === "ended" ? "admin-target-card-ended" : ""}`} key={target.id}>
             {(() => {
-              const assignedChecker = getAssignedCheckerForTarget(target, users);
-              const checkerAlert = getTargetCheckerAlert(assignedChecker);
+              const checkerAlert = target.assignedCheckerId ? null : getTargetCheckerAlert(null);
 
               return checkerAlert ? (
                 <div className={`admin-target-alert admin-target-alert-${checkerAlert.tone}`}>
@@ -2410,6 +2423,34 @@ export function AdminTargetDetail({ targetId, data, actions, navigate, currentUs
   const reports = data.emergencyReports.filter((report) => report.targetId === target.id).sort(byLatestDate);
   const confirmMessage = `${target.name}님을 관리 종료 처리할까요?`;
 
+  function handleLifecycleStatusChange(nextStatus) {
+    const isEnding = nextStatus === "ended";
+    const confirmed = window.confirm(isEnding ? confirmMessage : `${target.name}님을 다시 관리 대상자로 전환할까요?`);
+    if (!confirmed) return;
+
+    if (localEditableTargetId) {
+      actions.updateTarget(localEditableTargetId, {
+        lifecycleStatus: nextStatus,
+      });
+    }
+
+    void updateSupabaseTargetStatus({
+      targetId: target.id,
+      organizationId: target.organizationId || target.organization_id || adminSupabaseOrganizationId || null,
+      lifecycleStatus: nextStatus,
+      status: nextStatus,
+      reason: isEnding ? "관리종료" : "재관리시작",
+    }).then((result) => {
+      if (!result.success) {
+        console.warn("[admin-target-detail] SUPABASE_TARGET_STATUS_SYNC_FAILED", {
+          code: result.code || null,
+        });
+      }
+    });
+
+    navigate("/admin/targets");
+  }
+
   return (
     <>
       <PageHeader
@@ -2425,37 +2466,21 @@ export function AdminTargetDetail({ targetId, data, actions, navigate, currentUs
         <Button
   variant="ghost"
   disabled={!target.id}
-  onClick={() => {
-    const confirmed = window.confirm(confirmMessage);
-    if (!confirmed) return;
-
-    if (localEditableTargetId) {
-      actions.updateTarget(localEditableTargetId, {
-        lifecycleStatus: "ended",
-      });
-    }
-
-    void updateSupabaseTargetStatus({
-      targetId: target.id,
-      organizationId: target.organizationId || target.organization_id || adminSupabaseOrganizationId || null,
-      lifecycleStatus: "ended",
-      status: "ended",
-      reason: "관리종료",
-    }).then((result) => {
-      if (!result.success) {
-        console.warn("[admin-target-detail] SUPABASE_TARGET_STATUS_SYNC_FAILED", {
-          code: result.code || null,
-        });
-      }
-    });
-
-    navigate("/admin/targets");
-  }}
+  onClick={() => handleLifecycleStatusChange("ended")}
 >
   {"\uAD00\uB9AC \uC885\uB8CC"}
 </Button>
       ) : (
-        <StatusBadge label={"\uAD00\uB9AC\uC885\uB8CC"} />
+        <>
+          <StatusBadge label={"\uAD00\uB9AC\uC885\uB8CC"} />
+          <Button
+            variant="ghost"
+            disabled={!target.id}
+            onClick={() => handleLifecycleStatusChange("active")}
+          >
+            재관리시작
+          </Button>
+        </>
       )}
     </div>
   }
@@ -2513,10 +2538,6 @@ export function AdminTargetDetail({ targetId, data, actions, navigate, currentUs
           ]}
         />
       </Card>
-      {!localEditableTargetId ? (
-        <p className="notice">이 대상자는 Supabase 읽기 전용 상세로 표시되고 있어 수정과 관리 종료는 아직 지원하지 않습니다.</p>
-      ) : null}
-
       <section className="section-block">
         <SectionTitle title="최근 확인 기록" />
         <div className="stack compact-stack">
@@ -4088,6 +4109,7 @@ export function AdminTargetEdit({ targetId, data, actions, navigate, currentUser
       return;
     }
 
+    const checkerPayload = buildAssignedCheckerPayload(data.users, form.assignedCheckerId, target);
     const targetUpdates = {
       name: trimmedName,
       age: parsedAge,
@@ -4095,7 +4117,8 @@ export function AdminTargetEdit({ targetId, data, actions, navigate, currentUser
       address: trimmedAddress,
       riskLevel: form.riskLevel,
       defaultCheckType: form.defaultCheckType,
-      assignedCheckerId: form.assignedCheckerId || target.assignedCheckerId || target.assigned_checker_id || "",
+      assignedCheckerId: checkerPayload.assignedCheckerId,
+      checkerName: checkerPayload.checkerName,
       checkDays: form.checkDays,
       checkTime: form.checkTime,
       visitTime: form.checkTime,
@@ -4116,6 +4139,7 @@ export function AdminTargetEdit({ targetId, data, actions, navigate, currentUser
       targetId: target.id,
       organizationId: target.organizationId || target.organization_id || adminSupabaseOrganizationId || null,
       ...targetUpdates,
+      ...checkerPayload,
       healthNote: targetUpdates.healthStatus,
       lifecycleStatus: target.lifecycleStatus || "active",
     }).then((result) => {
@@ -4344,6 +4368,7 @@ export function AdminTargetNew({ data, actions, navigate, currentUser }) {
     const todayLabel = ["일", "월", "화", "수", "목", "금", "토"][new Date().getDay()];
     const isTodaySelected = form.checkDays.includes(todayLabel);
     const now = new Date().toISOString();
+    const checkerPayload = buildAssignedCheckerPayload(data.users, form.assignedCheckerId);
     const newTarget = {
       id: `target-${Date.now()}`,
       name: trimmedName,
@@ -4352,7 +4377,8 @@ export function AdminTargetNew({ data, actions, navigate, currentUser }) {
       address: trimmedAddress,
       riskLevel: form.riskLevel,
       defaultCheckType: form.defaultCheckType,
-      assignedCheckerId: form.assignedCheckerId,
+      assignedCheckerId: checkerPayload.assignedCheckerId,
+      checkerName: checkerPayload.checkerName,
       checkDays: form.checkDays,
       checkTime: form.checkTime,
       visitTime: form.checkTime,
@@ -4371,7 +4397,7 @@ export function AdminTargetNew({ data, actions, navigate, currentUser }) {
     actions.addTarget(newTarget);
     void createSupabaseTarget({
       organizationId: adminSupabaseOrganizationId,
-      assignedCheckerId: newTarget.assignedCheckerId,
+      ...checkerPayload,
       name: newTarget.name,
       age: newTarget.age,
       gender: newTarget.gender,

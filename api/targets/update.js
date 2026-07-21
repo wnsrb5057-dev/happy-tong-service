@@ -95,16 +95,93 @@ async function findTarget(supabase, targetId) {
   return data || null;
 }
 
-async function resolveAssignedCheckerId(supabase, checkerId) {
-  if (!checkerId) return null;
-  if (!isUuidLike(checkerId)) return null;
+function uniqueValues(values) {
+  return [...new Set(values.map((value) => trimOrNull(value)).filter(Boolean))];
+}
+
+function getCheckerNameCandidates(value) {
+  const rawName = trimOrNull(value);
+  if (!rawName) return [];
+
+  const withoutRoleSuffix = rawName.replace(/\s*체커$/u, "").trim();
+  return uniqueValues([rawName, withoutRoleSuffix]);
+}
+
+function getAssignedCheckerLookup(body) {
+  return {
+    id: trimOrNull(body.assignedCheckerId ?? body.assigned_checker_id ?? body.checkerId ?? body.checker_id),
+    email: trimOrNull(body.assignedCheckerEmail ?? body.checkerEmail ?? body.email),
+    username: trimOrNull(body.assignedCheckerUsername ?? body.checkerUsername ?? body.username),
+    names: uniqueValues([
+      ...getCheckerNameCandidates(body.assignedCheckerName),
+      ...getCheckerNameCandidates(body.checkerName),
+      ...getCheckerNameCandidates(body.assignedChecker),
+      ...getCheckerNameCandidates(body.checker),
+    ]),
+  };
+}
+
+function hasAssignedCheckerIntent(body) {
+  return [
+    "assignedCheckerId",
+    "assigned_checker_id",
+    "checkerId",
+    "checker_id",
+    "assignedCheckerEmail",
+    "checkerEmail",
+    "assignedCheckerUsername",
+    "checkerUsername",
+    "assignedCheckerName",
+    "checkerName",
+    "assignedChecker",
+    "checker",
+  ].some((key) => Object.prototype.hasOwnProperty.call(body, key));
+}
+
+function pickCheckerRow(rows, organizationId) {
+  if (!Array.isArray(rows) || !rows.length) return null;
+
+  return (
+    rows.find((row) => row.organization_id === organizationId && (row.status || "active") === "active") ||
+    rows.find((row) => row.organization_id === organizationId) ||
+    rows.find((row) => (row.status || "active") === "active") ||
+    rows[0]
+  );
+}
+
+async function findCheckerByColumn(supabase, organizationId, column, value) {
+  const candidate = trimOrNull(value);
+  if (!candidate) return null;
+
   const { data, error } = await supabase
     .from("users")
-    .select("id")
-    .eq("id", checkerId)
-    .maybeSingle();
+    .select("id, organization_id, role, status")
+    .eq(column, candidate)
+    .eq("role", "checker")
+    .limit(5);
+
   if (error) return null;
-  return data?.id || null;
+  return pickCheckerRow(data, organizationId);
+}
+
+async function resolveAssignedCheckerId(supabase, body, organizationId) {
+  const lookup = getAssignedCheckerLookup(body);
+
+  if (isUuidLike(lookup.id)) {
+    const row = await findCheckerByColumn(supabase, organizationId, "id", lookup.id);
+    if (row?.id) return row.id;
+  }
+
+  const emailRow = await findCheckerByColumn(supabase, organizationId, "email", lookup.email);
+  if (emailRow?.id) return emailRow.id;
+
+  const usernameCandidates = uniqueValues([lookup.username, ...lookup.names]);
+  for (const username of usernameCandidates) {
+    const usernameRow = await findCheckerByColumn(supabase, organizationId, "username", username);
+    if (usernameRow?.id) return usernameRow.id;
+  }
+
+  return null;
 }
 
 function buildUpdatePayload(body, assignedCheckerId) {
@@ -130,16 +207,11 @@ function buildUpdatePayload(body, assignedCheckerId) {
 }
 
 async function resolveAssignedCheckerIdForUpdate(supabase, body, existingTarget) {
-  const hasAssignedCheckerField =
-    Object.prototype.hasOwnProperty.call(body, "assignedCheckerId") ||
-    Object.prototype.hasOwnProperty.call(body, "assigned_checker_id") ||
-    Object.prototype.hasOwnProperty.call(body, "checkerId");
-
-  if (!hasAssignedCheckerField) {
+  if (!hasAssignedCheckerIntent(body)) {
     return existingTarget.assigned_checker_id;
   }
 
-  const rawValue = body.assignedCheckerId ?? body.assigned_checker_id ?? body.checkerId;
+  const rawValue = body.assignedCheckerId ?? body.assigned_checker_id ?? body.checkerId ?? body.checker_id;
 
   if (rawValue === null) {
     return null;
@@ -149,12 +221,12 @@ async function resolveAssignedCheckerIdForUpdate(supabase, body, existingTarget)
     return existingTarget.assigned_checker_id;
   }
 
-  const checkerId = trimOrNull(rawValue);
-  if (!checkerId) {
+  const lookup = getAssignedCheckerLookup(body);
+  if (!lookup.id && !lookup.email && !lookup.username && !lookup.names.length) {
     return existingTarget.assigned_checker_id;
   }
 
-  const resolvedCheckerId = await resolveAssignedCheckerId(supabase, checkerId);
+  const resolvedCheckerId = await resolveAssignedCheckerId(supabase, body, existingTarget.organization_id);
   return resolvedCheckerId || existingTarget.assigned_checker_id;
 }
 

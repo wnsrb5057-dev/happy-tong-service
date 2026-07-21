@@ -57,6 +57,18 @@ function normalizeLifecycleStatus(value) {
   if (["deceased", "사망"].includes(normalized)) return "deceased";
   if (["unknown_address", "unknownaddress", "주소불명"].includes(normalized)) return "unknown_address";
   if (["active", "운영중", "운영", "관리중"].includes(normalized)) return "active";
+  if ([
+    "active",
+    "reactivate",
+    "restart",
+    "reopen",
+    "운영",
+    "운영중",
+    "관리",
+    "관리중",
+    "재관리",
+    "재관리시작",
+  ].includes(normalized)) return "active";
   return "active";
 }
 
