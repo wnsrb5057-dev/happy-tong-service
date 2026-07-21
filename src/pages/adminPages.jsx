@@ -4095,7 +4095,7 @@ export function AdminTargetEdit({ targetId, data, actions, navigate, currentUser
       address: trimmedAddress,
       riskLevel: form.riskLevel,
       defaultCheckType: form.defaultCheckType,
-      assignedCheckerId: form.assignedCheckerId,
+      assignedCheckerId: form.assignedCheckerId || target.assignedCheckerId || target.assigned_checker_id || "",
       checkDays: form.checkDays,
       checkTime: form.checkTime,
       visitTime: form.checkTime,

@@ -88,7 +88,7 @@ async function findTarget(supabase, targetId) {
   if (!isUuidLike(targetId)) return null;
   const { data, error } = await supabase
     .from("targets")
-    .select("id, organization_id")
+    .select("id, organization_id, assigned_checker_id")
     .eq("id", targetId)
     .maybeSingle();
   if (error) throw createCodeError("TARGET_QUERY_FAILED");
@@ -109,7 +109,7 @@ async function resolveAssignedCheckerId(supabase, checkerId) {
 
 function buildUpdatePayload(body, assignedCheckerId) {
   return {
-    assigned_checker_id: assignedCheckerId,
+    ...(assignedCheckerId !== undefined ? { assigned_checker_id: assignedCheckerId } : {}),
     name: trimOrNull(body.name),
     age: normalizeAge(body.age),
     gender: trimOrNull(body.gender),
@@ -127,6 +127,35 @@ function buildUpdatePayload(body, assignedCheckerId) {
     lifecycle_status: normalizeLifecycleStatus(body.lifecycleStatus ?? body.lifecycle_status),
     updated_at: new Date().toISOString(),
   };
+}
+
+async function resolveAssignedCheckerIdForUpdate(supabase, body, existingTarget) {
+  const hasAssignedCheckerField =
+    Object.prototype.hasOwnProperty.call(body, "assignedCheckerId") ||
+    Object.prototype.hasOwnProperty.call(body, "assigned_checker_id") ||
+    Object.prototype.hasOwnProperty.call(body, "checkerId");
+
+  if (!hasAssignedCheckerField) {
+    return existingTarget.assigned_checker_id;
+  }
+
+  const rawValue = body.assignedCheckerId ?? body.assigned_checker_id ?? body.checkerId;
+
+  if (rawValue === null) {
+    return null;
+  }
+
+  if (rawValue === "") {
+    return existingTarget.assigned_checker_id;
+  }
+
+  const checkerId = trimOrNull(rawValue);
+  if (!checkerId) {
+    return existingTarget.assigned_checker_id;
+  }
+
+  const resolvedCheckerId = await resolveAssignedCheckerId(supabase, checkerId);
+  return resolvedCheckerId || existingTarget.assigned_checker_id;
 }
 
 export default async function handler(req, res) {
@@ -149,8 +178,7 @@ export default async function handler(req, res) {
       return respondWithError(res, 400, "ORGANIZATION_TARGET_MISMATCH");
     }
 
-    const assignedCheckerCandidate = trimOrNull(body.assignedCheckerId ?? body.assigned_checker_id ?? body.checkerId);
-    const assignedCheckerId = await resolveAssignedCheckerId(supabase, assignedCheckerCandidate);
+    const assignedCheckerId = await resolveAssignedCheckerIdForUpdate(supabase, body, target);
     const updatePayload = buildUpdatePayload(body, assignedCheckerId);
 
     const { error } = await supabase
