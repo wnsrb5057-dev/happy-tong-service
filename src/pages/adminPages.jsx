@@ -57,6 +57,11 @@ import {
   updateSupabaseTarget,
   updateSupabaseTargetStatus,
 } from "../services/supabaseTargetsWriteService.js";
+import {
+  createSupabaseChecker,
+  updateSupabaseChecker,
+  updateSupabaseCheckerStatus,
+} from "../services/supabaseCheckersWriteService.js";
 
 function getToday() {
   const now = new Date();
@@ -1663,7 +1668,11 @@ export function AdminCheckers({ data, actions, currentUser, navigate }) {
   );
 }
 
-export function AdminCheckerNew({ data, actions, navigate }) {
+export function AdminCheckerNew({ data, actions, navigate, currentUser }) {
+  const adminSupabaseOrganizationId = useMemo(
+    () => resolveAdminSupabaseOrganizationId(currentUser, data),
+    [currentUser, data]
+  );
   const [form, setForm] = useState({
     name: "",
     username: "",
@@ -1724,6 +1733,30 @@ export function AdminCheckerNew({ data, actions, navigate }) {
     };
 
     actions.addUser(newChecker);
+    void createSupabaseChecker({
+      organizationId: adminSupabaseOrganizationId || null,
+      username: newChecker.username,
+      loginId: newChecker.loginId,
+      name: newChecker.name,
+      phone: newChecker.phone,
+      region: newChecker.region,
+      area: newChecker.area,
+      status: newChecker.status,
+      activityStatus: newChecker.activityStatus,
+    }).then((result) => {
+      if (result.success && result.checkerId) {
+        actions.updateUser(newChecker.id, {
+          supabaseCheckerId: result.checkerId,
+        });
+        return;
+      }
+
+      if (!result.success) {
+        console.warn("[admin-checker-new] SUPABASE_CHECKER_SYNC_FAILED", {
+          code: result.code || null,
+        });
+      }
+    });
     navigate("/admin/checkers");
   }
 
@@ -1798,10 +1831,14 @@ export function AdminCheckerNew({ data, actions, navigate }) {
   );
 }
 
-export function AdminCheckerDetail({ checkerId, data, actions, navigate }) {
+export function AdminCheckerDetail({ checkerId, data, actions, navigate, currentUser }) {
   const [draftAssignments, setDraftAssignments] = useState([]);
   const [saveMessage, setSaveMessage] = useState("");
   const checker = data.users.find((user) => user.role === "checker" && user.id === checkerId);
+  const adminSupabaseOrganizationId = useMemo(
+    () => resolveAdminSupabaseOrganizationId(currentUser, data),
+    [currentUser, data]
+  );
 
   const assignedTargetIds = useMemo(
     () => data.targets.filter((target) => target.assignedCheckerId === checkerId).map((target) => target.id),
@@ -1854,6 +1891,30 @@ export function AdminCheckerDetail({ checkerId, data, actions, navigate }) {
     }, 2400);
   }
 
+  function handleStatusChange(nextActivityStatus) {
+    const statusLabel = getCheckerStatusLabel(nextActivityStatus);
+    const confirmed = window.confirm(`${checker.name} 체커 상태를 ${statusLabel}(으)로 변경할까요?`);
+    if (!confirmed) return;
+
+    actions.updateUser(checker.id, {
+      status: nextActivityStatus,
+      activityStatus: nextActivityStatus,
+    });
+
+    void updateSupabaseCheckerStatus({
+      checkerId: checker.supabaseCheckerId || checker.id,
+      organizationId: adminSupabaseOrganizationId || checker.organizationId || null,
+      status: nextActivityStatus,
+      activityStatus: nextActivityStatus,
+    }).then((result) => {
+      if (!result.success) {
+        console.warn("[admin-checker-detail] SUPABASE_CHECKER_STATUS_SYNC_FAILED", {
+          code: result.code || null,
+        });
+      }
+    });
+  }
+
   if (!checker || !checkerSummary) {
     return (
       <div className="center-panel">
@@ -1874,6 +1935,20 @@ export function AdminCheckerDetail({ checkerId, data, actions, navigate }) {
             <Button variant="ghost" onClick={() => navigate(`/admin/checkers/${checkerSummary.id}/edit`)}>
               정보 수정
             </Button>
+            {checkerSummary.activityStatus === "paused" || checkerSummary.status === "paused" || checkerSummary.status === "inactive" ? (
+              <Button variant="ghost" onClick={() => handleStatusChange("active")}>
+                활동 재개
+              </Button>
+            ) : (
+              <Button variant="ghost" onClick={() => handleStatusChange("paused")}>
+                일시중지
+              </Button>
+            )}
+            {checkerSummary.activityStatus !== "left" && checkerSummary.status !== "left" ? (
+              <Button variant="ghost" onClick={() => handleStatusChange("left")}>
+                활동종료
+              </Button>
+            ) : null}
             <Button variant="ghost" onClick={() => navigate("/admin/checkers")}>
               목록으로 이동
             </Button>
@@ -1978,8 +2053,12 @@ export function AdminCheckerDetail({ checkerId, data, actions, navigate }) {
   );
 }
 
-export function AdminCheckerEdit({ checkerId, data, actions, navigate }) {
+export function AdminCheckerEdit({ checkerId, data, actions, navigate, currentUser }) {
   const checker = data.users.find((item) => item.id === checkerId && item.role === "checker");
+  const adminSupabaseOrganizationId = useMemo(
+    () => resolveAdminSupabaseOrganizationId(currentUser, data),
+    [currentUser, data]
+  );
   const [form, setForm] = useState(() => ({
     name: checker?.name || "",
     phone: getCheckerPhoneValue(checker),
@@ -2032,6 +2111,26 @@ export function AdminCheckerEdit({ checkerId, data, actions, navigate }) {
       phone: trimmedPhone,
       area: trimmedArea,
       status: form.status,
+      activityStatus: form.status,
+    });
+
+    void updateSupabaseChecker({
+      checkerId: checker.supabaseCheckerId || checker.id,
+      organizationId: adminSupabaseOrganizationId || checker.organizationId || null,
+      username: checker.username || checker.loginId || "",
+      loginId: checker.loginId || checker.username || "",
+      name: trimmedName,
+      phone: trimmedPhone,
+      region: trimmedArea,
+      area: trimmedArea,
+      status: form.status,
+      activityStatus: form.status,
+    }).then((result) => {
+      if (!result.success) {
+        console.warn("[admin-checker-edit] SUPABASE_CHECKER_SYNC_FAILED", {
+          code: result.code || null,
+        });
+      }
     });
 
     navigate(`/admin/checkers/${checker.id}`);

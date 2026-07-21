@@ -437,7 +437,7 @@ function renderPage({ location, user, data, actions, navigate }) {
     }
 
     if (adminCheckerNewMatch) {
-      return <AdminCheckerNew data={data} actions={actions} navigate={navigate} />;
+      return <AdminCheckerNew data={data} actions={actions} navigate={navigate} currentUser={user} />;
     }
 
     if (adminCheckerEditMatch) {
@@ -447,12 +447,13 @@ function renderPage({ location, user, data, actions, navigate }) {
           data={data}
           actions={actions}
           navigate={navigate}
+          currentUser={user}
         />
       );
     }
 
     if (adminCheckerMatch) {
-      return <AdminCheckerDetail checkerId={adminCheckerMatch[1]} data={data} actions={actions} navigate={navigate} />;
+      return <AdminCheckerDetail checkerId={adminCheckerMatch[1]} data={data} actions={actions} navigate={navigate} currentUser={user} />;
     }
 
     if (location.pathname === "/admin/targets") {
