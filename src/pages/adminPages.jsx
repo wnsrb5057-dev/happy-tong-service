@@ -694,6 +694,8 @@ function formatAdminActivityCheckItems(checkItems) {
 
 function getAdminActivityAddress(record, localTarget = null) {
   const address =
+    record?.supabaseTargetAddress ||
+    record?.supabase_target_address ||
     record?.targetAddress ||
     record?.target_address ||
     record?.address ||
@@ -749,7 +751,9 @@ function mergeAdminActivityRecord(localRecord, supabaseRecord) {
     ...localRecord,
     ...supabaseRecord,
     targetName: supabaseRecord.targetName || localRecord.targetName,
-    targetAddress: supabaseRecord.targetAddress || localRecord.targetAddress,
+    supabaseTargetAddress: supabaseRecord.supabaseTargetAddress || supabaseRecord.supabase_target_address || localRecord.supabaseTargetAddress,
+    supabase_target_address: supabaseRecord.supabase_target_address || supabaseRecord.supabaseTargetAddress || localRecord.supabase_target_address,
+    targetAddress: supabaseRecord.supabaseTargetAddress || supabaseRecord.supabase_target_address || supabaseRecord.targetAddress || localRecord.targetAddress,
     checkerName: supabaseRecord.checkerName || localRecord.checkerName,
     memo: supabaseRecord.memo || localRecord.memo,
     conditionSummary: supabaseRecord.conditionSummary || localRecord.conditionSummary,

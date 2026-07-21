@@ -396,6 +396,8 @@ function formatCheckerHistoryCheckItems(checkItems) {
 
 function getCheckerHistoryAddress(record, localTarget = null) {
   const address =
+    record?.supabaseTargetAddress ||
+    record?.supabase_target_address ||
     record?.targetAddress ||
     record?.target_address ||
     record?.address ||
@@ -453,7 +455,9 @@ function mergeCheckerActivityRecord(localRecord, supabaseRecord) {
     ...localRecord,
     ...supabaseRecord,
     targetName: supabaseRecord.targetName || localRecord.targetName,
-    targetAddress: supabaseRecord.targetAddress || localRecord.targetAddress,
+    supabaseTargetAddress: supabaseRecord.supabaseTargetAddress || supabaseRecord.supabase_target_address || localRecord.supabaseTargetAddress,
+    supabase_target_address: supabaseRecord.supabase_target_address || supabaseRecord.supabaseTargetAddress || localRecord.supabase_target_address,
+    targetAddress: supabaseRecord.supabaseTargetAddress || supabaseRecord.supabase_target_address || supabaseRecord.targetAddress || localRecord.targetAddress,
     memo: supabaseRecord.memo || localRecord.memo,
     conditionSummary: supabaseRecord.conditionSummary || localRecord.conditionSummary,
     condition_summary: supabaseRecord.condition_summary || localRecord.condition_summary,
@@ -2023,10 +2027,14 @@ export function ActivityHistory({ user, currentUser, data, saved }) {
     return allRecords.filter((record) => {
       const recordType = normalizeCheckerHistoryCheckType(record.checkType || record.type);
       const hasIssue = getCheckerHistoryHasIssue(record);
+      const historyAddress = getCheckerHistoryAddress(
+        record,
+        data.targets.find((target) => target.id === record.targetId) || null
+      );
       const historyTarget = record.isSupabaseOnly
         ? {
             label: record.targetName || "대상자 정보 없음",
-            searchText: `${record.targetName || ""} ${record.targetAddress || ""}`.toLowerCase(),
+            searchText: `${record.targetName || ""} ${historyAddress || ""}`.toLowerCase(),
           }
         : getHistoryTargetInfo(data.targets, record.targetId);
       const targetText = historyTarget.searchText;

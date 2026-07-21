@@ -24,6 +24,8 @@ function normalizeRecord(item) {
     checkerName: item?.checker_name || item?.checkerName || "",
     targetId: item?.target_id || item?.targetId || "",
     targetName: item?.target_name || item?.targetName || "",
+    supabaseTargetAddress: item?.supabase_target_address || item?.supabaseTargetAddress || "",
+    supabase_target_address: item?.supabase_target_address || item?.supabaseTargetAddress || "",
     targetAddress: item?.target_address || item?.targetAddress || "-",
     checkType: item?.check_type || item?.checkType || "phone",
     resultStatus: item?.result_status || item?.resultStatus || "normal",
@@ -41,6 +43,34 @@ function normalizeRecord(item) {
     createdAt: item?.created_at || item?.createdAt || item?.checked_at || item?.checkedAt || null,
     isSupabaseOnly: true,
   };
+}
+
+async function enrichTargetAddresses(records) {
+  const targetIds = [...new Set(records.map((record) => record.targetId).filter(Boolean))];
+
+  if (!targetIds.length) {
+    return records;
+  }
+
+  const { data, error } = await supabase
+    .from("targets")
+    .select("id, address")
+    .in("id", targetIds);
+
+  if (error || !Array.isArray(data)) {
+    return records;
+  }
+
+  const addressByTargetId = new Map(data.map((target) => [target.id, target.address || ""]));
+  return records.map((record) => {
+    const supabaseTargetAddress = addressByTargetId.get(record.targetId) || "";
+
+    return {
+      ...record,
+      supabaseTargetAddress,
+      supabase_target_address: supabaseTargetAddress,
+    };
+  });
 }
 
 async function enrichActivityRecordColumns(records) {
@@ -129,7 +159,7 @@ export async function getSupabaseCheckerActivityHistory(checkerId) {
     return {
       ok: true,
       source: "supabase",
-      records: await enrichActivityRecordColumns(mergedRecords.map(normalizeRecord)),
+      records: await enrichTargetAddresses(await enrichActivityRecordColumns(mergedRecords.map(normalizeRecord))),
       message: "Supabase 체커 확인기록을 불러왔습니다.",
     };
   } catch (error) {
