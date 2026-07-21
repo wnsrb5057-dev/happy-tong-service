@@ -460,7 +460,7 @@ function renderPage({ location, user, data, actions, navigate }) {
 }
 
 if (adminTargetNewMatch) {
-  return <AdminTargetNew data={data} actions={actions} navigate={navigate} />;
+  return <AdminTargetNew data={data} actions={actions} navigate={navigate} currentUser={user} />;
 }
 
 if (adminTargetEditMatch) {
@@ -470,6 +470,7 @@ if (adminTargetEditMatch) {
       data={data}
       actions={actions}
       navigate={navigate}
+      currentUser={user}
     />
   );
 }

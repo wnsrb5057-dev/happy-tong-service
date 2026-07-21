@@ -425,9 +425,51 @@ function findLocalTargetMatchId(target, localTargets) {
   return fuzzyMatch?.id || null;
 }
 
+function getAdminTargetMergeKey(target) {
+  if (target?.id) {
+    return `id:${target.id}`;
+  }
+
+  const name = String(target?.name || "").trim();
+  const address = String(target?.address || getTargetArea(target || {}) || "").trim();
+  return `name:${name}|address:${address}`;
+}
+
+function mergeAdminTargets(localTargets, supabaseTargets) {
+  const mergedByKey = new Map();
+
+  localTargets.forEach((target) => {
+    mergedByKey.set(getAdminTargetMergeKey(target), target);
+  });
+
+  supabaseTargets.forEach((target) => {
+    const localMatchKey = [...mergedByKey.keys()].find((key) => {
+      const localTarget = mergedByKey.get(key);
+      if (localTarget?.id && target?.id && localTarget.id === target.id) return true;
+      return (
+        String(localTarget?.name || "").trim() === String(target?.name || "").trim() &&
+        String(localTarget?.address || "").trim() === String(target?.address || "").trim()
+      );
+    });
+
+    if (localMatchKey) {
+      mergedByKey.set(localMatchKey, {
+        ...mergedByKey.get(localMatchKey),
+        ...target,
+        localDetailTargetId: mergedByKey.get(localMatchKey)?.id,
+      });
+      return;
+    }
+
+    mergedByKey.set(getAdminTargetMergeKey(target), target);
+  });
+
+  return [...mergedByKey.values()];
+}
+
 function buildAdminTargetDetailPath(target, localTargets) {
   const localDetailTargetId = findLocalTargetMatchId(target, localTargets);
-  const routeTargetId = localDetailTargetId || target.id;
+  const routeTargetId = target.id || localDetailTargetId;
   const searchParams = new URLSearchParams();
 
   if (target?.name) {
@@ -2135,10 +2177,10 @@ export function AdminTargets({ data, navigate, currentUser }) {
     };
   }, [adminSupabaseOrganizationId, localTargets]);
 
-  const resolvedTargets =
-    Array.isArray(supabaseTargetsState.targets) && supabaseTargetsState.targets.length
-      ? supabaseTargetsState.targets
-      : localTargets;
+  const resolvedTargets = mergeAdminTargets(
+    localTargets,
+    Array.isArray(supabaseTargetsState.targets) ? supabaseTargetsState.targets : []
+  );
   const activeTargets = resolvedTargets.filter(isActiveLifecycleTarget);
   const reassignmentNeededTargets = activeTargets.filter((target) =>
     isReassignmentNeededTarget(
@@ -2309,7 +2351,7 @@ export function AdminTargetDetail({ targetId, data, actions, navigate, currentUs
     let mounted = true;
 
     async function load() {
-      if (localTarget || !adminSupabaseOrganizationId) {
+      if (!adminSupabaseOrganizationId) {
         setSupabaseTargetState({
           loading: false,
           target: null,
@@ -2347,7 +2389,7 @@ export function AdminTargetDetail({ targetId, data, actions, navigate, currentUs
     };
   }, [adminSupabaseOrganizationId, localTarget, targetId]);
 
-  const target = localTarget || supabaseTargetState.target;
+  const target = supabaseTargetState.target || localTarget;
 
   if (!target) {
     if (supabaseTargetState.loading) {
@@ -2363,7 +2405,7 @@ export function AdminTargetDetail({ targetId, data, actions, navigate, currentUs
 
   const checker = checkerById(data.users, target.assignedCheckerId);
   const checkerAlert = getTargetCheckerAlert(checker);
-  const localEditableTargetId = targetById(data.targets, target.id)?.id || findLocalTargetMatchId(target, data.targets);
+  const localEditableTargetId = targetById(data.targets, target.id)?.id || target.localDetailTargetId || findLocalTargetMatchId(target, data.targets);
   const visits = data.activityRecords.filter((record) => record.targetId === target.id).sort(byLatestDate);
   const reports = data.emergencyReports.filter((report) => report.targetId === target.id).sort(byLatestDate);
   const confirmMessage = `${target.name}님을 관리 종료 처리할까요?`;
@@ -2376,20 +2418,22 @@ export function AdminTargetDetail({ targetId, data, actions, navigate, currentUs
   description={`${target.age}세 · ${target.gender} · ${target.address}`}
   action={
     <div className="page-header-actions">
-      <Button variant="ghost" onClick={() => navigate(`/admin/targets/${localEditableTargetId}/edit`)} disabled={!localEditableTargetId}>
+      <Button variant="ghost" onClick={() => navigate(`/admin/targets/${target.id}/edit`)}>
         정보 수정
       </Button>
       {(target.lifecycleStatus || "active") !== "ended" ? (
         <Button
   variant="ghost"
-  disabled={!localEditableTargetId}
+  disabled={!target.id}
   onClick={() => {
     const confirmed = window.confirm(confirmMessage);
     if (!confirmed) return;
 
-    actions.updateTarget(localEditableTargetId, {
-      lifecycleStatus: "ended",
-    });
+    if (localEditableTargetId) {
+      actions.updateTarget(localEditableTargetId, {
+        lifecycleStatus: "ended",
+      });
+    }
 
     void updateSupabaseTargetStatus({
       targetId: target.id,
@@ -3887,12 +3931,17 @@ export function AdminReportPreview({ data, currentUser }) {
   );
 }
 
-export function AdminTargetEdit({ targetId, data, actions, navigate }) {
-  const target = data.targets.find((item) => item.id === targetId);
+export function AdminTargetEdit({ targetId, data, actions, navigate, currentUser }) {
+  const localTarget = data.targets.find((item) => item.id === targetId);
   const adminSupabaseOrganizationId = useMemo(
-    () => resolveAdminSupabaseOrganizationId(null, data),
-    [data]
+    () => resolveAdminSupabaseOrganizationId(currentUser, data),
+    [currentUser, data]
   );
+  const [supabaseTargetState, setSupabaseTargetState] = useState(() => ({
+    loading: !localTarget && Boolean(adminSupabaseOrganizationId),
+    target: null,
+  }));
+  const target = supabaseTargetState.target || localTarget;
   const checkerOptions = data.users.filter((user) => user.role === "checker");
   const dayOptions = ["월", "화", "수", "목", "금", "토", "일"];
   const initialCheckDays = Array.isArray(target?.checkDays)
@@ -3918,7 +3967,80 @@ export function AdminTargetEdit({ targetId, data, actions, navigate }) {
   }));
   const [error, setError] = useState("");
 
+  useEffect(() => {
+    let mounted = true;
+
+    async function load() {
+      if (localTarget || !adminSupabaseOrganizationId) {
+        setSupabaseTargetState({
+          loading: false,
+          target: null,
+        });
+        return;
+      }
+
+      setSupabaseTargetState({
+        loading: true,
+        target: null,
+      });
+
+      const result = await getSupabaseAdminTargetById(adminSupabaseOrganizationId, targetId);
+
+      if (!mounted) return;
+
+      setSupabaseTargetState({
+        loading: false,
+        target: result.ok ? result.target : null,
+      });
+    }
+
+    load();
+
+    return () => {
+      mounted = false;
+    };
+  }, [adminSupabaseOrganizationId, localTarget, targetId]);
+
+  useEffect(() => {
+    if (!target) return;
+
+    const nextCheckDays = Array.isArray(target?.checkDays)
+      ? target.checkDays
+      : typeof target?.checkDays === "string"
+        ? target.checkDays.split(",").map((item) => item.trim()).filter(Boolean)
+        : [];
+
+    setForm({
+      name: target?.name || "",
+      age: target?.age ? String(target.age) : "",
+      gender: target?.gender || "여성",
+      address: target?.address || "",
+      riskLevel: target?.riskLevel || "normal",
+      defaultCheckType: target?.defaultCheckType || "external",
+      assignedCheckerId: target?.assignedCheckerId || "",
+      checkDays: nextCheckDays,
+      checkTime: target?.checkTime || target?.visitTime || "",
+      healthStatus: target?.healthStatus || target?.healthNote || "",
+      cautionNote: target?.cautionNote || "",
+      medicationNote: target?.medicationNote || "",
+      guardianName: target?.guardianName || "",
+      guardianPhone: target?.guardianPhone || "",
+    });
+  }, [target]);
+
   if (!target) {
+    if (supabaseTargetState.loading) {
+      return (
+        <>
+          <PageHeader
+            eyebrow="대상자 수정"
+            title="대상자 정보를 확인 중입니다"
+            description="Supabase 상세 데이터를 불러오고 있습니다."
+          />
+        </>
+      );
+    }
+
     return (
       <>
         <PageHeader
@@ -3984,7 +4106,12 @@ export function AdminTargetEdit({ targetId, data, actions, navigate }) {
       guardianPhone: form.guardianPhone.trim(),
     };
 
-    actions.updateTarget(target.id, targetUpdates);
+    const localEditableTargetId = data.targets.find((item) => item.id === target.id)?.id || findLocalTargetMatchId(target, data.targets);
+
+    if (localEditableTargetId) {
+      actions.updateTarget(localEditableTargetId, targetUpdates);
+    }
+
     void updateSupabaseTarget({
       targetId: target.id,
       organizationId: target.organizationId || target.organization_id || adminSupabaseOrganizationId || null,
@@ -4154,10 +4281,10 @@ export function AdminTargetEdit({ targetId, data, actions, navigate }) {
   );
 }
 
-export function AdminTargetNew({ data, actions, navigate }) {
+export function AdminTargetNew({ data, actions, navigate, currentUser }) {
   const adminSupabaseOrganizationId = useMemo(
-    () => resolveAdminSupabaseOrganizationId(null, data),
-    [data]
+    () => resolveAdminSupabaseOrganizationId(currentUser, data),
+    [currentUser, data]
   );
   const checkerOptions = data.users.filter((user) => user.role === "checker");
   const dayOptions = ["월", "화", "수", "목", "금", "토", "일"];

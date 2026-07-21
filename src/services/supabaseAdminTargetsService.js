@@ -6,19 +6,23 @@ const RISK_LEVEL_LABELS = {
   danger: "위험",
   high: "위험",
   urgent: "긴급",
-  정상: "정상",
-  주의: "주의",
-  위험: "위험",
-  긴급: "긴급",
+  "정상": "정상",
+  "주의": "주의",
+  "위험": "위험",
+  "긴급": "긴급",
 };
 
 const LIFECYCLE_STATUS_LABELS = {
   active: "관리중",
   ended: "관리종료",
   paused: "일시중지",
-  관리중: "관리중",
-  관리종료: "관리종료",
-  일시중지: "일시중지",
+  hospitalized: "입원",
+  transferred: "전출",
+  deceased: "사망",
+  unknown_address: "주소불명",
+  "관리중": "관리중",
+  "관리종료": "관리종료",
+  "일시중지": "일시중지",
 };
 
 const ACTIVITY_STATUS_LABELS = {
@@ -28,8 +32,8 @@ const ACTIVITY_STATUS_LABELS = {
   no_answer: "미응답",
   "이상 없음": "이상 없음",
   "관찰 필요": "관찰 필요",
-  이상징후: "이상징후",
-  미응답: "미응답",
+  "이상징후": "이상징후",
+  "미응답": "미응답",
 };
 
 function normalizeCheckDays(value) {
@@ -65,6 +69,7 @@ function normalizeTarget(item) {
   return {
     id: item?.id || "",
     organizationId: item?.organization_id || item?.organizationId || "",
+    organization_id: item?.organization_id || item?.organizationId || "",
     name: item?.name || "대상자 정보 없음",
     birthYear: Number.isFinite(parsedBirthYear) ? parsedBirthYear : null,
     age: Number.isFinite(parsedAge) ? parsedAge : null,
@@ -74,11 +79,13 @@ function normalizeTarget(item) {
     phone: item?.phone || "",
     guardianName: item?.guardian_name || item?.guardianName || "",
     guardianPhone: item?.guardian_phone || item?.guardianPhone || "",
-    healthStatus: item?.health_status || item?.healthStatus || "",
+    healthNote: item?.health_note || item?.healthNote || "",
+    healthStatus: item?.health_note || item?.healthStatus || item?.health_status || "",
     cautionNote: item?.caution_note || item?.cautionNote || "",
     medicationNote: item?.medication_note || item?.medicationNote || "",
-    assignedCheckerId: item?.checker_id || item?.checkerId || null,
-    checkerName: item?.checker_name || item?.checkerName || "담당 체커 미배정",
+    assignedCheckerId: item?.assigned_checker_id || item?.checker_id || item?.assignedCheckerId || item?.checkerId || "",
+    checkerId: item?.assigned_checker_id || item?.checker_id || item?.assignedCheckerId || item?.checkerId || "",
+    checkerName: item?.checker_name || item?.checkerName || "",
     riskLevel,
     riskLevelLabel: RISK_LEVEL_LABELS[riskLevel] || riskLevel || "정상",
     lifecycleStatus,
@@ -86,15 +93,16 @@ function normalizeTarget(item) {
     memo: item?.memo || "",
     lastActivityAt: item?.last_activity_at || item?.lastActivityAt || null,
     lastActivityStatus,
-    lastActivityStatusLabel:
-      ACTIVITY_STATUS_LABELS[lastActivityStatus] || lastActivityStatus || null,
-    unresolvedEmergencyCount: Number(
-      item?.unresolved_emergency_count || item?.unresolvedEmergencyCount || 0
-    ),
+    lastActivityStatusLabel: ACTIVITY_STATUS_LABELS[lastActivityStatus] || lastActivityStatus || null,
+    unresolvedEmergencyCount: Number(item?.unresolved_emergency_count || item?.unresolvedEmergencyCount || 0),
     createdAt: item?.created_at || item?.createdAt || null,
+    updatedAt: item?.updated_at || item?.updatedAt || null,
     defaultCheckType: item?.default_check_type || item?.defaultCheckType || "external",
     checkDays: normalizeCheckDays(item?.check_days || item?.checkDays),
+    checkTime: item?.check_time || item?.checkTime || item?.visitTime || "",
+    visitTime: item?.check_time || item?.checkTime || item?.visitTime || "",
     lastVisitDate: item?.last_activity_at || item?.lastActivityAt || null,
+    isSupabaseOnly: true,
   };
 }
 
