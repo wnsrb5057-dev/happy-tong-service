@@ -51,6 +51,7 @@ import { getSupabaseAdminEmergencies, getSupabaseAdminEmergencyById } from "../s
 import { getSupabaseAdminActivityRecords } from "../services/supabaseAdminActivityRecordsService.js";
 import { getSupabaseAdminStatistics } from "../services/supabaseAdminStatisticsService.js";
 import { getSupabaseAdminReportSummary } from "../services/supabaseAdminReportSummaryService.js";
+import { updateSupabaseEmergencyStatus } from "../services/supabaseEmergencyStatusUpdateService.js";
 
 function getToday() {
   const now = new Date();
@@ -3010,8 +3011,8 @@ export function AdminEmergencyDetail({ emergencyId, data, actions, currentUser, 
   }
 
   function handleSave() {
-    if (!localEditableEmergencyId) {
-      setError("이 상세 화면은 Supabase 읽기 전용 데이터라 처리 기록 저장을 지원하지 않습니다.");
+    if (!localEditableEmergencyId && !report?.id) {
+      setError("처리 기록을 저장할 이상징후 보고를 찾을 수 없습니다.");
       return;
     }
 
@@ -3037,7 +3038,54 @@ export function AdminEmergencyDetail({ emergencyId, data, actions, currentUser, 
       createdBy: currentUser?.name || "관리자",
     };
 
-    actions.addEmergencyHandlingLog(localEditableEmergencyId, nextLog);
+    const statusUpdatePayload = {
+      reportId: report.id || emergencyId,
+      organizationId: report.organizationId || report.organization_id || adminSupabaseOrganizationId || null,
+      status: statusMeta.value,
+      memo: nextLog.memo,
+      adminMemo: nextLog.memo,
+      actionMemo: nextLog.memo,
+      contactedGuardian: nextLog.contactedGuardian,
+      visitRequired: nextLog.visitRequired,
+      createdBy: currentUser?.id || null,
+      adminId: currentUser?.id || null,
+      createdByName: currentUser?.name || currentUser?.username || currentUser?.email || "관리자",
+      adminName: currentUser?.name || currentUser?.username || currentUser?.email || "관리자",
+      completedAt: statusMeta.value === "completed" ? nextLog.createdAt : null,
+    };
+
+    if (localEditableEmergencyId) {
+      actions.addEmergencyHandlingLog(localEditableEmergencyId, nextLog);
+    } else {
+      setSupabaseEmergencyState((current) => ({
+        ...current,
+        report: current.report
+          ? {
+              ...current.report,
+              status: statusMeta.value,
+              statusLabel: statusMeta.label,
+              lastHandlingStatus: statusMeta.value,
+              lastHandlingStatusLabel: statusMeta.label,
+              lastHandlingMemo: nextLog.memo,
+              handledAt: nextLog.createdAt,
+              handlingLogs: [...(Array.isArray(current.report.handlingLogs) ? current.report.handlingLogs : []), nextLog],
+            }
+          : current.report,
+      }));
+    }
+
+    void updateSupabaseEmergencyStatus(statusUpdatePayload).then((result) => {
+      if (!result.success) {
+        console.warn("[admin-emergency-detail] SUPABASE_EMERGENCY_STATUS_SYNC_FAILED", {
+          code: result.code || null,
+        });
+      } else if (result.warning) {
+        console.warn("[admin-emergency-detail] SUPABASE_EMERGENCY_STATUS_SYNC_WARNING", {
+          code: result.warning,
+        });
+      }
+    });
+
     setForm({
       status: statusMeta.value,
       memo: "",
@@ -3121,8 +3169,8 @@ export function AdminEmergencyDetail({ emergencyId, data, actions, currentUser, 
         </div>
         {error ? <p className="form-error">{error}</p> : null}
         {notice ? <p className="notice">{notice}</p> : null}
-        {!localEditableEmergencyId ? <p className="notice">이 상세 화면은 Supabase 읽기 전용 데이터라 처리 기록 저장은 아직 지원하지 않습니다.</p> : null}
-        <Button className="full-width" onClick={handleSave} disabled={!localEditableEmergencyId}>
+        {!localEditableEmergencyId ? <p className="notice">Supabase 기준 보고로 처리 기록을 저장합니다.</p> : null}
+        <Button className="full-width" onClick={handleSave}>
           처리 기록 저장
         </Button>
         <Button variant="ghost" className="full-width" onClick={() => navigate('/admin/emergencies')}>
