@@ -23,6 +23,7 @@ import { getSupabaseCheckerTargetById, getSupabaseCheckerTargets } from "../serv
 import { getSupabaseCheckerActivityHistory } from "../services/supabaseCheckerActivityHistoryService.js";
 import { getSupabaseCheckerActivityFormTargets } from "../services/supabaseCheckerActivityFormTargetsService.js";
 import { createSupabaseActivityRecord } from "../services/supabaseActivityRecordsWriteService.js";
+import { createSupabaseEmergencyReport } from "../services/supabaseEmergencyReportsWriteService.js";
 import {
   detectDevicePlatform,
   getNotificationCtaForRole,
@@ -2227,7 +2228,8 @@ export function EmergencyNew({ user, data, actions, navigate, initialTargetId })
     }
 
     const now = new Date().toISOString();
-    actions.addEmergencyReport({
+    const selectedTarget = assignedTargets.find((target) => target.id === form.targetId) || null;
+    const localReport = {
       id: `emergency-${Date.now()}`,
       targetId: form.targetId,
       checkerId: user.id,
@@ -2242,6 +2244,38 @@ export function EmergencyNew({ user, data, actions, navigate, initialTargetId })
       adminMemo: "",
       createdAt: now,
       updatedAt: now,
+    };
+    const supabasePayload = {
+      organizationId: user.organizationId || user.organization_id || selectedTarget?.organizationId || selectedTarget?.organization_id || null,
+      targetId: selectedTarget?.id || form.targetId,
+      targetName: selectedTarget?.name || null,
+      checkerId: user.id || null,
+      checkerUsername: user.username || null,
+      checkerEmail: user.email || null,
+      type: form.issueType,
+      issueType: form.issueType,
+      severity: form.issueLevel,
+      issueLevel: form.issueLevel,
+      title: `${selectedTarget?.name || "대상자"} 이상징후 보고`,
+      description: form.description.trim(),
+      memo: form.description.trim(),
+      reportedAt: now,
+      contactedGuardian: form.needGuardianContact,
+      visitRequired: form.needAdminAlert,
+      status: "received",
+    };
+
+    actions.addEmergencyReport(localReport);
+    void createSupabaseEmergencyReport(supabasePayload).then((result) => {
+      if (!result.success) {
+        console.warn("[checker-emergency-new] SUPABASE_EMERGENCY_REPORT_SYNC_FAILED", {
+          code: result.code || null,
+        });
+      } else if (result.warning?.code) {
+        console.warn("[checker-emergency-new] SUPABASE_EMERGENCY_REPORT_SYNC_WARNING", {
+          code: result.warning.code,
+        });
+      }
     });
     navigate("/checker/home?emergency=sent");
   }
