@@ -302,10 +302,6 @@ function getCheckerHistoryHasIssue(record) {
 }
 
 function getCheckerHistoryRecordStatusValue(record) {
-  if (getCheckerHistoryHasIssue(record)) {
-    return "caution";
-  }
-
   if (record.status && record.status !== "pending") {
     return record.status;
   }
@@ -315,6 +311,14 @@ function getCheckerHistoryRecordStatusValue(record) {
   }
 
   return record.isSupabaseOnly ? "completed" : record.status || "completed";
+}
+
+function getCheckerHistoryIssueLevelLabel(issueLevel) {
+  if (["normal", "good", "ok"].includes(issueLevel)) return "양호";
+  if (["caution", "need_check", "issue", "needed"].includes(issueLevel)) return "확인 필요";
+  if (issueLevel === "warning") return "경고";
+  if (["urgent", "danger", "high", "emergency"].includes(issueLevel)) return "긴급";
+  return "";
 }
 
 function getCheckerHistoryResultStatusLabel(status) {
@@ -343,16 +347,35 @@ function normalizeCheckerHistorySummary(text) {
     .replaceAll("callStatus:missed", "통화 미연결")
     .replaceAll("callStatus:connected", "통화 연결")
     .replaceAll("welfareStatus:issue", "생활상태 확인 필요")
-    .replaceAll("welfareStatus:normal", "생활상태 이상 없음")
+    .replaceAll("welfareStatus:normal", "생활상태 양호")
     .replaceAll("supportNeed:unknown", "지원 필요 여부 미확인")
     .replaceAll("supportNeed:needed", "지원 필요")
-    .replaceAll("supportNeed:none", "지원 필요 없음")
+    .replaceAll("supportNeed:none", "지원 불필요")
     .replaceAll("lifeTrace:issue", "생활 흔적 확인 필요")
     .replaceAll("contactAvailable:unknown", "연락 가능 여부 미확인")
     .replaceAll("adminNeed:needed", "관리자 확인 필요")
     .replaceAll("callStatus:completed", "통화 완료")
+    .replaceAll("faceToFace:present", "대면 확인 완료")
+    .replaceAll("faceToFace:absent", "대면 확인 불가")
+    .replaceAll("livingDiscomfort:issue", "생활 불편 징후 있음")
+    .replaceAll("livingDiscomfort:normal", "생활 불편 징후 없음")
+    .replaceAll("helpRequest:issue", "지원 요청 있음")
+    .replaceAll("helpRequest:none", "지원 요청 없음")
+    .replaceAll("lifeTrace:normal", "생활 흔적 정상")
+    .replaceAll("contactAvailable:available", "연락 가능")
+    .replaceAll("adminNeed:none", "관리자 확인 불필요")
+    .replaceAll("trashStatus:normal", "문전 상태 정상")
+    .replaceAll("trashStatus:issue", "문전 상태 확인 필요")
+    .replaceAll("doorCheck:normal", "문 앞 확인 정상")
+    .replaceAll("doorCheck:issue", "문 앞 확인 필요")
     .replaceAll("위험도: none", "위험도 없음")
     .replaceAll("위험도:none", "위험도 없음")
+    .replaceAll("위험도: caution", "위험도: 주의")
+    .replaceAll("위험도: need_check", "위험도: 확인 필요")
+    .replaceAll("위험도: warning", "위험도: 경고")
+    .replaceAll("위험도: urgent", "위험도: 긴급")
+    .replaceAll("위험도: danger", "위험도: 위험")
+    .replaceAll("위험도: emergency", "위험도: 긴급")
     .replaceAll("issueLevel: none", "이상징후 없음")
     .replaceAll("issueLevel:none", "이상징후 없음");
 }
@@ -369,6 +392,39 @@ function formatCheckerHistoryCheckItems(checkItems) {
       : [];
 
   return normalizeCheckerHistorySummary(items.filter(Boolean).join(", "));
+}
+
+function getCheckerHistoryAddress(record, localTarget = null) {
+  const address =
+    record?.targetAddress ||
+    record?.target_address ||
+    record?.address ||
+    localTarget?.address ||
+    record?.seniorAddress ||
+    record?.senior_address ||
+    "";
+  const targetName = record?.targetName || record?.target_name || record?.name || localTarget?.name || "";
+
+  if (!address || address === targetName) {
+    return "-";
+  }
+
+  return (
+    address
+  );
+}
+
+function getUniqueCheckerHistoryTexts(...values) {
+  const seen = new Set();
+
+  return values
+    .map((value) => normalizeCheckerHistorySummary(value))
+    .filter(Boolean)
+    .filter((value) => {
+      if (seen.has(value)) return false;
+      seen.add(value);
+      return true;
+    });
 }
 
 function getCheckerActivityRecordDateKey(record) {
@@ -2067,20 +2123,25 @@ export function ActivityHistory({ user, currentUser, data, saved }) {
 
       <div className="stack">
         {records.length ? records.map((record) => {
+          const localTarget = data.targets.find((target) => target.id === record.targetId) || null;
           const hasIssue = getCheckerHistoryHasIssue(record);
           const recordStatusValue = getCheckerHistoryRecordStatusValue(record);
           const resultStatusLabel = hasIssue ? "확인 필요" : "이상징후 없음";
+          const issueLevelLabel = getCheckerHistoryIssueLevelLabel(record.issueLevel || record.issue_level);
+          const addressText = getCheckerHistoryAddress(record, localTarget);
           const summaryText = normalizeCheckerHistorySummary(
             record.conditionSummary ||
               record.condition_summary ||
               record.issueSummary ||
               record.memo ||
-              record.targetAddress ||
               getCheckItemText(record.checkType || record.type || "external", record.checkItems)
           );
           const checkItemsText = formatCheckerHistoryCheckItems(record.checkItems ?? record.check_items);
-          const memoText = normalizeCheckerHistorySummary(
+          const [memoText, detailSummaryText] = getUniqueCheckerHistoryTexts(
             record.memo || record.note || record.description || record.conditionSummary || record.condition_summary
+              ? record.memo || record.note || record.description
+              : "",
+            record.conditionSummary || record.condition_summary
           );
           const historyTarget = record.isSupabaseOnly
             ? {
@@ -2107,18 +2168,19 @@ export function ActivityHistory({ user, currentUser, data, saved }) {
                 <span className={hasIssue ? "badge badge-risk-danger" : "badge badge-muted"}>
                   {hasIssue ? "이상징후 있음" : "이상징후 없음"}
                 </span>
+                {issueLevelLabel ? <span className={hasIssue ? "badge badge-warning" : "badge badge-muted"}>{issueLevelLabel}</span> : null}
                 <Button variant="ghost" className="history-detail-button" onClick={() => setOpenRecordId(openRecordId === record.id ? "" : record.id)}>상세보기</Button>
               </div>
               {openRecordId === record.id ? (
                 <div className="detail-box">
                   <p>확인 유형: {getCheckerHistoryCheckTypeLabel(record.checkType || record.type)}</p>
                   <p>결과 상태: {resultStatusLabel}</p>
-                  <p>대상자 주소: {record.targetAddress || historyTarget.label}</p>
+                  <p>대상자 주소: {addressText}</p>
                   {!record.isSupabaseOnly ? <p>건강 상태: {activityHealthLabels[record.healthStatus] ?? "양호"}</p> : null}
                   {!record.isSupabaseOnly ? <p>{getCheckItemText(record.checkType || record.type || "external", record.checkItems)}</p> : null}
+                  {detailSummaryText ? <p>확인 내용: {detailSummaryText}</p> : null}
                   {checkItemsText ? <p>확인 항목: {checkItemsText}</p> : null}
-                  <p>{memoText || "작성된 메모가 없습니다."}</p>
-                  {record.issueSummary ? <p className="danger-text">{normalizeCheckerHistorySummary(record.issueSummary)}</p> : null}
+                  {memoText ? <p>메모: {memoText}</p> : null}
                 </div>
               ) : null}
             </Card>

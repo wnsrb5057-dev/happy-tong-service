@@ -607,6 +607,14 @@ function getDisplayRecordStatus(record) {
   return record?.resultStatusLabel || recordStatusLabels[rawStatus] || rawStatus;
 }
 
+function getAdminActivityIssueLevelLabel(issueLevel) {
+  if (["normal", "good", "ok"].includes(issueLevel)) return "양호";
+  if (["caution", "need_check", "issue", "needed"].includes(issueLevel)) return "확인 필요";
+  if (issueLevel === "warning") return "경고";
+  if (["urgent", "danger", "high", "emergency"].includes(issueLevel)) return "긴급";
+  return "";
+}
+
 function getAdminActivityCheckTypeLabel(checkType) {
   const labels = {
     call: "전화 확인",
@@ -643,8 +651,27 @@ function normalizeAdminActivitySummary(text) {
     .replaceAll("contactAvailable:unknown", "연락 가능 여부 미확인")
     .replaceAll("adminNeed:needed", "관리자 확인 필요")
     .replaceAll("callStatus:completed", "통화 완료")
+    .replaceAll("faceToFace:present", "대면 확인 완료")
+    .replaceAll("faceToFace:absent", "대면 확인 불가")
+    .replaceAll("livingDiscomfort:issue", "생활 불편 징후 있음")
+    .replaceAll("livingDiscomfort:normal", "생활 불편 징후 없음")
+    .replaceAll("helpRequest:issue", "지원 요청 있음")
+    .replaceAll("helpRequest:none", "지원 요청 없음")
+    .replaceAll("lifeTrace:normal", "생활 흔적 정상")
+    .replaceAll("contactAvailable:available", "연락 가능")
+    .replaceAll("adminNeed:none", "관리자 확인 불필요")
+    .replaceAll("trashStatus:normal", "문전 상태 정상")
+    .replaceAll("trashStatus:issue", "문전 상태 확인 필요")
+    .replaceAll("doorCheck:normal", "문 앞 확인 정상")
+    .replaceAll("doorCheck:issue", "문 앞 확인 필요")
     .replaceAll("위험도: none", "위험도 없음")
     .replaceAll("위험도:none", "위험도 없음")
+    .replaceAll("위험도: caution", "위험도: 주의")
+    .replaceAll("위험도: need_check", "위험도: 확인 필요")
+    .replaceAll("위험도: warning", "위험도: 경고")
+    .replaceAll("위험도: urgent", "위험도: 긴급")
+    .replaceAll("위험도: danger", "위험도: 위험")
+    .replaceAll("위험도: emergency", "위험도: 긴급")
     .replaceAll("확인 유형: call", "확인 유형: 전화 확인")
     .replaceAll("확인 유형: phone", "확인 유형: 전화 확인")
     .replaceAll("체크 유형: call", "체크 유형: 전화 확인")
@@ -663,6 +690,37 @@ function formatAdminActivityCheckItems(checkItems) {
       : [];
 
   return normalizeAdminActivitySummary(items.filter(Boolean).join(", "));
+}
+
+function getAdminActivityAddress(record, localTarget = null) {
+  const address =
+    record?.targetAddress ||
+    record?.target_address ||
+    record?.address ||
+    localTarget?.address ||
+    record?.seniorAddress ||
+    record?.senior_address ||
+    "";
+  const targetName = record?.targetName || record?.target_name || record?.name || localTarget?.name || "";
+
+  if (!address || address === targetName) {
+    return "-";
+  }
+
+  return address;
+}
+
+function getUniqueAdminActivityTexts(...values) {
+  const seen = new Set();
+
+  return values
+    .map((value) => normalizeAdminActivitySummary(value))
+    .filter(Boolean)
+    .filter((value) => {
+      if (seen.has(value)) return false;
+      seen.add(value);
+      return true;
+    });
 }
 
 function getAdminActivityRecordDateKey(record) {
@@ -2596,15 +2654,16 @@ export function AdminActivities({ data, currentUser }) {
 
       <div className="stack admin-activity-list">
         {filteredRecords.map((record) => {
+          const localTarget = targets.find((target) => target.id === record.targetId) || null;
           const hasIssue = getAdminActivityHasIssue(record);
           const checkTypeLabel = getAdminActivityCheckTypeLabel(getCheckType(record));
-          const detailSummary = normalizeAdminActivitySummary(
-            record.conditionSummary || record.condition_summary || record.issueSummary || record.memo
+          const issueLevelLabel = getAdminActivityIssueLevelLabel(record.issueLevel || record.issue_level);
+          const addressText = getAdminActivityAddress(record, localTarget);
+          const [memoText, detailSummary] = getUniqueAdminActivityTexts(
+            record.memo || record.note || record.description,
+            record.conditionSummary || record.condition_summary
           );
           const checkItemsText = formatAdminActivityCheckItems(record.checkItems ?? record.check_items);
-          const memoText = normalizeAdminActivitySummary(
-            record.memo || record.note || record.description || record.conditionSummary || record.condition_summary
-          );
 
           return (
           <Card key={record.id} className="admin-activity-card">
@@ -2616,7 +2675,7 @@ export function AdminActivities({ data, currentUser }) {
           </div>
         
           <p className="muted admin-activity-memo">
-            {truncateText(record.targetAddress || detailSummary || "상세 메모 없음")}
+            {truncateText(detailSummary || memoText || "상세 메모 없음")}
           </p>
         
           <div className="badge-row compact-badges admin-activity-badges">
@@ -2624,8 +2683,9 @@ export function AdminActivities({ data, currentUser }) {
             <span className={hasIssue ? "badge badge-risk-danger" : "badge badge-muted"}>
               {hasIssue ? "이상징후 있음" : "이상징후 없음"}
             </span>
+            {issueLevelLabel ? <span className={hasIssue ? "badge badge-warning" : "badge badge-muted"}>{issueLevelLabel}</span> : null}
             {(record.resultStatus || record.status) && (record.resultStatus || record.status) !== "normal" ? (
-              <StatusBadge type="record" value={record.resultStatus || record.status} />
+              <StatusBadge type="record" value={record.status || "completed"} />
             ) : null}
           </div>
         
@@ -2639,7 +2699,7 @@ export function AdminActivities({ data, currentUser }) {
         
           {openRecordId === record.id ? (
             <div className="detail-box admin-activity-detail-box">
-              <p>대상자 주소: {record.targetAddress || "-"}</p>
+              <p>대상자 주소: {addressText}</p>
               <p>체커: {record.checkerName || checkerName(users, record.checkerId)}</p>
               <p>체크 유형: {checkTypeLabel}</p>
               <p>결과 상태: {getDisplayRecordStatus(record) || "상태 없음"}</p>
@@ -2647,7 +2707,6 @@ export function AdminActivities({ data, currentUser }) {
               {checkItemsText ? <p>확인 항목: {checkItemsText}</p> : null}
               {memoText ? <p>메모: {memoText}</p> : null}
               <p>생성일: {formatSafeDateLabel(record.createdAt)}</p>
-              {record.issueSummary ? <p className="danger-text">{normalizeAdminActivitySummary(record.issueSummary)}</p> : null}
             </div>
           ) : null}
         </Card>
