@@ -544,7 +544,7 @@ function findLocalEmergencyMatchId(report, localReports, targets) {
 
 function buildAdminEmergencyDetailPath(report, localReports, targets) {
   const localEmergencyId = findLocalEmergencyMatchId(report, localReports, targets);
-  const routeEmergencyId = localEmergencyId || report.id;
+  const routeEmergencyId = report.id || localEmergencyId;
   const searchParams = new URLSearchParams();
 
   if (report?.targetName) {
@@ -2930,7 +2930,7 @@ export function AdminEmergencyDetail({ emergencyId, data, actions, currentUser, 
     let mounted = true;
 
     async function load() {
-      if (localReport || !adminSupabaseOrganizationId) {
+      if (!adminSupabaseOrganizationId) {
         setSupabaseEmergencyState({
           loading: false,
           report: null,
@@ -2968,7 +2968,7 @@ export function AdminEmergencyDetail({ emergencyId, data, actions, currentUser, 
     };
   }, [adminSupabaseOrganizationId, emergencyId, localReport]);
 
-  const report = localReport || supabaseEmergencyState.report;
+  const report = supabaseEmergencyState.report || localReport;
   const localEditableEmergencyId = localReport?.id || findLocalEmergencyMatchId(report || {}, data.emergencyReports, data.targets);
   const displayTargetName = report?.targetName || targetName(data.targets, report?.targetId);
   const displayTargetAddress = report?.targetAddress || targetById(data.targets, report?.targetId)?.address || "-";
@@ -3036,6 +3036,7 @@ export function AdminEmergencyDetail({ emergencyId, data, actions, currentUser, 
       visitRequired: form.visitRequired,
       createdAt: new Date().toISOString(),
       createdBy: currentUser?.name || "관리자",
+      createdByName: currentUser?.name || currentUser?.username || currentUser?.email || "관리자",
     };
 
     const statusUpdatePayload = {
@@ -3187,7 +3188,7 @@ export function AdminEmergencyDetail({ emergencyId, data, actions, currentUser, 
                 <div className="card-row">
                   <div>
                     <strong>{log.statusLabel || getEmergencyStatusMeta(log.status).label}</strong>
-                    <p className="muted">{String(log.createdAt || "").replace("T", " ").slice(0, 16)} · {log.createdBy || "관리자"}</p>
+                    <p className="muted">{String(log.createdAt || "").replace("T", " ").slice(0, 16)} · {log.createdByName || log.createdBy || "관리자"}</p>
                   </div>
                   <EmergencyStatusBadge status={log.status} />
                 </div>
