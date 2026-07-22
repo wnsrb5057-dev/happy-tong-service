@@ -185,11 +185,14 @@ const SUPABASE_ADMIN_ORGANIZATION_ID_MAP = {
   충주돌봄센터: "22222222-2222-2222-2222-222222222222",
 };
 
+const DEFAULT_CHECKER_SUPABASE_ORGANIZATION_ID = "11111111-1111-1111-1111-111111111111";
+
 function resolveAdminSupabaseOrganizationId(currentUser, data) {
   const organizations = Array.isArray(data?.organizations) ? data.organizations : [];
   const targets = Array.isArray(data?.targets) ? data.targets : [];
   const currentUserValues = {
     organizationId: String(currentUser?.organizationId || "").trim(),
+    organization_id: String(currentUser?.organization_id || "").trim(),
     organizationName: String(currentUser?.organizationName || "").trim(),
     region: String(currentUser?.region || "").trim(),
     name: String(currentUser?.name || "").trim(),
@@ -199,6 +202,7 @@ function resolveAdminSupabaseOrganizationId(currentUser, data) {
   };
   const normalizedValues = [
     currentUserValues.organizationId,
+    currentUserValues.organization_id,
     currentUserValues.organizationName,
     currentUserValues.region,
     currentUserValues.name,
@@ -259,6 +263,7 @@ function resolveAdminSupabaseOrganizationId(currentUser, data) {
 
   const directCandidates = [
     currentUser?.organizationId,
+    currentUser?.organization_id,
     currentUser?.organizationName,
     currentUser?.region,
   ].filter(Boolean);
@@ -305,7 +310,20 @@ function resolveAdminSupabaseOrganizationId(currentUser, data) {
     return "11111111-1111-1111-1111-111111111111";
   }
 
-  return null;
+  // TODO: Replace this fallback when every admin account has a Supabase organization id.
+  return DEFAULT_CHECKER_SUPABASE_ORGANIZATION_ID;
+}
+
+function resolveCheckerFormUsername(form) {
+  return String(form?.username || form?.loginId || form?.userId || form?.idForLogin || form?.accountId || "").trim();
+}
+
+function warnSupabaseCheckerFailure(source, result) {
+  console.warn(source, {
+    code: result?.code || null,
+    message: result?.message || result?.error || null,
+    status: result?.status || null,
+  });
 }
 
 function getCheckerPhoneValue(checker) {
@@ -1688,11 +1706,11 @@ export function AdminCheckerNew({ data, actions, navigate, currentUser }) {
     setError("");
   }
 
-  function handleSubmit(event) {
+  async function handleSubmit(event) {
     event.preventDefault();
 
     const trimmedName = form.name.trim();
-    const trimmedUsername = form.username.trim();
+    const trimmedUsername = resolveCheckerFormUsername(form);
     const trimmedPassword = form.password;
     const trimmedPhone = form.phone.trim();
     const trimmedRegion = form.region.trim();
@@ -1733,30 +1751,27 @@ export function AdminCheckerNew({ data, actions, navigate, currentUser }) {
     };
 
     actions.addUser(newChecker);
-    void createSupabaseChecker({
+    const createResult = await createSupabaseChecker({
       organizationId: adminSupabaseOrganizationId || null,
+      organization_id: adminSupabaseOrganizationId || null,
       username: newChecker.username,
       loginId: newChecker.loginId,
+      userId: newChecker.loginId,
       name: newChecker.name,
       phone: newChecker.phone,
       region: newChecker.region,
       area: newChecker.area,
+      email: newChecker.email || "",
       status: newChecker.status,
       activityStatus: newChecker.activityStatus,
-    }).then((result) => {
-      if (result.success && result.checkerId) {
-        actions.updateUser(newChecker.id, {
-          supabaseCheckerId: result.checkerId,
-        });
-        return;
-      }
-
-      if (!result.success) {
-        console.warn("[admin-checker-new] SUPABASE_CHECKER_SYNC_FAILED", {
-          code: result.code || null,
-        });
-      }
     });
+    if (createResult.success && createResult.checkerId) {
+      actions.updateUser(newChecker.id, {
+        supabaseCheckerId: createResult.checkerId,
+      });
+    } else {
+      warnSupabaseCheckerFailure("[admin-checker-new] SUPABASE_CHECKER_SYNC_FAILED", createResult);
+    }
     navigate("/admin/checkers");
   }
 
@@ -1891,7 +1906,7 @@ export function AdminCheckerDetail({ checkerId, data, actions, navigate, current
     }, 2400);
   }
 
-  function handleStatusChange(nextActivityStatus) {
+  async function handleStatusChange(nextActivityStatus) {
     const statusLabel = getCheckerStatusLabel(nextActivityStatus);
     const confirmed = window.confirm(`${checker.name} 체커 상태를 ${statusLabel}(으)로 변경할까요?`);
     if (!confirmed) return;
@@ -1901,18 +1916,16 @@ export function AdminCheckerDetail({ checkerId, data, actions, navigate, current
       activityStatus: nextActivityStatus,
     });
 
-    void updateSupabaseCheckerStatus({
+    const statusResult = await updateSupabaseCheckerStatus({
       checkerId: checker.supabaseCheckerId || checker.id,
       organizationId: adminSupabaseOrganizationId || checker.organizationId || null,
+      organization_id: adminSupabaseOrganizationId || checker.organization_id || checker.organizationId || null,
       status: nextActivityStatus,
       activityStatus: nextActivityStatus,
-    }).then((result) => {
-      if (!result.success) {
-        console.warn("[admin-checker-detail] SUPABASE_CHECKER_STATUS_SYNC_FAILED", {
-          code: result.code || null,
-        });
-      }
     });
+    if (!statusResult.success) {
+      warnSupabaseCheckerFailure("[admin-checker-detail] SUPABASE_CHECKER_STATUS_SYNC_FAILED", statusResult);
+    }
   }
 
   if (!checker || !checkerSummary) {
@@ -2084,7 +2097,7 @@ export function AdminCheckerEdit({ checkerId, data, actions, navigate, currentUs
     setForm((current) => ({ ...current, [key]: value }));
   }
 
-  function handleSubmit(event) {
+  async function handleSubmit(event) {
     event.preventDefault();
 
     const trimmedName = form.name.trim();
@@ -2114,24 +2127,23 @@ export function AdminCheckerEdit({ checkerId, data, actions, navigate, currentUs
       activityStatus: form.status,
     });
 
-    void updateSupabaseChecker({
+    const updateResult = await updateSupabaseChecker({
       checkerId: checker.supabaseCheckerId || checker.id,
       organizationId: adminSupabaseOrganizationId || checker.organizationId || null,
+      organization_id: adminSupabaseOrganizationId || checker.organization_id || checker.organizationId || null,
       username: checker.username || checker.loginId || "",
       loginId: checker.loginId || checker.username || "",
       name: trimmedName,
       phone: trimmedPhone,
       region: trimmedArea,
       area: trimmedArea,
+      email: checker.email || "",
       status: form.status,
       activityStatus: form.status,
-    }).then((result) => {
-      if (!result.success) {
-        console.warn("[admin-checker-edit] SUPABASE_CHECKER_SYNC_FAILED", {
-          code: result.code || null,
-        });
-      }
     });
+    if (!updateResult.success) {
+      warnSupabaseCheckerFailure("[admin-checker-edit] SUPABASE_CHECKER_SYNC_FAILED", updateResult);
+    }
 
     navigate(`/admin/checkers/${checker.id}`);
   }

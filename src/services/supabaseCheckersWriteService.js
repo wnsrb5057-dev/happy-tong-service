@@ -12,6 +12,8 @@ async function postCheckerWrite(path, payload, mode) {
       updated: false,
       checkerId: null,
       error: "Fetch API is not supported.",
+      message: "Fetch API is not supported.",
+      status: null,
       code: null,
     };
   }
@@ -33,6 +35,8 @@ async function postCheckerWrite(path, payload, mode) {
         updated: false,
         checkerId: null,
         error: result?.error || "Failed to save checker.",
+        message: result?.message || result?.error || "Failed to save checker.",
+        status: response.status,
         code: result?.code || null,
       };
     }
@@ -45,6 +49,8 @@ async function postCheckerWrite(path, payload, mode) {
       status: result?.status || null,
       activityStatus: result?.activityStatus || null,
       error: null,
+      message: result?.message || null,
+      status: response.status,
       code: null,
       mode,
     };
@@ -55,6 +61,8 @@ async function postCheckerWrite(path, payload, mode) {
       updated: false,
       checkerId: null,
       error: error instanceof Error ? error.message : "Failed to save checker.",
+      message: error instanceof Error ? error.message : "Failed to save checker.",
+      status: null,
       code: null,
     };
   }
