@@ -61,13 +61,13 @@ async function postCheckerWrite(path, payload, mode) {
 }
 
 export function createSupabaseChecker(payload) {
-  return postCheckerWrite("/api/checkers-create", payload, "create");
+  return postCheckerWrite("/api/checkers", { action: "create", ...payload }, "create");
 }
 
 export function updateSupabaseChecker(payload) {
-  return postCheckerWrite("/api/checkers-update", payload, "update");
+  return postCheckerWrite("/api/checkers", { action: "update", ...payload }, "update");
 }
 
 export function updateSupabaseCheckerStatus(payload) {
-  return postCheckerWrite("/api/checkers-update-status", payload, "update-status");
+  return postCheckerWrite("/api/checkers", { action: "updateStatus", ...payload }, "update-status");
 }
