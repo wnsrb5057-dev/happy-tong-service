@@ -56,9 +56,39 @@ function getSupabaseAdminClient() {
 
 function normalizeCheckerActivityStatus(value) {
   const normalized = String(value || "").trim().toLowerCase().replace(/\s+/g, "");
-  if (["paused", "inactive", "pause", "hold"].includes(normalized)) return "paused";
-  if (["left", "ended", "quit", "exit"].includes(normalized)) return "left";
-  if (["active", "normal", "ok"].includes(normalized)) return "active";
+  if ([
+    "paused",
+    "pause",
+    "inactive",
+    "hold",
+    "일시중지",
+    "중지",
+    "보류",
+    "휴면",
+    "비활성",
+  ].includes(normalized)) return "paused";
+  if ([
+    "left",
+    "leave",
+    "resigned",
+    "quit",
+    "ended",
+    "exit",
+    "활동종료",
+    "퇴사",
+    "탈퇴",
+    "종료",
+  ].includes(normalized)) return "left";
+  if ([
+    "active",
+    "normal",
+    "ok",
+    "활동중",
+    "정상",
+    "운영중",
+    "재개",
+    "활동재개",
+  ].includes(normalized)) return "active";
   return "active";
 }
 
@@ -66,8 +96,30 @@ function normalizeCheckerStatus(value, activityStatus) {
   const normalized = String(value || "").trim().toLowerCase().replace(/\s+/g, "");
   if (activityStatus === "active") return "active";
   if (activityStatus === "paused" || activityStatus === "left") return "inactive";
-  if (["inactive", "paused", "left", "ended", "pause"].includes(normalized)) return "inactive";
-  if (["active", "normal", "ok"].includes(normalized)) return "active";
+  if ([
+    "inactive",
+    "paused",
+    "pause",
+    "left",
+    "ended",
+    "일시중지",
+    "중지",
+    "비활성",
+    "활동종료",
+    "퇴사",
+    "탈퇴",
+    "종료",
+  ].includes(normalized)) return "inactive";
+  if ([
+    "active",
+    "normal",
+    "ok",
+    "활동중",
+    "정상",
+    "운영중",
+    "재개",
+    "활동재개",
+  ].includes(normalized)) return "active";
   return "active";
 }
 
