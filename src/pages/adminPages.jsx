@@ -62,6 +62,10 @@ import {
   updateSupabaseChecker,
   updateSupabaseCheckerStatus,
 } from "../services/supabaseCheckersWriteService.js";
+import {
+  saveSupabaseReport,
+  saveSupabaseReportDraft,
+} from "../services/supabaseReportsWriteService.js";
 
 function getToday() {
   const now = new Date();
@@ -324,6 +328,40 @@ function warnSupabaseCheckerFailure(source, result) {
     message: result?.message || result?.error || null,
     status: result?.status || null,
   });
+}
+
+function warnSupabaseReportFailure(source, result) {
+  console.warn(source, {
+    code: result?.code || null,
+    message: result?.message || result?.error || null,
+    status: result?.httpStatus || null,
+  });
+}
+
+function buildSupabaseAdminReportPayload(report, currentUser, organizationId, status) {
+  const safeCurrentUser = {
+    id: currentUser?.id || null,
+    userId: currentUser?.userId || null,
+    supabaseUserId: currentUser?.supabaseUserId || null,
+    organizationId: currentUser?.organizationId || null,
+    organization_id: currentUser?.organization_id || null,
+  };
+
+  return {
+    organizationId,
+    createdBy: currentUser?.supabaseUserId || currentUser?.id || currentUser?.userId || null,
+    title: report?.title || "",
+    periodStart: report?.periodStart || null,
+    periodEnd: report?.periodEnd || null,
+    summary: report?.adminOpinion || report?.overview || report?.summary || "",
+    actionNote: report?.actionTaken || "",
+    status,
+    reportData: {
+      ...report,
+      status,
+    },
+    currentUser: safeCurrentUser,
+  };
 }
 
 function getCheckerPhoneValue(checker) {
@@ -3871,7 +3909,7 @@ export function AdminReportNew({ data, actions, navigate, currentUser }) {
     setNotice('확인 기록 기반으로 보고서 초안 문장을 생성했습니다.');
   }
 
-  function handleGenerate() {
+  async function handleGenerate() {
     const report = getValidatedReportPayload();
     if (!report) return;
 
@@ -3879,15 +3917,29 @@ export function AdminReportNew({ data, actions, navigate, currentUser }) {
     saveReportDraft(report);
     setPreview(report);
     setNotice('보고서 미리보기가 생성되었습니다.');
+
+    const saveResult = await saveSupabaseReport(
+      buildSupabaseAdminReportPayload(report, currentUser, adminSupabaseOrganizationId, "completed")
+    );
+    if (!saveResult.success) {
+      warnSupabaseReportFailure("[admin-report-new] SUPABASE_REPORT_SYNC_FAILED", saveResult);
+    }
   }
 
-  function handlePrint() {
+  async function handlePrint() {
     const report = getValidatedReportPayload();
     if (!report) return;
 
     saveReportDraft(report);
     setPreview(report);
     setNotice('인쇄 화면에서 PDF로 저장할 수 있습니다.');
+
+    const draftResult = await saveSupabaseReportDraft(
+      buildSupabaseAdminReportPayload(report, currentUser, adminSupabaseOrganizationId, "draft")
+    );
+    if (!draftResult.success) {
+      warnSupabaseReportFailure("[admin-report-new] SUPABASE_REPORT_DRAFT_SYNC_FAILED", draftResult);
+    }
 
     window.setTimeout(() => {
       window.print();
