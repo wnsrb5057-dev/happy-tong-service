@@ -233,6 +233,43 @@ async function resolveOrganization(supabase, organizationId) {
   return data || null;
 }
 
+async function attachReportCreators(supabase, reports) {
+  const rows = Array.isArray(reports) ? reports : reports ? [reports] : [];
+  const createdByIds = uniqueValues(rows.map((row) => row?.created_by)).filter(isUuidLike);
+
+  if (!createdByIds.length) {
+    return Array.isArray(reports) ? rows : rows[0] || null;
+  }
+
+  const { data, error } = await supabase
+    .from("users")
+    .select("id, name, username, email, role")
+    .in("id", createdByIds);
+
+  if (error) {
+    console.warn("[reports] CREATED_BY_USER_LOOKUP_FAILED", {
+      code: error.code || null,
+      message: error.message || "Unknown Supabase error",
+      status: null,
+    });
+    return Array.isArray(reports) ? rows : rows[0] || null;
+  }
+
+  const usersById = new Map((Array.isArray(data) ? data : []).map((user) => [user.id, user]));
+  const withCreators = rows.map((row) => {
+    const user = usersById.get(row?.created_by);
+    return user
+      ? {
+          ...row,
+          created_by_name: user.name || user.username || user.email || "",
+          created_by_role: user.role || "",
+        }
+      : row;
+  });
+
+  return Array.isArray(reports) ? withCreators : withCreators[0] || null;
+}
+
 function buildReportPayload(body, status, createdBy = null) {
   const report = getReportSource(body);
   const reportData = buildReportData(body);
@@ -377,6 +414,63 @@ async function handleUpdateReport(supabase, body, res) {
   });
 }
 
+async function handleListReports(supabase, body, res) {
+  const organizationId = resolveOrganizationId(body);
+  const organization = await resolveOrganization(supabase, organizationId);
+  if (!organization) return respondWithError(res, 400, "ORGANIZATION_NOT_FOUND", "Failed to list reports.");
+
+  const { data, error } = await supabase
+    .from("admin_reports")
+    .select("id, organization_id, title, status, period_start, period_end, summary, action_note, report_data, created_by, created_at, updated_at")
+    .eq("organization_id", organization.id)
+    .order("updated_at", { ascending: false })
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    console.error("[reports] REPORT_LIST_FAILED", {
+      code: error.code || null,
+      message: error.message || "Unknown Supabase error",
+    });
+    return respondWithError(res, 500, "REPORT_LIST_FAILED", "Failed to list reports.");
+  }
+
+  const reports = await attachReportCreators(supabase, data || []);
+
+  return res.status(200).json({
+    success: true,
+    reports,
+    count: reports.length,
+  });
+}
+
+async function handleGetReport(supabase, body, res) {
+  const reportId = getReportId(body);
+  if (!reportId) return respondWithError(res, 400, "MISSING_REPORT_ID", "Failed to get report.");
+
+  const { data, error } = await supabase
+    .from("admin_reports")
+    .select("id, organization_id, title, status, period_start, period_end, summary, action_note, report_data, created_by, created_at, updated_at")
+    .eq("id", reportId)
+    .maybeSingle();
+
+  if (error) {
+    console.error("[reports] REPORT_GET_FAILED", {
+      code: error.code || null,
+      message: error.message || "Unknown Supabase error",
+    });
+    return respondWithError(res, 500, "REPORT_GET_FAILED", "Failed to get report.");
+  }
+
+  if (!data) return respondWithError(res, 404, "REPORT_NOT_FOUND", "Failed to get report.");
+
+  const report = await attachReportCreators(supabase, data);
+
+  return res.status(200).json({
+    success: true,
+    report,
+  });
+}
+
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     return res.status(405).json({
@@ -402,6 +496,14 @@ export default async function handler(req, res) {
 
     if (action === "updateReport") {
       return await handleUpdateReport(supabase, body, res);
+    }
+
+    if (action === "listReports") {
+      return await handleListReports(supabase, body, res);
+    }
+
+    if (action === "getReport") {
+      return await handleGetReport(supabase, body, res);
     }
 
     return res.status(400).json({

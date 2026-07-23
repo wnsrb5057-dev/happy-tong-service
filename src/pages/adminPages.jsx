@@ -51,6 +51,7 @@ import { getSupabaseAdminEmergencies, getSupabaseAdminEmergencyById } from "../s
 import { getSupabaseAdminActivityRecords } from "../services/supabaseAdminActivityRecordsService.js";
 import { getSupabaseAdminStatistics } from "../services/supabaseAdminStatisticsService.js";
 import { getSupabaseAdminReportSummary } from "../services/supabaseAdminReportSummaryService.js";
+import { getSupabaseAdminReportById } from "../services/supabaseAdminReportsReadService.js";
 import { updateSupabaseEmergencyStatus } from "../services/supabaseEmergencyStatusUpdateService.js";
 import {
   createSupabaseTarget,
@@ -336,6 +337,12 @@ function warnSupabaseReportFailure(source, result) {
     message: result?.message || result?.error || null,
     status: result?.httpStatus || null,
   });
+}
+
+function getAdminReportPreviewReportId() {
+  if (typeof window === "undefined") return "";
+  const params = new URLSearchParams(window.location.search);
+  return params.get("reportId") || params.get("id") || "";
 }
 
 function buildSupabaseAdminReportPayload(report, currentUser, organizationId, status) {
@@ -4074,35 +4081,61 @@ export function AdminReportNew({ data, actions, navigate, currentUser }) {
 }
 
 export function AdminReportPreview({ data, currentUser }) {
+  const previewReportId = useMemo(() => getAdminReportPreviewReportId(), []);
+  const [supabaseReportState, setSupabaseReportState] = useState({
+    loading: Boolean(previewReportId),
+    report: null,
+  });
   const savedReport = readReportDraft(generateReportDraft(data, "2026-06-10", getTodayFromStats()));
-  const reportInsights = buildReportInsights(data, savedReport.periodStart, savedReport.periodEnd);
+  const baseReport = supabaseReportState.report || savedReport;
+  const reportInsights = buildReportInsights(data, baseReport.periodStart, baseReport.periodEnd);
   const reportNarrative = buildReportNarrative(reportInsights);
   const report = {
-    ...savedReport,
-    totalTargets: reportInsights.operatingTargetCount,
-    totalCheckers: reportInsights.totalCheckers,
-    totalActivities: reportInsights.totalActivities,
-    externalCount: reportInsights.externalCount,
-    visitCount: reportInsights.visitCount,
-    callCount: reportInsights.callCount,
-    intensiveCount: reportInsights.intensiveCount,
-    emergencyCount: reportInsights.emergencyCount,
-    unresolvedEmergencyCount: reportInsights.unresolvedEmergencyCount,
-    dangerTargetCount: reportInsights.dangerTargetCount,
-    reassignmentNeededCount: reportInsights.reassignmentNeededCount,
-    reassignmentNeededTargets: reportInsights.reassignmentNeededTargets,
-    handlingSummary: reportInsights.handlingSummary,
-    recentEmergencies: reportInsights.recentEmergencies.map((item) => ({
+    ...baseReport,
+    totalTargets: baseReport.totalTargets ?? reportInsights.operatingTargetCount,
+    totalCheckers: baseReport.totalCheckers ?? reportInsights.totalCheckers,
+    totalActivities: baseReport.totalActivities ?? reportInsights.totalActivities,
+    externalCount: baseReport.externalCount ?? reportInsights.externalCount,
+    visitCount: baseReport.visitCount ?? reportInsights.visitCount,
+    callCount: baseReport.callCount ?? reportInsights.callCount,
+    intensiveCount: baseReport.intensiveCount ?? reportInsights.intensiveCount,
+    emergencyCount: baseReport.emergencyCount ?? reportInsights.emergencyCount,
+    unresolvedEmergencyCount: baseReport.unresolvedEmergencyCount ?? reportInsights.unresolvedEmergencyCount,
+    dangerTargetCount: baseReport.dangerTargetCount ?? reportInsights.dangerTargetCount,
+    reassignmentNeededCount: baseReport.reassignmentNeededCount ?? reportInsights.reassignmentNeededCount,
+    reassignmentNeededTargets: baseReport.reassignmentNeededTargets ?? reportInsights.reassignmentNeededTargets,
+    handlingSummary: baseReport.handlingSummary ?? reportInsights.handlingSummary,
+    recentEmergencies: (Array.isArray(baseReport.recentEmergencies) ? baseReport.recentEmergencies : reportInsights.recentEmergencies).map((item) => ({
       ...item,
       targetName: targetName(data.targets, item.targetId),
     })),
-    overview: savedReport.overview || reportNarrative.overview,
-    emergencySummary: savedReport.emergencySummary || reportNarrative.emergencySummary,
-    reassignmentSummary: savedReport.reassignmentSummary || reportNarrative.reassignmentSummary,
-    keyIssues: savedReport.keyIssues || reportNarrative.keyIssues,
-    actionTaken: savedReport.actionTaken || reportNarrative.actionTaken,
-    adminOpinion: savedReport.adminOpinion || reportNarrative.adminOpinion,
+    overview: baseReport.overview || reportNarrative.overview,
+    emergencySummary: baseReport.emergencySummary || reportNarrative.emergencySummary,
+    reassignmentSummary: baseReport.reassignmentSummary || reportNarrative.reassignmentSummary,
+    keyIssues: baseReport.keyIssues || reportNarrative.keyIssues,
+    actionTaken: baseReport.actionTaken || reportNarrative.actionTaken,
+    adminOpinion: baseReport.adminOpinion || reportNarrative.adminOpinion,
   };
+
+  useEffect(() => {
+    if (!previewReportId) return undefined;
+    let mounted = true;
+
+    async function loadReport() {
+      const result = await getSupabaseAdminReportById(previewReportId);
+      if (!mounted) return;
+      setSupabaseReportState({
+        loading: false,
+        report: result.success ? result.report : null,
+      });
+    }
+
+    loadReport();
+
+    return () => {
+      mounted = false;
+    };
+  }, [previewReportId]);
 
   return (
     <>
