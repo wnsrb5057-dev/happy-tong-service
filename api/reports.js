@@ -106,7 +106,7 @@ function resolveOrganizationId(body) {
   return isUuidLike(organizationId) ? organizationId : null;
 }
 
-function resolveCreatedBy(body) {
+function resolveCreatedByCandidate(body) {
   const report = getReportSource(body);
   const createdBy = trimOrNull(
     body?.createdBy ??
@@ -114,10 +114,110 @@ function resolveCreatedBy(body) {
       body?.currentUser?.id ??
       body?.currentUser?.userId ??
       body?.currentUser?.supabaseUserId ??
+      body?.currentUser?.publicUserId ??
       report?.createdBy
   );
 
   return isUuidLike(createdBy) ? createdBy : null;
+}
+
+function uniqueValues(values) {
+  return [...new Set(values.map((value) => trimOrNull(value)).filter(Boolean))];
+}
+
+function getCreatedByLookup(body) {
+  const reportData = buildReportData(body);
+  return {
+    authUserIds: uniqueValues([body?.currentUser?.authUserId, body?.authUserId, body?.auth_user_id]),
+    usernames: uniqueValues([body?.currentUser?.username, body?.username]),
+    emails: uniqueValues([body?.currentUser?.email, body?.email]),
+    names: uniqueValues([
+      body?.currentUser?.name,
+      body?.createdByName,
+      reportData?.createdByName,
+      reportData?.adminName,
+    ]),
+  };
+}
+
+function pickSingleUser(rows) {
+  return Array.isArray(rows) && rows.length === 1 ? rows[0] : null;
+}
+
+async function findAdminUserByColumn(supabase, organizationId, column, value) {
+  const candidate = trimOrNull(value);
+  if (!organizationId || !candidate) return null;
+
+  const { data, error } = await supabase
+    .from("users")
+    .select("id, role")
+    .eq("organization_id", organizationId)
+    .eq(column, candidate)
+    .in("role", ["admin", "super_admin"])
+    .limit(2);
+
+  if (error) {
+    console.warn("[reports] CREATED_BY_LOOKUP_FAILED", {
+      code: error.code || null,
+      message: error.message || "Unknown Supabase error",
+      status: null,
+    });
+    return null;
+  }
+
+  return pickSingleUser(data)?.id || null;
+}
+
+async function findSingleAdminUser(supabase, organizationId) {
+  if (!organizationId) return null;
+
+  const { data, error } = await supabase
+    .from("users")
+    .select("id, role")
+    .eq("organization_id", organizationId)
+    .in("role", ["admin", "super_admin"])
+    .limit(2);
+
+  if (error) {
+    console.warn("[reports] CREATED_BY_LOOKUP_FAILED", {
+      code: error.code || null,
+      message: error.message || "Unknown Supabase error",
+      status: null,
+    });
+    return null;
+  }
+
+  return pickSingleUser(data)?.id || null;
+}
+
+async function resolveCreatedBy(supabase, body, organizationId) {
+  const directCreatedBy = resolveCreatedByCandidate(body);
+  if (directCreatedBy) return directCreatedBy;
+  if (!organizationId) return null;
+
+  const lookup = getCreatedByLookup(body);
+
+  for (const authUserId of lookup.authUserIds) {
+    const userId = await findAdminUserByColumn(supabase, organizationId, "auth_user_id", authUserId);
+    if (userId) return userId;
+  }
+
+  for (const username of lookup.usernames) {
+    const userId = await findAdminUserByColumn(supabase, organizationId, "username", username);
+    if (userId) return userId;
+  }
+
+  for (const email of lookup.emails) {
+    const userId = await findAdminUserByColumn(supabase, organizationId, "email", email);
+    if (userId) return userId;
+  }
+
+  for (const name of lookup.names) {
+    const userId = await findAdminUserByColumn(supabase, organizationId, "name", name);
+    if (userId) return userId;
+  }
+
+  return findSingleAdminUser(supabase, organizationId);
 }
 
 async function resolveOrganization(supabase, organizationId) {
@@ -133,7 +233,7 @@ async function resolveOrganization(supabase, organizationId) {
   return data || null;
 }
 
-function buildReportPayload(body, status) {
+function buildReportPayload(body, status, createdBy = null) {
   const report = getReportSource(body);
   const reportData = buildReportData(body);
   const title = trimOrNull(body?.title ?? report?.title ?? reportData?.title);
@@ -163,7 +263,7 @@ function buildReportPayload(body, status) {
     summary,
     action_note: actionNote,
     report_data: reportData,
-    created_by: resolveCreatedBy(body),
+    created_by: createdBy,
     status,
     updated_at: new Date().toISOString(),
   };
@@ -179,9 +279,10 @@ async function insertReport(supabase, body, status) {
   const organizationId = resolveOrganizationId(body);
   const organization = await resolveOrganization(supabase, organizationId);
   if (!organization) throw createCodeError("ORGANIZATION_NOT_FOUND");
+  const createdBy = await resolveCreatedBy(supabase, body, organization.id);
 
   const payload = {
-    ...buildReportPayload(body, status),
+    ...buildReportPayload(body, status, createdBy),
     organization_id: organization.id,
   };
 
@@ -190,7 +291,7 @@ async function insertReport(supabase, body, status) {
   const { data, error } = await supabase
     .from("admin_reports")
     .insert(payload)
-    .select("id, status")
+    .select("id, status, created_by")
     .single();
 
   if (error) throw createCodeError("REPORT_SAVE_FAILED", error.message);
@@ -211,8 +312,9 @@ async function updateReport(supabase, reportId, body, statusFallback = null) {
   const nextStatus = requestedStatus
     ? normalizeReportStatus(requestedStatus, existingReport.status || statusFallback || "draft")
     : statusFallback || existingReport.status || "draft";
-  const payload = buildReportPayload(body, nextStatus);
-  if (!resolveCreatedBy(body)) {
+  const createdBy = await resolveCreatedBy(supabase, body, existingReport.organization_id);
+  const payload = buildReportPayload(body, nextStatus, createdBy);
+  if (!createdBy) {
     delete payload.created_by;
   }
   if (!payload.title) throw createCodeError("MISSING_REQUIRED_FIELDS");
@@ -221,7 +323,7 @@ async function updateReport(supabase, reportId, body, statusFallback = null) {
     .from("admin_reports")
     .update(payload)
     .eq("id", reportId)
-    .select("id, status")
+    .select("id, status, created_by")
     .single();
 
   if (error) throw createCodeError("REPORT_UPDATE_FAILED", error.message);
@@ -239,6 +341,7 @@ async function handleSaveDraft(supabase, body, res) {
     saved: true,
     reportId: savedReport.id,
     status: savedReport.status || "draft",
+    createdBy: savedReport.created_by || null,
   });
 }
 
@@ -255,6 +358,7 @@ async function handleSaveReport(supabase, body, res) {
     saved: true,
     reportId: savedReport.id,
     status: savedReport.status || status,
+    createdBy: savedReport.created_by || null,
   });
 }
 
@@ -269,6 +373,7 @@ async function handleUpdateReport(supabase, body, res) {
     updated: true,
     reportId: updatedReport.id,
     status: updatedReport.status || "draft",
+    createdBy: updatedReport.created_by || null,
   });
 }
 

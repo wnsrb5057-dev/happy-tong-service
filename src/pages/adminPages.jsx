@@ -343,6 +343,11 @@ function buildSupabaseAdminReportPayload(report, currentUser, organizationId, st
     id: currentUser?.id || null,
     userId: currentUser?.userId || null,
     supabaseUserId: currentUser?.supabaseUserId || null,
+    publicUserId: currentUser?.publicUserId || null,
+    authUserId: currentUser?.authUserId || null,
+    username: currentUser?.username || null,
+    email: currentUser?.email || null,
+    name: currentUser?.name || null,
     organizationId: currentUser?.organizationId || null,
     organization_id: currentUser?.organization_id || null,
   };
@@ -350,6 +355,9 @@ function buildSupabaseAdminReportPayload(report, currentUser, organizationId, st
   return {
     organizationId,
     createdBy: currentUser?.supabaseUserId || currentUser?.id || currentUser?.userId || null,
+    createdByName: currentUser?.name || currentUser?.username || currentUser?.email || null,
+    username: currentUser?.username || null,
+    email: currentUser?.email || null,
     title: report?.title || "",
     periodStart: report?.periodStart || null,
     periodEnd: report?.periodEnd || null,
