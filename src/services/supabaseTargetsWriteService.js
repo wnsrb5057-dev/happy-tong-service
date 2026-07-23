@@ -64,13 +64,13 @@ async function postTargetWrite(path, payload, mode) {
 }
 
 export function createSupabaseTarget(payload) {
-  return postTargetWrite("/api/targets/create", payload, "create");
+  return postTargetWrite("/api/targets", { action: "create", ...payload }, "create");
 }
 
 export function updateSupabaseTarget(payload) {
-  return postTargetWrite("/api/targets/update", payload, "update");
+  return postTargetWrite("/api/targets", { action: "update", ...payload }, "update");
 }
 
 export function updateSupabaseTargetStatus(payload) {
-  return postTargetWrite("/api/targets/update-status", payload, "update-status");
+  return postTargetWrite("/api/targets", { action: "updateStatus", ...payload }, "update-status");
 }
