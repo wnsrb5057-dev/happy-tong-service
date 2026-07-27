@@ -1,4 +1,4 @@
-import { isSupabaseConfigured, supabase } from "./supabaseClient.js";
+import { isSupabaseConfigured } from "./supabaseClient.js";
 
 const STATUS_LABEL_MAP = {
   received: "접수됨",
@@ -42,7 +42,7 @@ function normalizeRecentEmergency(item) {
 }
 
 export async function getSupabaseRecentEmergencySummaries() {
-  if (!isSupabaseConfigured || !supabase) {
+  if (!isSupabaseConfigured) {
     return {
       ok: false,
       source: "not_configured",
@@ -52,16 +52,21 @@ export async function getSupabaseRecentEmergencySummaries() {
   }
 
   try {
-    const { data, error } = await supabase.rpc("get_public_recent_emergency_summaries");
+    const response = await fetch("/api/super", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "getRecentEmergencySummaries" }),
+    });
+    const result = await response.json().catch(() => ({}));
 
-    if (error) {
-      throw error;
+    if (!response.ok || !result.success) {
+      throw new Error(result.message || result.error || "Failed to load recent emergency summaries.");
     }
 
     return {
       ok: true,
       source: "supabase",
-      emergencies: Array.isArray(data) ? data.map(normalizeRecentEmergency) : [],
+      emergencies: Array.isArray(result.emergencies) ? result.emergencies.map(normalizeRecentEmergency) : [],
       message: "Supabase 최근 이상징후 요약을 불러왔습니다.",
     };
   } catch (error) {

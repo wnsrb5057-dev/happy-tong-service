@@ -1,17 +1,17 @@
-import { isSupabaseConfigured, supabase } from "./supabaseClient.js";
+import { isSupabaseConfigured } from "./supabaseClient.js";
 
 function normalizeKpis(row) {
   return {
-    organizationCount: Number(row?.organization_count || 0),
-    activeTargetCount: Number(row?.active_target_count || 0),
-    checkerCount: Number(row?.checker_count || 0),
-    emergencyCount: Number(row?.emergency_count || 0),
-    unresolvedEmergencyCount: Number(row?.unresolved_emergency_count || 0),
+    organizationCount: Number(row?.organization_count || row?.organizationCount || 0),
+    activeTargetCount: Number(row?.active_target_count || row?.activeTargetCount || 0),
+    checkerCount: Number(row?.checker_count || row?.checkerCount || 0),
+    emergencyCount: Number(row?.emergency_count || row?.emergencyCount || 0),
+    unresolvedEmergencyCount: Number(row?.unresolved_emergency_count || row?.unresolvedEmergencyCount || 0),
   };
 }
 
 export async function getSupabaseSuperDashboardKpis() {
-  if (!isSupabaseConfigured || !supabase) {
+  if (!isSupabaseConfigured) {
     return {
       ok: false,
       source: "not_configured",
@@ -21,18 +21,21 @@ export async function getSupabaseSuperDashboardKpis() {
   }
 
   try {
-    const { data, error } = await supabase.rpc("get_public_super_dashboard_kpis");
+    const response = await fetch("/api/super", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "getDashboardKpis" }),
+    });
+    const result = await response.json().catch(() => ({}));
 
-    if (error) {
-      throw error;
+    if (!response.ok || !result.success) {
+      throw new Error(result.message || result.error || "Failed to load dashboard KPIs.");
     }
-
-    const row = Array.isArray(data) ? data[0] : data;
 
     return {
       ok: true,
       source: "supabase",
-      kpis: normalizeKpis(row),
+      kpis: normalizeKpis(result.kpis || {}),
       message: "Supabase 총관리자 KPI를 불러왔습니다.",
     };
   } catch (error) {

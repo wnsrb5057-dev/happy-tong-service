@@ -1,4 +1,4 @@
-import { isSupabaseConfigured, supabase } from "./supabaseClient.js";
+import { isSupabaseConfigured } from "./supabaseClient.js";
 
 const ORGANIZATION_STATUS_LABELS = {
   active: "운영중",
@@ -35,11 +35,11 @@ const EMERGENCY_SEVERITY_LABELS = {
 
 const ACTIVITY_RESULT_LABELS = {
   normal: "이상 없음",
-  caution: "관심 필요",
+  caution: "관리 필요",
   emergency: "이상징후",
   no_answer: "미응답",
   "이상 없음": "이상 없음",
-  "관심 필요": "관심 필요",
+  "관리 필요": "관리 필요",
   이상징후: "이상징후",
   미응답: "미응답",
 };
@@ -47,6 +47,7 @@ const ACTIVITY_RESULT_LABELS = {
 const CHECK_TYPE_LABELS = {
   visit: "방문",
   phone: "전화",
+  call: "전화",
   message: "메시지",
   방문: "방문",
   전화: "전화",
@@ -88,16 +89,19 @@ function normalizeRecentEmergency(item) {
 }
 
 function normalizeRecentActivityRecord(item) {
+  const checkType = item?.check_type || item?.checkType || "visit";
+  const resultStatus = item?.result_status || item?.resultStatus || "normal";
+
   return {
     id: item?.id,
     targetId: item?.target_id || item?.targetId || null,
     targetName: item?.target_name || item?.targetName || "대상자 정보 없음",
     checkerId: item?.checker_id || item?.checkerId || null,
     checkerName: item?.checker_name || item?.checkerName || "체커 정보 없음",
-    checkType: item?.check_type || item?.checkType || "visit",
-    checkTypeLabel: getCheckTypeLabel(item?.check_type || item?.checkType || "visit"),
-    resultStatus: item?.result_status || item?.resultStatus || "normal",
-    resultStatusLabel: getActivityResultStatusLabel(item?.result_status || item?.resultStatus || "normal"),
+    checkType,
+    checkTypeLabel: getCheckTypeLabel(checkType),
+    resultStatus,
+    resultStatusLabel: getActivityResultStatusLabel(resultStatus),
     checkedAt: item?.checked_at || item?.checkedAt || null,
   };
 }
@@ -138,7 +142,7 @@ function normalizeOrganizationDetail(row) {
 }
 
 export async function getSupabaseOrganizationDetail(organizationId) {
-  if (!isSupabaseConfigured || !supabase) {
+  if (!isSupabaseConfigured) {
     return {
       ok: false,
       source: "not_configured",
@@ -148,17 +152,29 @@ export async function getSupabaseOrganizationDetail(organizationId) {
   }
 
   try {
-    const { data, error } = await supabase.rpc("get_public_organization_detail", {
-      p_organization_id: organizationId,
+    const response = await fetch("/api/super", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "getOrganizationDetail",
+        organizationId,
+      }),
     });
+    const result = await response.json().catch(() => ({}));
 
-    if (error) {
-      throw error;
+    if (!response.ok || !result.success) {
+      if (result.code === "ORGANIZATION_NOT_FOUND") {
+        return {
+          ok: false,
+          source: "not_found",
+          organization: null,
+          message: "기관 정보를 찾을 수 없습니다.",
+        };
+      }
+      throw new Error(result.message || result.error || "Failed to load organization detail.");
     }
 
-    const row = Array.isArray(data) ? data[0] : data;
-
-    if (!row) {
+    if (!result.organization) {
       return {
         ok: false,
         source: "not_found",
@@ -170,7 +186,7 @@ export async function getSupabaseOrganizationDetail(organizationId) {
     return {
       ok: true,
       source: "supabase",
-      organization: normalizeOrganizationDetail(row),
+      organization: normalizeOrganizationDetail(result.organization),
       message: "Supabase 기관 상세 정보를 불러왔습니다.",
     };
   } catch (error) {

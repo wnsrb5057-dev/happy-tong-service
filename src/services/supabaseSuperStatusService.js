@@ -1,4 +1,4 @@
-import { isSupabaseConfigured, supabase } from "./supabaseClient.js";
+import { isSupabaseConfigured } from "./supabaseClient.js";
 
 const STATUS_LABEL_MAP = {
   active: "운영중",
@@ -47,7 +47,7 @@ function normalizeStatusRow(item) {
 }
 
 export async function getSupabaseSuperStatusSummaries() {
-  if (!isSupabaseConfigured || !supabase) {
+  if (!isSupabaseConfigured) {
     return {
       ok: false,
       source: "not_configured",
@@ -57,16 +57,21 @@ export async function getSupabaseSuperStatusSummaries() {
   }
 
   try {
-    const { data, error } = await supabase.rpc("get_public_super_status_summaries");
+    const response = await fetch("/api/super", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "getStatusSummaries" }),
+    });
+    const result = await response.json().catch(() => ({}));
 
-    if (error) {
-      throw error;
+    if (!response.ok || !result.success) {
+      throw new Error(result.message || result.error || "Failed to load status summaries.");
     }
 
     return {
       ok: true,
       source: "supabase",
-      statuses: Array.isArray(data) ? data.map(normalizeStatusRow) : [],
+      statuses: Array.isArray(result.statuses) ? result.statuses.map(normalizeStatusRow) : [],
       message: "Supabase 운영 상태 요약을 불러왔습니다.",
     };
   } catch (error) {

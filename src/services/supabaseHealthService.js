@@ -1,4 +1,4 @@
-import { isSupabaseConfigured, supabase } from "./supabaseClient.js";
+import { isSupabaseConfigured } from "./supabaseClient.js";
 
 function createStatusResult(overrides = {}) {
   return {
@@ -32,7 +32,7 @@ function buildConnectedStatus({ organizationCount, userCount, targetCount }) {
       configured: true,
       ok: true,
       status: "connected_but_restricted",
-      message: "Supabase 연결은 정상이나, RLS 정책 또는 anon 접근 제한으로 데이터가 표시되지 않을 수 있습니다.",
+      message: "Supabase 연결은 정상이나, 권한 제한으로 데이터가 표시되지 않을 수 있습니다.",
       organizationCount,
       userCount,
       targetCount,
@@ -52,66 +52,42 @@ function buildConnectedStatus({ organizationCount, userCount, targetCount }) {
   });
 }
 
-async function getTableCount(tableName) {
-  const { count, error } = await supabase.from(tableName).select("*", { count: "exact", head: true });
+async function getCountsFromApi() {
+  const response = await fetch("/api/super", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action: "getHealthCounts" }),
+  });
+  const result = await response.json().catch(() => ({}));
 
-  if (error) {
-    throw error;
+  if (!response.ok || !result.success) {
+    throw new Error(result.message || result.error || "Failed to load Supabase health counts.");
   }
 
-  return Number(count || 0);
-}
-
-async function getCountsFromRpc() {
-  const { data, error } = await supabase.rpc("get_public_health_counts");
-
-  if (error) {
-    throw error;
-  }
-
-  const row = Array.isArray(data) ? data[0] : data;
+  const row = result.healthCounts || {};
 
   return {
-    organizationCount: Number(row?.organization_count || 0),
-    userCount: Number(row?.user_count || 0),
-    targetCount: Number(row?.target_count || 0),
-  };
-}
-
-async function getCountsFromDirectQueries() {
-  const [organizationCount, userCount, targetCount] = await Promise.all([
-    getTableCount("organizations"),
-    getTableCount("users"),
-    getTableCount("targets"),
-  ]);
-
-  return {
-    organizationCount,
-    userCount,
-    targetCount,
+    organizationCount: Number(row?.organization_count || row?.organizationCount || 0),
+    userCount: Number(row?.user_count || row?.userCount || 0),
+    targetCount: Number(row?.target_count || row?.targetCount || 0),
   };
 }
 
 export async function getSupabaseConnectionStatus() {
-  if (!isSupabaseConfigured || !supabase) {
+  if (!isSupabaseConfigured) {
     return createStatusResult();
   }
 
   try {
-    const counts = await getCountsFromRpc();
+    const counts = await getCountsFromApi();
     return buildConnectedStatus(counts);
-  } catch (rpcError) {
-    try {
-      const counts = await getCountsFromDirectQueries();
-      return buildConnectedStatus(counts);
-    } catch (fallbackError) {
-      return createStatusResult({
-        configured: true,
-        ok: false,
-        status: "error",
-        message: fallbackError?.message || rpcError?.message || "Supabase 연결 확인 중 오류가 발생했습니다.",
-        checkedAt: new Date().toISOString(),
-      });
-    }
+  } catch (error) {
+    return createStatusResult({
+      configured: true,
+      ok: false,
+      status: "error",
+      message: error?.message || "Supabase 연결 확인 중 오류가 발생했습니다.",
+      checkedAt: new Date().toISOString(),
+    });
   }
 }
