@@ -145,16 +145,25 @@ export async function getSupabaseCheckerActivityHistory(checkerId) {
   }
 
   try {
-    const { data, error } = await supabase.rpc("get_public_checker_activity_history", {
-      p_checker_id: checkerId,
+    const response = await fetch("/api/checker-read", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "getActivityHistory",
+        checkerId,
+      }),
     });
+    const result = await response.json().catch(() => ({}));
 
-    if (error) {
-      throw error;
+    if (!response.ok || !result.success) {
+      throw new Error(result.message || result.error || "Failed to load checker activity history.");
     }
 
     const directRecords = await getDirectActivityRecords(checkerId);
-    const mergedRecords = mergeActivityRecords(Array.isArray(data) ? data : [], directRecords);
+    const mergedRecords = mergeActivityRecords(
+      Array.isArray(result.activityHistory) ? result.activityHistory : [],
+      directRecords
+    );
 
     return {
       ok: true,

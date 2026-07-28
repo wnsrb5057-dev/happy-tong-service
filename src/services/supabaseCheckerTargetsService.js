@@ -1,4 +1,4 @@
-import { isSupabaseConfigured, supabase } from "./supabaseClient.js";
+import { isSupabaseConfigured } from "./supabaseClient.js";
 
 function toNumber(value) {
   return Number(value || 0);
@@ -40,7 +40,7 @@ function normalizeTarget(item) {
 }
 
 export async function getSupabaseCheckerTargets(checkerId) {
-  if (!isSupabaseConfigured || !supabase) {
+  if (!isSupabaseConfigured) {
     return {
       ok: false,
       source: "not_configured",
@@ -59,18 +59,24 @@ export async function getSupabaseCheckerTargets(checkerId) {
   }
 
   try {
-    const { data, error } = await supabase.rpc("get_public_checker_targets", {
-      p_checker_id: checkerId,
+    const response = await fetch("/api/checker-read", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "getTargets",
+        checkerId,
+      }),
     });
+    const result = await response.json().catch(() => ({}));
 
-    if (error) {
-      throw error;
+    if (!response.ok || !result.success) {
+      throw new Error(result.message || result.error || "Failed to load checker targets.");
     }
 
     return {
       ok: true,
       source: "supabase",
-      targets: Array.isArray(data) ? data.map(normalizeTarget) : [],
+      targets: Array.isArray(result.targets) ? result.targets.map(normalizeTarget) : [],
       message: "Supabase 체커 대상자 목록을 불러왔습니다.",
     };
   } catch (error) {

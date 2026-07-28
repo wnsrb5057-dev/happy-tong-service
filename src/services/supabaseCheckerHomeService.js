@@ -1,4 +1,4 @@
-import { isSupabaseConfigured, supabase } from "./supabaseClient.js";
+import { isSupabaseConfigured } from "./supabaseClient.js";
 
 const RISK_LEVEL_LABELS = {
   normal: "정상",
@@ -147,7 +147,7 @@ function normalizeHome(row) {
 }
 
 export async function getSupabaseCheckerHome(checkerId) {
-  if (!isSupabaseConfigured || !supabase) {
+  if (!isSupabaseConfigured) {
     return {
       ok: false,
       source: "not_configured",
@@ -166,15 +166,21 @@ export async function getSupabaseCheckerHome(checkerId) {
   }
 
   try {
-    const { data, error } = await supabase.rpc("get_public_checker_home", {
-      p_checker_id: checkerId,
+    const response = await fetch("/api/checker-read", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "getHome",
+        checkerId,
+      }),
     });
+    const result = await response.json().catch(() => ({}));
 
-    if (error) {
-      throw error;
+    if (!response.ok || !result.success) {
+      throw new Error(result.message || result.error || "Failed to load checker home.");
     }
 
-    const row = Array.isArray(data) ? data[0] : data;
+    const row = result.home;
 
     if (!row) {
       return {
