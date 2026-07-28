@@ -59,7 +59,7 @@ export async function getSupabaseCheckerTargets(checkerId) {
   }
 
   try {
-    const response = await fetch("/api/checker-read", {
+    const response = await fetch("/api/checkers", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({

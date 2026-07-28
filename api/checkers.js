@@ -54,6 +54,18 @@ function getSupabaseAdminClient() {
   });
 }
 
+async function callCheckerReadRpc(supabase, rpcName, checkerId) {
+  const { data, error } = await supabase.rpc(rpcName, {
+    p_checker_id: checkerId,
+  });
+  if (error) throw error;
+  return data;
+}
+
+function firstRow(data) {
+  return Array.isArray(data) ? data[0] : data;
+}
+
 function normalizeCheckerActivityStatus(value) {
   const normalized = String(value || "").trim().toLowerCase().replace(/\s+/g, "");
   if ([
@@ -304,6 +316,51 @@ async function handleUpdateStatus(supabase, body, res) {
   });
 }
 
+async function handleReadAction(supabase, body, res, action) {
+  const checkerId = trimOrNull(body?.checkerId ?? body?.checker_id);
+  if (!checkerId) {
+    return res.status(400).json({
+      success: false,
+      code: "MISSING_CHECKER_ID",
+      message: "checkerId is required.",
+    });
+  }
+
+  if (action === "getHome") {
+    const data = await callCheckerReadRpc(supabase, "get_public_checker_home", checkerId);
+    return res.status(200).json({
+      success: true,
+      home: firstRow(data) || null,
+    });
+  }
+
+  if (action === "getTargets") {
+    const data = await callCheckerReadRpc(supabase, "get_public_checker_targets", checkerId);
+    return res.status(200).json({
+      success: true,
+      targets: Array.isArray(data) ? data : [],
+    });
+  }
+
+  if (action === "getActivityHistory") {
+    const data = await callCheckerReadRpc(supabase, "get_public_checker_activity_history", checkerId);
+    return res.status(200).json({
+      success: true,
+      activityHistory: Array.isArray(data) ? data : [],
+    });
+  }
+
+  if (action === "getActivityFormTargets") {
+    const data = await callCheckerReadRpc(supabase, "get_public_checker_activity_form_targets", checkerId);
+    return res.status(200).json({
+      success: true,
+      targets: Array.isArray(data) ? data : [],
+    });
+  }
+
+  return null;
+}
+
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     return res.status(405).json({
@@ -330,6 +387,14 @@ export default async function handler(req, res) {
     if (action === "create") return handleCreate(supabase, body, res);
     if (action === "update") return handleUpdate(supabase, body, res);
     if (action === "updateStatus") return handleUpdateStatus(supabase, body, res);
+    if (
+      action === "getHome" ||
+      action === "getTargets" ||
+      action === "getActivityHistory" ||
+      action === "getActivityFormTargets"
+    ) {
+      return handleReadAction(supabase, body, res, action);
+    }
 
     return res.status(400).json({
       success: false,
