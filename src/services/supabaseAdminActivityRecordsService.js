@@ -177,16 +177,25 @@ export async function getSupabaseAdminActivityRecords(organizationId) {
   }
 
   try {
-    const { data, error } = await supabase.rpc("get_public_admin_activity_records", {
-      p_organization_id: organizationId,
+    const response = await fetch("/api/admin-read", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "getActivityRecords",
+        organizationId,
+      }),
     });
+    const result = await response.json().catch(() => ({}));
 
-    if (error) {
-      throw error;
+    if (!response.ok || !result.success) {
+      throw new Error(result.message || result.error || "Failed to load admin activity records.");
     }
 
     const directRecords = await getDirectActivityRecords(organizationId);
-    const mergedRecords = mergeActivityRecords(Array.isArray(data) ? data : [], directRecords);
+    const mergedRecords = mergeActivityRecords(
+      Array.isArray(result.activityRecords) ? result.activityRecords : [],
+      directRecords
+    );
 
     return {
       ok: true,

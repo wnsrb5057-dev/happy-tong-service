@@ -1,4 +1,4 @@
-import { isSupabaseConfigured, supabase } from "./supabaseClient.js";
+import { isSupabaseConfigured } from "./supabaseClient.js";
 
 const CHECK_TYPE_LABELS = {
   visit: "방문",
@@ -137,7 +137,7 @@ function normalizeSummary(row) {
 }
 
 export async function getSupabaseAdminReportSummary(organizationId) {
-  if (!isSupabaseConfigured || !supabase) {
+  if (!isSupabaseConfigured) {
     return {
       ok: false,
       source: "not_configured",
@@ -156,15 +156,21 @@ export async function getSupabaseAdminReportSummary(organizationId) {
   }
 
   try {
-    const { data, error } = await supabase.rpc("get_public_admin_report_summary", {
-      p_organization_id: organizationId,
+    const response = await fetch("/api/admin-read", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "getReportSummary",
+        organizationId,
+      }),
     });
+    const result = await response.json().catch(() => ({}));
 
-    if (error) {
-      throw error;
+    if (!response.ok || !result.success) {
+      throw new Error(result.message || result.error || "Failed to load admin report summary.");
     }
 
-    const row = Array.isArray(data) ? data[0] : data;
+    const row = result.reportSummary;
 
     if (!row) {
       return {

@@ -1,4 +1,4 @@
-import { isSupabaseConfigured, supabase } from "./supabaseClient.js";
+import { isSupabaseConfigured } from "./supabaseClient.js";
 
 const CHECK_TYPE_LABELS = {
   visit: "방문",
@@ -107,7 +107,7 @@ function normalizeStatistics(row) {
 }
 
 export async function getSupabaseAdminStatistics(organizationId) {
-  if (!isSupabaseConfigured || !supabase) {
+  if (!isSupabaseConfigured) {
     return {
       ok: false,
       source: "not_configured",
@@ -126,15 +126,21 @@ export async function getSupabaseAdminStatistics(organizationId) {
   }
 
   try {
-    const { data, error } = await supabase.rpc("get_public_admin_statistics", {
-      p_organization_id: organizationId,
+    const response = await fetch("/api/admin-read", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "getStatistics",
+        organizationId,
+      }),
     });
+    const result = await response.json().catch(() => ({}));
 
-    if (error) {
-      throw error;
+    if (!response.ok || !result.success) {
+      throw new Error(result.message || result.error || "Failed to load admin statistics.");
     }
 
-    const row = Array.isArray(data) ? data[0] : data;
+    const row = result.statistics;
 
     if (!row) {
       return {

@@ -136,18 +136,24 @@ export async function getSupabaseAdminEmergencies(organizationId) {
   }
 
   try {
-    const { data, error } = await supabase.rpc("get_public_admin_emergencies", {
-      p_organization_id: organizationId,
+    const response = await fetch("/api/admin-read", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "getEmergencies",
+        organizationId,
+      }),
     });
+    const result = await response.json().catch(() => ({}));
 
-    if (error) {
-      throw error;
+    if (!response.ok || !result.success) {
+      throw new Error(result.message || result.error || "Failed to load admin emergencies.");
     }
 
     return {
       ok: true,
       source: "supabase",
-      emergencies: Array.isArray(data) ? data.map(normalizeEmergency) : [],
+      emergencies: Array.isArray(result.emergencies) ? result.emergencies.map(normalizeEmergency) : [],
       message: "Supabase 이상징후 목록을 불러왔습니다.",
     };
   } catch (error) {
