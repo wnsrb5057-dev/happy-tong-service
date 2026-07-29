@@ -18,12 +18,15 @@ export async function updateSupabaseEmergencyStatus(payload) {
   }
 
   try {
-    const response = await win.fetch("/api/emergency-reports/update-status", {
+    const response = await win.fetch("/api/emergency-reports", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify(payload),
+      body: JSON.stringify({
+        action: "updateStatus",
+        ...payload,
+      }),
     });
 
     const result = await response.json().catch(() => null);

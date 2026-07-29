@@ -17,12 +17,15 @@ export async function createSupabaseEmergencyReport(payload) {
   }
 
   try {
-    const response = await win.fetch("/api/emergency-reports/create", {
+    const response = await win.fetch("/api/emergency-reports", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify(payload),
+      body: JSON.stringify({
+        action: "create",
+        ...payload,
+      }),
     });
 
     const result = await response.json().catch(() => null);
