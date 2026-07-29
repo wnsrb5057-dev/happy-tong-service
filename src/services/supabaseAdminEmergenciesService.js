@@ -1,4 +1,4 @@
-import { isSupabaseConfigured, supabase } from "./supabaseClient.js";
+import { isSupabaseConfigured } from "./supabaseClient.js";
 
 const SEVERITY_LABELS = {
   normal: "일반",
@@ -102,22 +102,26 @@ function normalizeEmergency(item) {
 }
 
 async function getSupabaseEmergencyHandlingLogs(organizationId, emergencyId) {
-  const { data, error } = await supabase
-    .from("emergency_handling_logs")
-    .select("id, emergency_report_id, organization_id, status, memo, contacted_guardian, visit_required, created_by, created_by_name, created_at")
-    .eq("organization_id", organizationId)
-    .eq("emergency_report_id", emergencyId)
-    .order("created_at", { ascending: false });
+  const response = await fetch("/api/admin-read", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      action: "getEmergencyHandlingLogs",
+      organizationId,
+      reportId: emergencyId,
+    }),
+  });
+  const result = await response.json().catch(() => ({}));
 
-  if (error) {
-    throw error;
+  if (!response.ok || !result.success) {
+    throw new Error(result.message || result.error || "Failed to load emergency handling logs.");
   }
 
-  return Array.isArray(data) ? data.map(normalizeHandlingLog) : [];
+  return Array.isArray(result.handlingLogs) ? result.handlingLogs.map(normalizeHandlingLog) : [];
 }
 
 export async function getSupabaseAdminEmergencies(organizationId) {
-  if (!isSupabaseConfigured || !supabase) {
+  if (!isSupabaseConfigured) {
     return {
       ok: false,
       source: "not_configured",

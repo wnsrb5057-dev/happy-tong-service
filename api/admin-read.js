@@ -143,6 +143,18 @@ async function getAdminActivityRecords(supabase, organizationId) {
   return enrichTargetAddresses(supabase, await enrichActivityRecordColumns(supabase, mergedRecords));
 }
 
+async function getEmergencyHandlingLogs(supabase, organizationId, reportId) {
+  const { data, error } = await supabase
+    .from("emergency_handling_logs")
+    .select("id, emergency_report_id, organization_id, status, memo, contacted_guardian, visit_required, created_by, created_by_name, created_at")
+    .eq("organization_id", organizationId)
+    .eq("emergency_report_id", reportId)
+    .order("created_at", { ascending: false });
+
+  if (error) throw error;
+  return Array.isArray(data) ? data : [];
+}
+
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     return res.status(405).json({
@@ -158,6 +170,7 @@ export default async function handler(req, res) {
     "getDashboard",
     "getTargets",
     "getEmergencies",
+    "getEmergencyHandlingLogs",
     "getActivityRecords",
     "getStatistics",
     "getReportSummary",
@@ -175,6 +188,7 @@ export default async function handler(req, res) {
   if (!organizationId) {
     return respondWithError(res, 400, "MISSING_ORGANIZATION_ID", "organizationId is required.");
   }
+  const reportId = body.reportId || body.report_id || body.emergencyReportId || body.emergency_report_id;
 
   try {
     const supabase = getSupabaseAdminClient();
@@ -200,6 +214,18 @@ export default async function handler(req, res) {
       return res.status(200).json({
         success: true,
         emergencies: Array.isArray(data) ? data : [],
+      });
+    }
+
+    if (action === "getEmergencyHandlingLogs") {
+      if (!reportId) {
+        return respondWithError(res, 400, "MISSING_REPORT_ID", "reportId is required.");
+      }
+
+      const data = await getEmergencyHandlingLogs(supabase, organizationId, reportId);
+      return res.status(200).json({
+        success: true,
+        handlingLogs: Array.isArray(data) ? data : [],
       });
     }
 
