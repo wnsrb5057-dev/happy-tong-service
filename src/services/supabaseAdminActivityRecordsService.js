@@ -1,4 +1,4 @@
-import { isSupabaseConfigured, supabase } from "./supabaseClient.js";
+import { isSupabaseConfigured } from "./supabaseClient.js";
 
 function optionalBoolean(value) {
   if (value === true || value === false) {
@@ -77,88 +77,8 @@ function normalizeRecord(item) {
   };
 }
 
-async function enrichTargetAddresses(records) {
-  const targetIds = [...new Set(records.map((record) => record.targetId).filter(Boolean))];
-
-  if (!targetIds.length) {
-    return records;
-  }
-
-  const { data, error } = await supabase
-    .from("targets")
-    .select("id, address")
-    .in("id", targetIds);
-
-  if (error || !Array.isArray(data)) {
-    return records;
-  }
-
-  const addressByTargetId = new Map(data.map((target) => [target.id, target.address || ""]));
-  return records.map((record) => {
-    const supabaseTargetAddress = addressByTargetId.get(record.targetId) || "";
-
-    return {
-      ...record,
-      supabaseTargetAddress,
-      supabase_target_address: supabaseTargetAddress,
-    };
-  });
-}
-
-async function enrichActivityRecordColumns(records) {
-  const ids = records.map((record) => record.id).filter(Boolean);
-
-  if (!ids.length) {
-    return records;
-  }
-
-  const { data, error } = await supabase
-    .from("activity_records")
-    .select("id, has_issue, issue_level, check_items, status, condition_summary, memo")
-    .in("id", ids);
-
-  if (error || !Array.isArray(data)) {
-    return records;
-  }
-
-  const extraById = new Map(data.map((item) => [item.id, item]));
-  return records.map((record) => normalizeRecord({ ...record, ...(extraById.get(record.id) || {}) }));
-}
-
-async function getDirectActivityRecords(organizationId) {
-  const { data, error } = await supabase
-    .from("activity_records")
-    .select("id, organization_id, target_id, checker_id, check_type, checked_at, created_at, has_issue, issue_level, check_items, status, condition_summary, memo")
-    .eq("organization_id", organizationId)
-    .order("checked_at", { ascending: false });
-
-  if (error || !Array.isArray(data)) {
-    return [];
-  }
-
-  return data;
-}
-
-function mergeActivityRecords(rpcItems, directItems) {
-  const mergedById = new Map();
-
-  rpcItems.forEach((item) => {
-    if (item?.id) {
-      mergedById.set(item.id, item);
-    }
-  });
-
-  directItems.forEach((item) => {
-    if (item?.id) {
-      mergedById.set(item.id, { ...(mergedById.get(item.id) || {}), ...item });
-    }
-  });
-
-  return Array.from(mergedById.values());
-}
-
 export async function getSupabaseAdminActivityRecords(organizationId) {
-  if (!isSupabaseConfigured || !supabase) {
+  if (!isSupabaseConfigured) {
     return {
       ok: false,
       source: "not_configured",
@@ -191,16 +111,10 @@ export async function getSupabaseAdminActivityRecords(organizationId) {
       throw new Error(result.message || result.error || "Failed to load admin activity records.");
     }
 
-    const directRecords = await getDirectActivityRecords(organizationId);
-    const mergedRecords = mergeActivityRecords(
-      Array.isArray(result.activityRecords) ? result.activityRecords : [],
-      directRecords
-    );
-
     return {
       ok: true,
       source: "supabase",
-      records: await enrichTargetAddresses(await enrichActivityRecordColumns(mergedRecords.map(normalizeRecord))),
+      records: Array.isArray(result.activityRecords) ? result.activityRecords.map(normalizeRecord) : [],
       message: "Supabase 확인기록 목록을 불러왔습니다.",
     };
   } catch (error) {
