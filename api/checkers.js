@@ -66,6 +66,95 @@ function firstRow(data) {
   return Array.isArray(data) ? data[0] : data;
 }
 
+async function getDirectCheckerActivityRecords(supabase, checkerId) {
+  const { data, error } = await supabase
+    .from("activity_records")
+    .select("id, organization_id, target_id, checker_id, check_type, checked_at, created_at, has_issue, issue_level, check_items, status, condition_summary, memo")
+    .eq("checker_id", checkerId)
+    .order("checked_at", { ascending: false });
+
+  if (error || !Array.isArray(data)) {
+    return [];
+  }
+
+  return data;
+}
+
+function getRecordId(record) {
+  return record?.id || "";
+}
+
+function getRecordTargetId(record) {
+  return record?.target_id || record?.targetId || "";
+}
+
+function mergeActivityRecords(primaryItems, directItems) {
+  const mergedById = new Map();
+
+  primaryItems.forEach((item) => {
+    const id = getRecordId(item);
+    if (id) mergedById.set(id, item);
+  });
+
+  directItems.forEach((item) => {
+    const id = getRecordId(item);
+    if (id) mergedById.set(id, { ...(mergedById.get(id) || {}), ...item });
+  });
+
+  return Array.from(mergedById.values());
+}
+
+async function enrichActivityRecordColumns(supabase, records) {
+  const ids = records.map(getRecordId).filter(Boolean);
+  if (!ids.length) return records;
+
+  const { data, error } = await supabase
+    .from("activity_records")
+    .select("id, has_issue, issue_level, check_items, status, condition_summary, memo")
+    .in("id", ids);
+
+  if (error || !Array.isArray(data)) {
+    return records;
+  }
+
+  const extraById = new Map(data.map((item) => [item.id, item]));
+  return records.map((record) => ({
+    ...record,
+    ...(extraById.get(getRecordId(record)) || {}),
+  }));
+}
+
+async function enrichTargetAddresses(supabase, records) {
+  const targetIds = [...new Set(records.map(getRecordTargetId).filter(Boolean))];
+  if (!targetIds.length) return records;
+
+  const { data, error } = await supabase
+    .from("targets")
+    .select("id, address")
+    .in("id", targetIds);
+
+  if (error || !Array.isArray(data)) {
+    return records;
+  }
+
+  const addressByTargetId = new Map(data.map((target) => [target.id, target.address || ""]));
+  return records.map((record) => {
+    const targetAddress = addressByTargetId.get(getRecordTargetId(record)) || "";
+    return {
+      ...record,
+      supabase_target_address: targetAddress,
+      supabaseTargetAddress: targetAddress,
+    };
+  });
+}
+
+async function getCheckerActivityHistory(supabase, checkerId) {
+  const rpcData = await callCheckerReadRpc(supabase, "get_public_checker_activity_history", checkerId);
+  const directRecords = await getDirectCheckerActivityRecords(supabase, checkerId);
+  const mergedRecords = mergeActivityRecords(Array.isArray(rpcData) ? rpcData : [], directRecords);
+  return enrichTargetAddresses(supabase, await enrichActivityRecordColumns(supabase, mergedRecords));
+}
+
 function normalizeCheckerActivityStatus(value) {
   const normalized = String(value || "").trim().toLowerCase().replace(/\s+/g, "");
   if ([
@@ -343,7 +432,7 @@ async function handleReadAction(supabase, body, res, action) {
   }
 
   if (action === "getActivityHistory") {
-    const data = await callCheckerReadRpc(supabase, "get_public_checker_activity_history", checkerId);
+    const data = await getCheckerActivityHistory(supabase, checkerId);
     return res.status(200).json({
       success: true,
       activityHistory: Array.isArray(data) ? data : [],
